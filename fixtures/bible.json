@@ -1,0 +1,129 @@
+{
+  "projectId": "proj-fixture",
+  "version": 1,
+  "characters": [
+    {
+      "id": "marcus",
+      "name": "Marcus",
+      "role": "protagonist",
+      "physicalDescription": "Weathered hands, crooked nose from a break that never healed right. Gray at the temples. Moves like someone who learned to take up less space than he occupies.",
+      "backstory": "Former boxer turned bartender. Left the ring after accidentally blinding an opponent. Carries the guilt like a physical weight.",
+      "selfNarrative": "Believes he's a reformed man. Believes the violence is behind him.",
+      "contradictions": ["Still sizes up every man who walks through the door", "Keeps his hands wrapped when alone"],
+      "voice": {
+        "sentenceLengthRange": [6, 14],
+        "vocabularyNotes": "Blue-collar precise. Uses trade terms from boxing and bartending. Never reaches for a fancy word when a plain one works. Avoids abstractions.",
+        "verbalTics": ["trailing off mid-sentence", "answering questions with questions"],
+        "metaphoricRegister": "machinery, water, weight",
+        "prohibitedLanguage": ["literally", "amazing", "incredible", "honestly"],
+        "dialogueSamples": [
+          "You ever notice how the ice never melts the same way twice?",
+          "That's not what I said. That's what you heard.",
+          "Some nights the bar closes itself. You just have to notice."
+        ]
+      },
+      "behavior": {
+        "stressResponse": "Goes still, speaks slower, hands find something to clean",
+        "socialPosture": "Occupies the edge of conversations, draws people out",
+        "noticesFirst": "Hands. Always looks at someone's hands first.",
+        "lyingStyle": "Omits rather than fabricates. Changes the subject with a question.",
+        "emotionPhysicality": "Jaw tightens. Hands go to pockets or find a glass to polish. Never raises his voice — gets quieter instead."
+      }
+    },
+    {
+      "id": "elena",
+      "name": "Elena",
+      "role": "supporting",
+      "physicalDescription": "Sharp cheekbones, dark eyes that catalogue everything. Thin silver ring she turns when thinking. Dresses like she has somewhere better to be.",
+      "backstory": "Journalist who got too close to a story and lost her editor's trust. Here because Marcus is the only source who never lied to her.",
+      "selfNarrative": null,
+      "contradictions": null,
+      "voice": {
+        "sentenceLengthRange": [4, 20],
+        "vocabularyNotes": "Educated, precise. Uses longer sentences when deflecting, shorter when genuine. Occasional journalistic jargon slips through.",
+        "verbalTics": ["uses people's names mid-sentence as emphasis", "rhetorical restatements"],
+        "metaphoricRegister": "architecture, light and shadow",
+        "prohibitedLanguage": ["like (as filler)", "basically", "I feel like"],
+        "dialogueSamples": [
+          "Marcus. That's not an answer and we both know it.",
+          "Three sources, all independent, all saying the same thing."
+        ]
+      },
+      "behavior": null
+    }
+  ],
+  "styleGuide": {
+    "metaphoricRegister": {
+      "approvedDomains": ["machinery", "water", "weight", "architecture"],
+      "prohibitedDomains": ["flowers", "sunshine", "music (unless diegetic)", "weather as mood"]
+    },
+    "vocabularyPreferences": [
+      { "preferred": "calcified", "insteadOf": "hardened" },
+      { "preferred": "guttered", "insteadOf": "flickered" },
+      { "preferred": "settled", "insteadOf": "sat down" }
+    ],
+    "sentenceArchitecture": {
+      "targetVariance": "High variance — alternate between 4-word punches and 20-word observations",
+      "fragmentPolicy": "Fragments allowed for rhythm. Max 2 consecutive.",
+      "notes": "Avoid three consecutive sentences of similar length."
+    },
+    "paragraphPolicy": {
+      "maxSentences": 5,
+      "singleSentenceFrequency": "Every 3rd or 4th paragraph should be a single sentence",
+      "notes": "Dialogue paragraphs exempt from length rules"
+    },
+    "killList": [
+      { "pattern": "a sense of", "type": "exact" },
+      { "pattern": "palpable tension", "type": "exact" },
+      { "pattern": "couldn't help but", "type": "exact" },
+      { "pattern": "let out a breath", "type": "exact" },
+      { "pattern": "he didn't know what to say", "type": "exact" }
+    ],
+    "negativeExemplars": [
+      {
+        "text": "She felt a wave of sadness wash over her as she realized the magnitude of what had happened.",
+        "annotation": "Telling not showing. Named emotion. Cliché metaphor (wave/wash)."
+      }
+    ],
+    "positiveExemplars": [
+      {
+        "text": "The glass sweated in his grip. He set it down too carefully, the way you handle something you're thinking about throwing.",
+        "annotation": "Embodied detail. Subtext through physical action. Tension without naming it."
+      }
+    ],
+    "structuralBans": [
+      "Never end a paragraph on a stated emotion",
+      "Never have a character explain their own motivations aloud",
+      "Never use weather to establish mood unless the weather is plot-relevant"
+    ]
+  },
+  "narrativeRules": {
+    "pov": {
+      "default": "close-third",
+      "distance": "intimate",
+      "interiority": "filtered",
+      "reliability": "reliable",
+      "notes": "Marcus only. We see everything through his perception but never get direct thought transcription."
+    },
+    "subtextPolicy": "Characters never state the actual topic of conversation. Subtext must remain sub.",
+    "expositionPolicy": "Drip-feed only. No character explains backstory unprompted. Information emerges through implication and half-statements.",
+    "sceneEndingPolicy": "End on action or image, never on reflection or summary. The last sentence should be concrete.",
+    "setups": []
+  },
+  "locations": [
+    {
+      "id": "loc-bar",
+      "name": "The Bar",
+      "description": "A dive bar that's outlived three owners and two neighborhoods. Not charming — enduring.",
+      "sensoryPalette": {
+        "sounds": ["ice shifting in a glass", "the low hum of a dying cooler", "chair legs on concrete floor"],
+        "smells": ["old wood and lemon cleaner", "spilled beer soaked into concrete", "cigarette ghost from the ban era"],
+        "textures": ["sticky lacquer on the bar top", "cracked leather on the corner booth", "cold condensation on glass"],
+        "lightQuality": "Amber from neon beer signs filtered through years of nicotine film on the windows. Pools of light, not general illumination.",
+        "atmosphere": "A place where silence is comfortable and conversation is optional",
+        "prohibitedDefaults": ["dim lighting", "clink of glasses", "smoky atmosphere", "a jukebox played softly"]
+      }
+    }
+  ],
+  "createdAt": "2025-01-01T00:00:00.000Z"
+}

@@ -1,0 +1,29 @@
+{
+  "projectId": "proj-minimal",
+  "version": 1,
+  "characters": [],
+  "styleGuide": {
+    "metaphoricRegister": null,
+    "vocabularyPreferences": [],
+    "sentenceArchitecture": null,
+    "paragraphPolicy": null,
+    "killList": [],
+    "negativeExemplars": [],
+    "positiveExemplars": [],
+    "structuralBans": []
+  },
+  "narrativeRules": {
+    "pov": {
+      "default": "close-third",
+      "distance": "close",
+      "interiority": "filtered",
+      "reliability": "reliable"
+    },
+    "subtextPolicy": null,
+    "expositionPolicy": null,
+    "sceneEndingPolicy": null,
+    "setups": []
+  },
+  "locations": [],
+  "createdAt": "2025-01-01T00:00:00.000Z"
+}

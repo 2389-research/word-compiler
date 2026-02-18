@@ -1,0 +1,64 @@
+{
+  "id": "scene-bar-001",
+  "projectId": "proj-fixture",
+  "chapterId": null,
+  "title": "The Bar",
+  "povCharacterId": "marcus",
+  "povDistance": "intimate",
+  "narrativeGoal": "Establish the tension between Marcus and Elena — she needs something from him, he knows it, and both are pretending this is just a drink.",
+  "emotionalBeat": "Wary familiarity collapsing into unease",
+  "readerEffect": "Feel the weight of shared history and the distance that's grown in it",
+  "readerStateEntering": {
+    "knows": ["Marcus owns a bar", "Elena is a journalist"],
+    "suspects": ["They have a complicated history"],
+    "wrongAbout": ["Elena's real reason for visiting"],
+    "activeTensions": ["What does Elena actually want?"]
+  },
+  "readerStateExiting": {
+    "knows": ["Marcus owns a bar", "Elena is investigating something dangerous", "Marcus knows more than he's saying"],
+    "suspects": ["Marcus is protecting someone", "Elena is desperate"],
+    "wrongAbout": [],
+    "activeTensions": ["Will Marcus help her?", "What is he hiding?"]
+  },
+  "characterKnowledgeChanges": {
+    "marcus": "Learns Elena is in real danger, not just chasing a story",
+    "elena": "Learns Marcus still has contacts he claims to have left behind"
+  },
+  "subtext": {
+    "surfaceConversation": "Two old acquaintances catching up over drinks",
+    "actualConversation": "Elena testing whether Marcus can still be trusted; Marcus deciding whether to get involved",
+    "enforcementRule": "Neither character may directly state that Elena needs Marcus's help or that Marcus is considering whether to give it"
+  },
+  "dialogueConstraints": {
+    "marcus": ["Guarded but not hostile", "Deflects direct questions", "Uses the bar work as escape from conversation"],
+    "elena": ["Professional composure cracking at edges", "Tries journalistic technique before dropping to genuine", "Uses his name as a weapon"]
+  },
+  "pacing": "Slow build. Long pauses. Let the bar fill the silence.",
+  "density": "moderate",
+  "sensoryNotes": "Ground every exchange in physical detail — what hands are doing, what the ice is doing, the quality of light shifting.",
+  "sceneSpecificProhibitions": [
+    "No flashbacks — history emerges only through present-tense implication",
+    "No internal monologue from Elena — we're in Marcus's POV only"
+  ],
+  "anchorLines": [
+    {
+      "text": "You ever notice how the ice never melts the same way twice?",
+      "placement": "Early — Marcus's deflection when Elena first probes",
+      "verbatim": true
+    },
+    {
+      "text": "She set down her glass the way you put down something you're done pretending to enjoy.",
+      "placement": "Final third, the moment the pretense drops",
+      "verbatim": true
+    }
+  ],
+  "estimatedWordCount": [800, 1200],
+  "chunkCount": 3,
+  "chunkDescriptions": [
+    "Arrival and setup — Elena enters, initial exchange, the pretense of casual",
+    "The conversation — probing, deflecting, the subtext thickening",
+    "The turn — pretense drops, something real surfaces, scene ends on action"
+  ],
+  "failureModeToAvoid": "Characters stating their emotions or motivations directly. The scene must work through behavior and dialogue subtext, never through internal explanation.",
+  "locationId": "loc-bar"
+}

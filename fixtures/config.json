@@ -1,0 +1,17 @@
+{
+  "modelContextWindow": 200000,
+  "reservedForOutput": 2000,
+  "ring1MaxFraction": 0.15,
+  "ring2MaxFraction": 0.25,
+  "ring3MinFraction": 0.60,
+  "ring1HardCap": 2000,
+  "bridgeVerbatimTokens": 200,
+  "bridgeIncludeStateBullets": true,
+  "maxNegativeExemplarTokens": 80,
+  "maxNegativeExemplars": 2,
+  "maxPositiveExemplars": 2,
+  "defaultTemperature": 0.8,
+  "defaultTopP": 0.92,
+  "defaultModel": "claude-sonnet-4-6",
+  "sceneTypeOverrides": {}
+}

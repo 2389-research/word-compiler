@@ -1,0 +1,14 @@
+{
+  "id": "chunk-001",
+  "sceneId": "scene-bar-001",
+  "sequenceNumber": 0,
+  "generatedText": "The door opened wrong. Not the way regulars opened it — shoulder first, already talking — but careful. Considered. Marcus didn't look up from the glass he was drying.\n\nElena Vargas settled onto the corner stool like she'd been sitting there for hours. She hadn't. Marcus knew because he knew the weight of every seat in the place, knew which ones creaked and which ones didn't, and the corner stool had been silent all night until now.\n\n\"Marcus.\"\n\nHe set the glass down. Picked up another one.\n\n\"Elena.\"\n\nShe was thinner. The silver ring caught the neon — she was turning it, that thing she did when she was working something through. Not nervous. Processing.\n\n\"You ever notice how the ice never melts the same way twice?\" He held a cube up to the amber light. Turned it. \"Same water, same freezer, same tray. Every time, different.\"\n\n\"That's not why I'm here.\"\n\n\"Nobody said it was.\" He dropped the cube into her glass without asking what she wanted. Bourbon. She always drank bourbon when she was working. He poured two fingers and slid it across the lacquer.",
+  "payloadHash": "fixture-hash",
+  "model": "claude-sonnet-4-5-20250514",
+  "temperature": 0.8,
+  "topP": 0.92,
+  "generatedAt": "2025-01-15T20:00:00.000Z",
+  "status": "accepted",
+  "editedText": null,
+  "humanNotes": "Good setup. For the next chunk, let Elena start probing — but keep Marcus deflecting with bar work. Don't let the subtext surface yet."
+}
