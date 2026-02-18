@@ -151,13 +151,33 @@ function defaultChapterArc(): ChapterArc {
 // ─── Mock LLM ───────────────────────────────────────────
 
 const MOCK_PROSE = [
-  `Marcus counted the tiles in the hallway. Seven cracked, four missing, one replaced with something that didn't quite match. The substitute teacher's desk sat empty — not cleared, exactly, but emptied. Two different things. He pulled at his collar.\n\n"Look," he said to no one in particular, "someone moved the filing cabinet." The janitor's cart stood where it always stood, but the wheels pointed wrong. Whoever had been here last hadn't been cleaning.`,
+  `Marcus counted the tiles in the hallway. Seven cracked, four missing, one replaced with something that didn't quite match the originals — close, but wrong in the way a forged document is wrong. The substitute teacher's desk sat empty. Not cleared, exactly, but emptied. Two different things. He pulled at his collar and stood there a moment longer than was necessary.
 
-  `The staff room smelled like burnt coffee and old paper. Elena sat in the corner, thermos between her hands like a life preserver. She didn't look up when Marcus entered.\n\n"The substitute," he started. Elena's thumb traced the rim of her thermos. "What about her?" she said. The question had edges. Marcus pulled a chair and sat without asking. The fluorescent light above them buzzed — one tube going, the other already gone.`,
+"Look," he said to no one in particular, "someone moved the filing cabinet." The janitor's cart stood where it always stood, but the wheels pointed wrong. Whoever had been here last hadn't been cleaning. The chalk tray had been wiped down, but the eraser left behind carried a clean edge, not the worn-down radius of daily use. A replacement eraser, then. Someone had brought their own.
 
-  `The classroom after dark felt like the inside of a held breath. Marcus ran his hand along the desk's underside and found what shouldn't have been there — an envelope, taped flat. His fingers went still.\n\nThe radiator clanged somewhere deep in the building. He peeled the envelope free, turned it over. No name. No postmark. Just the school's address, typed on a machine that pressed the letters too deep.`,
+He crossed to the window. The latch was seated but not locked — a gap of maybe two millimeters between the frame and the sill, the kind of thing you'd miss if you weren't the sort of person who checked. Marcus was exactly that sort of person. He pressed it closed and heard the click it should have made hours ago.`,
 
-  `Elena stood at the end of the corridor, arms crossed, thermos nowhere in sight. First time for that.\n\n"You found it," she said. Not a question. Marcus held the envelope at his side. The hallway stretched between them, all linoleum and shadow.\n\n"How long have you known?" His voice came out too level, like a line drawn with a ruler. She met his eyes for the first time since September.\n\n"Since before you started looking." The fluorescent light above her flickered, then held.`,
+  `The staff room smelled like burnt coffee and old paper, a combination Marcus associated with pressure systems building before a storm. Elena sat in the corner, thermos between her hands like a life preserver she wasn't sure she believed in. She didn't look up when he entered.
+
+"The substitute," he started. Elena's thumb traced the rim of her thermos in a slow circuit. "What about her?" she said. The question had edges on it — not sharp, exactly, but present.
+
+Marcus pulled a chair and sat without asking. The fluorescent light above them buzzed, one tube going, the other already gone. Half the room in clean light, half in something thinner. He waited. Elena was a person who filled silence eventually. Most people were.
+
+"She came recommended," Elena said finally. Her thumb stopped. "By someone I trusted at the time." The past tense was doing a lot of work in that sentence, and she knew he'd noticed. She looked up.`,
+
+  `The classroom after dark felt like the inside of a held breath. Marcus moved without the overhead light — the hallway fluorescents gave enough through the door's wire-glass panel, narrow and yellow, the kind of light that shows shapes but not detail. He ran his hand along the underside of the desk's top drawer and found what shouldn't have been there: an envelope, taped flat against the wood with two strips of packing tape, the kind with the thread reinforcement running through it.
+
+His fingers went still. The radiator clanged somewhere deep in the building, metal contracting against metal, the thermal ratchet that kept the place running at a deficit. He peeled the envelope free — the tape released cleanly, no damage to the paper, which meant it had been placed by someone who expected it to be retrieved. He turned it over. No name. No postmark. Just the school's address, typed on a machine that pressed the letters too deep into the paper, the way old typewriters did when the ribbon was worn thin.`,
+
+  `Elena stood at the end of the corridor, arms crossed, thermos nowhere in sight. First time for that. Without it she looked different — not smaller, exactly, but less defended, like a boiler without its housing.
+
+"You found it," she said. Not a question. Marcus held the envelope at his side, his thumb against the seal. The hallway stretched between them, all linoleum and shadow, the kind of distance that wasn't really about distance.
+
+"How long have you known?" His voice came out too level. A line drawn with a ruler — technically straight, no warmth in the tool that made it. She heard it. He watched her hear it.
+
+"Since before you started looking." She didn't move. "Since before I put it there." The fluorescent light above her flickered twice, then held. Marcus felt the machinery of the last three weeks engage differently, gears clicking into positions he should have mapped earlier, the whole mechanism a thing he'd been reading backward.
+
+He said nothing. The envelope was light in his hand. She waited for him to ask the next question, and he was already deciding whether to ask it.`,
 ];
 
 function createMockGenerateFn(): GenerateFn {
@@ -192,6 +212,7 @@ function createRealGenerateFn(client: Anthropic, model: string): GenerateFn {
 // ─── Main Runner ────────────────────────────────────────
 
 async function runEval(options: RunnerOptions): Promise<void> {
+  let anyRolloutFailed = false;
   const bible = defaultBible();
   const plans = defaultScenePlans();
   const arc = defaultChapterArc();
@@ -326,12 +347,17 @@ async function runEval(options: RunnerOptions): Promise<void> {
     console.log(`  Artifact saved: ${artifactPath}`);
 
     if (report.failures.length > 0) {
+      anyRolloutFailed = true;
       console.log(`  Failures:`);
       for (const f of report.failures) {
         console.log(`    - ${f}`);
       }
     }
     console.log("");
+  }
+
+  if (anyRolloutFailed) {
+    process.exit(1);
   }
 }
 
