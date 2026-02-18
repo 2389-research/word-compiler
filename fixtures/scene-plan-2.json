@@ -1,0 +1,57 @@
+{
+  "id": "scene-alley-002",
+  "projectId": "proj-fixture",
+  "chapterId": "arc-ch1",
+  "title": "The Alley",
+  "povCharacterId": "marcus",
+  "povDistance": "intimate",
+  "narrativeGoal": "Marcus closes the bar and discovers someone has been watching. The physical threat makes Elena's story real — this isn't journalism, it's survival. Marcus's old instincts surface against his will.",
+  "emotionalBeat": "Controlled fear crystallizing into cold alertness",
+  "readerEffect": "The world outside the bar is dangerous. Marcus is not as retired as he claims.",
+  "readerStateEntering": {
+    "knows": ["Marcus and Elena have history", "Elena is investigating something", "Marcus is guarded"],
+    "suspects": ["Marcus is protecting someone", "Elena is desperate"],
+    "wrongAbout": [],
+    "activeTensions": ["Will Marcus help her?", "What is he hiding?"]
+  },
+  "readerStateExiting": {
+    "knows": ["Someone is following Marcus or Elena", "Marcus's body still remembers how to fight", "The threat is physical, not abstract"],
+    "suspects": ["The watcher is connected to Elena's investigation", "Marcus recognized something about the watcher"],
+    "wrongAbout": ["Who sent the watcher"],
+    "activeTensions": ["Is Marcus in danger now?", "Will he warn Elena?", "Can he stay uninvolved?"]
+  },
+  "characterKnowledgeChanges": {
+    "marcus": "Realizes the threat Elena described is real and already here"
+  },
+  "subtext": {
+    "surfaceConversation": "Marcus closing up for the night, routine movements",
+    "actualConversation": "Marcus's body language reveals his training — he's sweeping sightlines, checking exits, all while pretending to mop",
+    "enforcementRule": "Marcus never thinks 'I'm in danger.' His body acts; his mind narrates the routine."
+  },
+  "dialogueConstraints": {
+    "marcus": ["Minimal speech — talks to himself in fragments if at all", "Physical actions carry all the narrative weight"]
+  },
+  "pacing": "Methodical routine that slowly tightens. Every mundane action becomes loaded once the watcher is noticed.",
+  "density": "dense",
+  "sensoryNotes": "Night sounds. The difference between bar sounds and street sounds. Fluorescent back-alley light vs. amber bar light. Cold air hitting warm skin.",
+  "sceneSpecificProhibitions": [
+    "No dialogue with other characters — Marcus is alone",
+    "No naming the emotion of fear — show it through physicality only",
+    "No action-movie choreography — this is one moment of seeing and being seen"
+  ],
+  "anchorLines": [
+    {
+      "text": "He locked the front door the way he always did. Deadbolt, chain, handle check. Except tonight his hands did it in the wrong order.",
+      "placement": "Opening — the first crack in the routine",
+      "verbatim": true
+    }
+  ],
+  "estimatedWordCount": [600, 900],
+  "chunkCount": 2,
+  "chunkDescriptions": [
+    "Closing routine — methodical, sensory, establishing the quiet after Elena's visit. Something feels off but Marcus can't name it yet.",
+    "The watcher — Marcus sees the figure. His body responds before his mind catches up. Scene ends on the alley going quiet."
+  ],
+  "failureModeToAvoid": "Turning this into an action scene. The tension comes from stillness and recognition, not from confrontation.",
+  "locationId": "loc-bar"
+}

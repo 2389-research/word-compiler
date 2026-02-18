@@ -1,5 +1,6 @@
 import React from "react";
 import type { CompiledPayload, CompilationLog, LintResult, AuditFlag, ProseMetrics } from "../../types/index.js";
+import { AuditPanel } from "./AuditPanel.js";
 
 interface Props {
   payload: CompiledPayload | null;
@@ -7,9 +8,11 @@ interface Props {
   lintResult: LintResult | null;
   auditFlags: AuditFlag[];
   metrics: ProseMetrics | null;
+  onResolveFlag: (flagId: string, action: string) => void;
+  onDismissFlag: (flagId: string) => void;
 }
 
-export function CompilerView({ payload, log, lintResult, auditFlags, metrics }: Props) {
+export function CompilerView({ payload, log, lintResult, auditFlags, metrics, onResolveFlag, onDismissFlag }: Props) {
   if (!payload || !log) {
     return (
       <div className="pane">
@@ -23,10 +26,14 @@ export function CompilerView({ payload, log, lintResult, auditFlags, metrics }: 
     );
   }
 
-  const total = log.ring1Tokens + log.ring3Tokens;
-  const r1Pct = total > 0 ? Math.round((log.ring1Tokens / log.availableBudget) * 100) : 0;
-  const r3Pct = total > 0 ? Math.round((log.ring3Tokens / log.availableBudget) * 100) : 0;
-  const freePct = Math.max(0, 100 - r1Pct - r3Pct);
+  const r2Tokens = log.ring2Tokens ?? 0;
+  const total = log.ring1Tokens + r2Tokens + log.ring3Tokens;
+  // Proportions within used tokens (for ring breakdown bar)
+  const r1Pct = total > 0 ? Math.max(Math.round((log.ring1Tokens / total) * 100), 1) : 0;
+  const r2Pct = total > 0 ? Math.max(Math.round((r2Tokens / total) * 100), 1) : 0;
+  const r3Pct = total > 0 ? Math.max(Math.round((log.ring3Tokens / total) * 100), 1) : 0;
+  // Overall budget usage (for fuel gauge)
+  const usedPct = total > 0 ? Math.max(1, Math.round((total / log.availableBudget) * 100)) : 0;
 
   const lintErrors = lintResult?.issues.filter((i) => i.severity === "error") ?? [];
   const lintWarnings = lintResult?.issues.filter((i) => i.severity === "warning") ?? [];
@@ -41,21 +48,36 @@ export function CompilerView({ payload, log, lintResult, auditFlags, metrics }: 
         </span>
       </div>
       <div className="pane-content">
-        {/* Budget Bar */}
+        {/* Budget Gauge — how full is the tank? */}
+        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "2px" }}>
+          {usedPct}% of budget ({total.toLocaleString()} / {log.availableBudget.toLocaleString()} tokens)
+        </div>
+        <div className="budget-gauge">
+          <div
+            className="budget-gauge-fill"
+            style={{ width: `${Math.max(usedPct, 1)}%` }}
+          />
+        </div>
+
+        {/* Ring Breakdown — what's in the tank? */}
         <div className="budget-bar">
-          {r1Pct > 0 && (
+          {log.ring1Tokens > 0 && (
             <div className="budget-segment budget-r1" style={{ flex: r1Pct }}>
-              R1 {r1Pct}%
+              R1 {log.ring1Tokens.toLocaleString()}
             </div>
           )}
-          {r3Pct > 0 && (
+          {r2Tokens > 0 ? (
+            <div className="budget-segment budget-r2" style={{ flex: r2Pct }}>
+              R2 {r2Tokens.toLocaleString()}
+            </div>
+          ) : (
+            <div className="budget-segment budget-r2-empty" style={{ flex: 1 }}>
+              R2 — no chapter arc
+            </div>
+          )}
+          {log.ring3Tokens > 0 && (
             <div className="budget-segment budget-r3" style={{ flex: r3Pct }}>
-              R3 {r3Pct}%
-            </div>
-          )}
-          {freePct > 0 && (
-            <div className="budget-segment budget-free" style={{ flex: freePct }}>
-              free
+              R3 {log.ring3Tokens.toLocaleString()}
             </div>
           )}
         </div>
@@ -69,11 +91,11 @@ export function CompilerView({ payload, log, lintResult, auditFlags, metrics }: 
           <div className="compiler-text">{payload.systemMessage}</div>
         </div>
 
-        {/* User Message (Ring 3 + Gen Instruction) */}
+        {/* User Message (Ring 2 + Ring 3 + Gen Instruction) */}
         <div className="compiler-section">
           <div className="compiler-section-header">
-            <span>User Message (Ring 3)</span>
-            <span>{log.ring3Tokens} tokens</span>
+            <span>User Message{r2Tokens > 0 ? " (Ring 2 + Ring 3)" : " (Ring 3)"}</span>
+            <span>{r2Tokens + log.ring3Tokens} tokens</span>
           </div>
           <div className="compiler-text">{payload.userMessage}</div>
         </div>
@@ -84,6 +106,12 @@ export function CompilerView({ payload, log, lintResult, auditFlags, metrics }: 
           <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
             <strong>R1:</strong> {log.ring1Contents.join(", ") || "none"}
             <br />
+            {log.ring2Contents.length > 0 && (
+              <>
+                <strong>R2:</strong> {log.ring2Contents.join(", ")}
+                <br />
+              </>
+            )}
             <strong>R3:</strong> {log.ring3Contents.join(", ") || "none"}
           </div>
         </div>
@@ -119,26 +147,12 @@ export function CompilerView({ payload, log, lintResult, auditFlags, metrics }: 
           )}
         </div>
 
-        {/* Audit Flags */}
-        {auditFlags.length > 0 && (
-          <div className="compiler-section">
-            <div className="compiler-section-header">
-              <span>Audit Flags</span>
-              <span>{auditFlags.length}</span>
-            </div>
-            {auditFlags.map((flag) => (
-              <div
-                key={flag.id}
-                className={`audit-flag audit-${flag.severity}`}
-              >
-                <strong>[{flag.category}]</strong> {flag.message}
-                {flag.lineReference && (
-                  <span style={{ color: "var(--text-muted)" }}> ({flag.lineReference})</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Audit Panel */}
+        <AuditPanel
+          flags={auditFlags}
+          onResolve={onResolveFlag}
+          onDismiss={onDismissFlag}
+        />
 
         {/* Metrics */}
         {metrics && (

@@ -1,22 +1,35 @@
 import { useEffect } from "react";
+import type { ScenePlan, Chunk, ChapterArc } from "../../types/index.js";
 import type { AppState, AppAction } from "./useProject.js";
 import { compilePayload } from "../../compiler/assembler.js";
 
-export function useCompiler(state: AppState, dispatch: React.Dispatch<AppAction>) {
+export function useCompiler(
+  state: AppState,
+  dispatch: React.Dispatch<AppAction>,
+  activeScenePlan: ScenePlan | null,
+  activeSceneChunks: Chunk[],
+  previousSceneLastChunk: Chunk | null,
+) {
   useEffect(() => {
-    if (!state.bible || !state.scenePlan) {
+    // Freeze compilation during generation — the Compiler View should show the
+    // payload currently being used, not leap ahead to the next chunk's payload.
+    if (state.isGenerating) return;
+
+    if (!state.bible || !activeScenePlan) {
       dispatch({ type: "SET_COMPILED", payload: null, log: null, lint: null });
       return;
     }
 
     try {
-      const nextChunkNumber = state.chunks.length;
+      const nextChunkNumber = activeSceneChunks.length;
       const result = compilePayload(
         state.bible,
-        state.scenePlan,
-        state.chunks,
+        activeScenePlan,
+        activeSceneChunks,
         nextChunkNumber,
         state.compilationConfig,
+        state.chapterArc ?? undefined,
+        previousSceneLastChunk ?? undefined,
       );
       dispatch({
         type: "SET_COMPILED",
@@ -30,5 +43,5 @@ export function useCompiler(state: AppState, dispatch: React.Dispatch<AppAction>
         error: err instanceof Error ? err.message : "Compilation error",
       });
     }
-  }, [state.bible, state.scenePlan, state.chunks, state.compilationConfig, dispatch]);
+  }, [state.bible, state.isGenerating, activeScenePlan, activeSceneChunks, state.compilationConfig, state.chapterArc, previousSceneLastChunk, dispatch]);
 }

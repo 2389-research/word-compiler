@@ -1,0 +1,22 @@
+{
+  "id": "arc-ch1",
+  "projectId": "proj-fixture",
+  "chapterNumber": 1,
+  "workingTitle": "The Weight of Old Favors",
+  "narrativeFunction": "Establish the central question — will Marcus re-enter the world he left — while building Elena as a credible catalyst. By chapter end, Marcus has agreed to one meeting, and the reader understands the cost.",
+  "dominantRegister": "Restrained, blue-collar precision. Sensory-heavy. Conversations carry more weight in what's unsaid.",
+  "pacingTarget": "Slow burn across four scenes. Each scene raises the stakes incrementally. Scene 3 is the fulcrum — the tempo shifts there.",
+  "endingPosture": "Marcus walking into something he said he'd never do again. The last image is physical — a door, a step, a threshold.",
+  "readerStateEntering": {
+    "knows": ["Marcus exists", "He owns a bar"],
+    "suspects": [],
+    "wrongAbout": ["They'll assume this is a simple noir setup"],
+    "activeTensions": []
+  },
+  "readerStateExiting": {
+    "knows": ["Marcus has a violent past he left", "Elena is investigating something dangerous", "Someone named Dex is involved", "Marcus has agreed to one meeting"],
+    "suspects": ["Marcus still has the capacity for violence", "Elena is more desperate than she lets on", "Dex may be dead already"],
+    "wrongAbout": ["Who Marcus is actually protecting"],
+    "activeTensions": ["Will the meeting go wrong?", "What does Elena actually know?", "Why does Marcus care about Dex?"]
+  }
+}

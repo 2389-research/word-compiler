@@ -206,4 +206,67 @@ describe("buildRing3", () => {
     expect(sensory!.immune).toBe(false);
     expect(sensory!.priority).toBe(4);
   });
+
+  // --- Cross-scene bridge tests ---
+
+  it("cross-scene bridge uses previousSceneLastChunk when no previous chunks", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevSceneChunk = makeChunk({
+      generatedText: "She closed the door behind her. The hallway was dark.",
+    });
+
+    const result = buildRing3(plan, bible, [], 0, config, prevSceneChunk);
+    const names = result.sections.map((s) => s.name);
+
+    expect(names).toContain("CONTINUITY_BRIDGE");
+    expect(result.text).toContain("previous scene");
+    expect(result.text).toContain("She closed the door");
+  });
+
+  it("cross-scene bridge uses editedText when available", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevSceneChunk = makeChunk({
+      generatedText: "Original text",
+      editedText: "The revised ending of the previous scene.",
+    });
+
+    const result = buildRing3(plan, bible, [], 0, config, prevSceneChunk);
+    expect(result.text).toContain("revised ending");
+    expect(result.text).not.toContain("Original text");
+  });
+
+  it("intra-scene bridge takes precedence over cross-scene bridge", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const intraChunks = [makeChunk({ generatedText: "Intra-scene text here." })];
+    const crossSceneChunk = makeChunk({ generatedText: "Cross-scene text here." });
+
+    const result = buildRing3(plan, bible, intraChunks, 1, config, crossSceneChunk);
+    expect(result.text).toContain("Intra-scene text");
+    expect(result.text).not.toContain("Cross-scene text");
+  });
+
+  it("no bridge when no previous chunks and no previous scene chunk", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+
+    const result = buildRing3(plan, bible, [], 0, config, undefined);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("CONTINUITY_BRIDGE");
+  });
+
+  it("cross-scene bridge is compressible with priority 3", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevSceneChunk = makeChunk();
+
+    const result = buildRing3(plan, bible, [], 0, config, prevSceneChunk);
+    const bridge = result.sections.find((s) => s.name === "CONTINUITY_BRIDGE");
+
+    expect(bridge).toBeDefined();
+    expect(bridge!.immune).toBe(false);
+    expect(bridge!.priority).toBe(3);
+  });
 });

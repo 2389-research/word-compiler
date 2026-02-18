@@ -232,6 +232,7 @@ export interface CompilationLog {
   totalTokens: number;
   availableBudget: number;
   ring1Contents: string[];
+  ring2Contents: string[];
   ring3Contents: string[];
   lintWarnings: string[];
   lintErrors: string[];
@@ -262,8 +263,10 @@ export interface Ring3Result {
 
 export interface BudgetResult {
   r1: string;
+  r2?: string;
   r3: string;
   r1Sections: RingSection[];
+  r2Sections?: RingSection[];
   r3Sections: RingSection[];
   wasCompressed: boolean;
   compressionLog: string[];
@@ -295,6 +298,17 @@ export interface AuditFlag {
   wasActionable: boolean | null;
 }
 
+export interface AuditStats {
+  total: number;
+  resolved: number;
+  dismissed: number;
+  pending: number;
+  actionable: number;
+  nonActionable: number;
+  signalToNoiseRatio: number;
+  byCategory: Record<string, { total: number; actionable: number }>;
+}
+
 export interface ProseMetrics {
   wordCount: number;
   sentenceCount: number;
@@ -305,7 +319,11 @@ export interface ProseMetrics {
   avgParagraphLength: number;
 }
 
-// ─── Phase 1+ Stubs ─────────────────────────────────────
+// ─── Scene Status ───────────────────────────────────────
+
+export type SceneStatus = "planned" | "drafting" | "complete";
+
+// ─── Chapter Arc ────────────────────────────────────────
 
 export interface ChapterArc {
   id: string;
@@ -415,6 +433,21 @@ export function createEmptyScenePlan(projectId: string): ScenePlan {
     chunkDescriptions: [],
     failureModeToAvoid: "",
     locationId: null,
+  };
+}
+
+export function createEmptyChapterArc(projectId: string, chapterNumber: number = 1): ChapterArc {
+  return {
+    id: generateId(),
+    projectId,
+    chapterNumber,
+    workingTitle: "",
+    narrativeFunction: "",
+    dominantRegister: "",
+    pacingTarget: "",
+    endingPosture: "",
+    readerStateEntering: { knows: [], suspects: [], wrongAbout: [], activeTensions: [] },
+    readerStateExiting: { knows: [], suspects: [], wrongAbout: [], activeTensions: [] },
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useProject } from "./hooks/useProject.js";
 import { useCompiler } from "./hooks/useCompiler.js";
 import { useGeneration } from "./hooks/useGeneration.js";
@@ -6,15 +6,32 @@ import { BiblePane } from "./components/BiblePane.js";
 import { DraftingDesk } from "./components/DraftingDesk.js";
 import { CompilerView } from "./components/CompilerView.js";
 import { BootstrapModal } from "./components/BootstrapModal.js";
+import { SceneSequencer } from "./components/SceneSequencer.js";
+import { ChapterArcEditor } from "./components/ChapterArcEditor.js";
+import { checkScenePlanGate, checkCompileGate, checkChunkReviewGate } from "../gates/index.js";
 import type { Chunk } from "../types/index.js";
 
 export function App() {
-  const { state, dispatch, loadFile, saveFile, selectModel } = useProject();
+  const {
+    state,
+    dispatch,
+    loadFile,
+    saveFile,
+    selectModel,
+    activeScene,
+    activeScenePlan,
+    activeSceneChunks,
+    previousSceneLastChunk,
+  } = useProject();
+
+  const [showArcEditor, setShowArcEditor] = useState(false);
 
   // Auto-recompile when inputs change
-  useCompiler(state, dispatch);
+  useCompiler(state, dispatch, activeScenePlan, activeSceneChunks, previousSceneLastChunk);
 
-  const { generateChunk, runAuditManual } = useGeneration(state, dispatch);
+  const { generateChunk, runAuditManual } = useGeneration(
+    state, dispatch, activeScenePlan, activeSceneChunks,
+  );
 
   const handleUpdateChunk = useCallback(
     (index: number, changes: Partial<Chunk>) => {
@@ -23,17 +40,70 @@ export function App() {
     [dispatch],
   );
 
+  const handleRemoveChunk = useCallback(
+    (index: number) => {
+      dispatch({ type: "REMOVE_CHUNK", index });
+    },
+    [dispatch],
+  );
+
   const handleOpenBootstrap = useCallback(() => {
     dispatch({ type: "SET_BOOTSTRAP_OPEN", value: true });
   }, [dispatch]);
 
-  const canGenerate = !!state.bible && !!state.scenePlan && !!state.compiledPayload;
+  const handleCompleteScene = useCallback(() => {
+    if (activeScenePlan) {
+      dispatch({ type: "COMPLETE_SCENE", sceneId: activeScenePlan.id });
+    }
+  }, [activeScenePlan, dispatch]);
+
+  const handleResolveFlag = useCallback(
+    (flagId: string, action: string) => {
+      dispatch({ type: "RESOLVE_AUDIT_FLAG", flagId, action, wasActionable: true });
+    },
+    [dispatch],
+  );
+
+  const handleDismissFlag = useCallback(
+    (flagId: string) => {
+      dispatch({ type: "DISMISS_AUDIT_FLAG", flagId, action: "" });
+    },
+    [dispatch],
+  );
+
+  const canGenerate = !!state.bible && !!activeScenePlan && !!state.compiledPayload;
+
+  // Gate messages — computed each render for instant feedback
+  const gateMessages = useMemo(() => {
+    const msgs: string[] = [];
+    if (!state.bible) msgs.push("No bible loaded.");
+    if (!activeScenePlan) msgs.push("No scene plan selected.");
+    if (activeScenePlan) {
+      const planGate = checkScenePlanGate(activeScenePlan);
+      msgs.push(...planGate.messages);
+    }
+    if (state.lintResult) {
+      const compileGate = checkCompileGate(state.lintResult);
+      msgs.push(...compileGate.messages);
+    }
+    if (activeSceneChunks.length > 0) {
+      const lastChunk = activeSceneChunks[activeSceneChunks.length - 1]!;
+      const reviewGate = checkChunkReviewGate(lastChunk);
+      msgs.push(...reviewGate.messages);
+    }
+    return msgs;
+  }, [state.bible, activeScenePlan, state.lintResult, activeSceneChunks]);
 
   return (
     <div className="app">
       <div className="app-header">
         <span className="app-title">Word Compiler</span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {state.chapterArc && (
+            <button onClick={() => setShowArcEditor(true)} style={{ fontSize: "10px" }}>
+              Chapter Arc
+            </button>
+          )}
           <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-secondary)" }}>
             Model:
             <select
@@ -63,10 +133,10 @@ export function App() {
             </select>
           </label>
           <span className="app-status">
-            {state.bible ? "Bible loaded" : "No bible"} |{" "}
-            {state.scenePlan ? `Scene: ${state.scenePlan.title}` : "No scene plan"} |{" "}
-            Chunks: {state.chunks.length}
-            {state.scenePlan ? `/${state.scenePlan.chunkCount}` : ""}
+            {state.bible ? `Bible v${state.bible.version}` : "No bible"} |{" "}
+            {activeScenePlan ? `Scene: ${activeScenePlan.title}` : "No scene plan"} |{" "}
+            Chunks: {activeSceneChunks.length}
+            {activeScenePlan ? `/${activeScenePlan.chunkCount}` : ""}
           </span>
         </div>
       </div>
@@ -83,23 +153,35 @@ export function App() {
         </div>
       )}
 
+      <SceneSequencer
+        scenes={state.scenes}
+        activeSceneIndex={state.activeSceneIndex}
+        sceneChunks={state.sceneChunks}
+        dispatch={dispatch}
+      />
+
       <div className="cockpit">
         <BiblePane
           bible={state.bible}
-          scenePlan={state.scenePlan}
+          scenePlan={activeScenePlan}
           dispatch={dispatch}
           loadFile={loadFile}
           saveFile={saveFile}
           onBootstrap={handleOpenBootstrap}
         />
         <DraftingDesk
-          chunks={state.chunks}
-          scenePlan={state.scenePlan}
+          chunks={activeSceneChunks}
+          scenePlan={activeScenePlan}
+          sceneStatus={activeScene?.status ?? null}
           isGenerating={state.isGenerating}
           canGenerate={canGenerate}
+          gateMessages={gateMessages}
+          auditFlags={state.auditFlags}
           onGenerate={generateChunk}
           onUpdateChunk={handleUpdateChunk}
+          onRemoveChunk={handleRemoveChunk}
           onRunAudit={runAuditManual}
+          onCompleteScene={handleCompleteScene}
         />
         <CompilerView
           payload={state.compiledPayload}
@@ -107,10 +189,20 @@ export function App() {
           lintResult={state.lintResult}
           auditFlags={state.auditFlags}
           metrics={state.metrics}
+          onResolveFlag={handleResolveFlag}
+          onDismissFlag={handleDismissFlag}
         />
       </div>
 
       <BootstrapModal open={state.bootstrapModalOpen} dispatch={dispatch} />
+
+      {showArcEditor && state.chapterArc && (
+        <ChapterArcEditor
+          arc={state.chapterArc}
+          dispatch={dispatch}
+          onClose={() => setShowArcEditor(false)}
+        />
+      )}
     </div>
   );
 }

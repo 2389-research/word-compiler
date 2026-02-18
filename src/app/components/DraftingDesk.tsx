@@ -1,65 +1,109 @@
 import React from "react";
-import type { Chunk, ScenePlan } from "../../types/index.js";
+import type { Chunk, ScenePlan, SceneStatus } from "../../types/index.js";
 import { ChunkCard } from "./ChunkCard.js";
+import { checkSceneCompletionGate, checkAuditResolutionGate } from "../../gates/index.js";
+import type { AuditFlag } from "../../types/index.js";
 
 interface Props {
   chunks: Chunk[];
   scenePlan: ScenePlan | null;
+  sceneStatus: SceneStatus | null;
   isGenerating: boolean;
   canGenerate: boolean;
+  gateMessages: string[];
+  auditFlags: AuditFlag[];
   onGenerate: () => void;
   onUpdateChunk: (index: number, changes: Partial<Chunk>) => void;
+  onRemoveChunk: (index: number) => void;
   onRunAudit: () => void;
+  onCompleteScene: () => void;
 }
 
 export function DraftingDesk({
   chunks,
   scenePlan,
+  sceneStatus,
   isGenerating,
   canGenerate,
+  gateMessages,
+  auditFlags,
   onGenerate,
   onUpdateChunk,
+  onRemoveChunk,
   onRunAudit,
+  onCompleteScene,
 }: Props) {
-  const lastChunk = chunks[chunks.length - 1];
-  const canGenerateNext =
-    canGenerate &&
-    !isGenerating &&
-    (chunks.length === 0 || lastChunk?.status === "accepted" || lastChunk?.status === "edited");
-
   const maxChunks = scenePlan?.chunkCount ?? Infinity;
   const atChunkLimit = chunks.length >= maxChunks;
+  const canGenerateNext = canGenerate && !isGenerating && gateMessages.length === 0 && !atChunkLimit;
+
+  const completionGate = scenePlan ? checkSceneCompletionGate(chunks, scenePlan) : null;
+  const auditGate = checkAuditResolutionGate(auditFlags);
+  const canComplete = sceneStatus === "drafting" && completionGate?.passed && auditGate.passed;
 
   return (
     <div className="pane">
       <div className="pane-header">
         <span>Drafting Desk</span>
         <div className="pane-actions">
+          {sceneStatus === "complete" && (
+            <span className="badge badge-accepted">COMPLETE</span>
+          )}
           <button onClick={onRunAudit} disabled={chunks.length === 0}>
             Run Audit
           </button>
-          <button
-            className="primary"
-            onClick={onGenerate}
-            disabled={!canGenerateNext || atChunkLimit}
-          >
-            {isGenerating
-              ? "Generating..."
-              : atChunkLimit
-                ? "All chunks generated"
-                : `Generate Chunk ${chunks.length + 1}`}
-          </button>
+          {sceneStatus !== "complete" && (
+            <button
+              className="primary"
+              onClick={onGenerate}
+              disabled={!canGenerateNext}
+              title={gateMessages.length > 0 ? gateMessages.join("\n") : undefined}
+            >
+              {isGenerating
+                ? "Generating..."
+                : atChunkLimit
+                  ? "All chunks generated"
+                  : `Generate Chunk ${chunks.length + 1}`}
+            </button>
+          )}
+          {atChunkLimit && sceneStatus !== "complete" && (
+            <button
+              className="primary"
+              onClick={onCompleteScene}
+              disabled={!canComplete}
+              title={
+                !canComplete
+                  ? [
+                      ...(completionGate?.messages ?? []),
+                      ...auditGate.messages,
+                    ].join("\n")
+                  : "Mark scene as complete"
+              }
+            >
+              Complete Scene
+            </button>
+          )}
         </div>
       </div>
       <div className="pane-content">
-        {chunks.length === 0 && !isGenerating && (
+        {gateMessages.length > 0 && !isGenerating && (
+          <div style={{ padding: "6px 8px", marginBottom: "8px" }}>
+            {gateMessages.map((msg, i) => (
+              <div key={i} className="lint-item lint-warning" style={{ fontSize: "10px" }}>
+                {msg}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {chunks.length === 0 && !isGenerating && gateMessages.length === 0 && (
           <div style={{ color: "var(--text-muted)", padding: "20px", textAlign: "center" }}>
             Load a Bible and Scene Plan, then generate your first chunk.
           </div>
         )}
 
         {chunks.map((chunk, i) => (
-          <ChunkCard key={chunk.id} chunk={chunk} index={i} onUpdate={onUpdateChunk} />
+          <ChunkCard key={chunk.id} chunk={chunk} index={i} isLast={i === chunks.length - 1} onUpdate={onUpdateChunk} onRemove={onRemoveChunk} />
         ))}
 
         {isGenerating && (

@@ -22,6 +22,7 @@ export function buildRing3(
   previousChunks: Chunk[],
   chunkNumber: number,
   config: CompilationConfig,
+  previousSceneLastChunk?: Chunk,
 ): Ring3Result {
   const sections: RingSection[] = [];
 
@@ -95,6 +96,16 @@ export function buildRing3(
     sections.push({
       name: "CONTINUITY_BRIDGE",
       text: `=== PRECEDING TEXT (match rhythm and continuity) ===\n${verbatim}`,
+      priority: 3,
+      immune: false,
+    });
+  } else if (previousSceneLastChunk) {
+    // Cross-scene bridge: first chunk of new scene carries text from last chunk of previous scene
+    const canonText = getCanonicalText(previousSceneLastChunk);
+    const verbatim = lastNTokens(canonText, config.bridgeVerbatimTokens);
+    sections.push({
+      name: "CONTINUITY_BRIDGE",
+      text: `=== PRECEDING TEXT (previous scene — match rhythm and continuity) ===\n${verbatim}`,
       priority: 3,
       immune: false,
     });

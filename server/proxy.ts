@@ -1,10 +1,16 @@
 import express from "express";
 import cors from "cors";
 import Anthropic from "@anthropic-ai/sdk";
+import { getDatabase } from "./db/connection.js";
+import { createApiRouter } from "./api/routes.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Initialize database and mount REST API
+const db = getDatabase();
+app.use("/api/data", createApiRouter(db));
 
 const client = new Anthropic();
 

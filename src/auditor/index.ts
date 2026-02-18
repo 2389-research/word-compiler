@@ -1,4 +1,4 @@
-import type { AuditFlag, Bible, KillListEntry, ProseMetrics } from "../types/index.js";
+import type { AuditFlag, AuditStats, Bible, KillListEntry, ProseMetrics } from "../types/index.js";
 import { generateId } from "../types/index.js";
 import { countWords } from "../tokens/index.js";
 
@@ -190,6 +190,40 @@ export function computeMetrics(prose: string): ProseMetrics {
     paragraphCount: paragraphs.length,
     avgParagraphLength:
       paragraphs.length > 0 ? sentences.length / paragraphs.length : 0,
+  };
+}
+
+// ─── Audit Stats ───────────────────────────────────────
+
+export function getAuditStats(flags: AuditFlag[]): AuditStats {
+  const resolved = flags.filter((f) => f.resolved && f.wasActionable === true);
+  const dismissed = flags.filter((f) => f.resolved && f.wasActionable === false);
+  const pending = flags.filter((f) => !f.resolved);
+  const actionable = resolved.length;
+  const nonActionable = dismissed.length;
+  const decided = actionable + nonActionable;
+  const signalToNoiseRatio = decided > 0 ? actionable / decided : 1;
+
+  const byCategory: Record<string, { total: number; actionable: number }> = {};
+  for (const flag of flags) {
+    if (!byCategory[flag.category]) {
+      byCategory[flag.category] = { total: 0, actionable: 0 };
+    }
+    byCategory[flag.category]!.total++;
+    if (flag.wasActionable === true) {
+      byCategory[flag.category]!.actionable++;
+    }
+  }
+
+  return {
+    total: flags.length,
+    resolved: resolved.length,
+    dismissed: dismissed.length,
+    pending: pending.length,
+    actionable,
+    nonActionable,
+    signalToNoiseRatio,
+    byCategory,
   };
 }
 

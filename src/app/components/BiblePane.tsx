@@ -147,7 +147,7 @@ export function BiblePane({ bible, scenePlan, dispatch, loadFile, saveFile, onBo
         </div>
       </div>
       <div className="pane-content" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
           <button onClick={handleLoadBible}>Load Bible</button>
           <button onClick={() => bible && saveFile(bible, "bible.json")} disabled={!bible}>
             Save Bible
@@ -156,6 +156,11 @@ export function BiblePane({ bible, scenePlan, dispatch, loadFile, saveFile, onBo
           <button onClick={() => scenePlan && saveFile(scenePlan, "scene-plan.json")} disabled={!scenePlan}>
             Save Plan
           </button>
+          {bible && (
+            <span style={{ fontSize: "10px", color: "var(--accent-dim)", marginLeft: "auto" }}>
+              v{bible.version}
+            </span>
+          )}
         </div>
         <JsonEditor value={bibleJson} onChange={handleBibleChange} label="Bible JSON" />
         <JsonEditor value={planJson} onChange={handlePlanChange} label="Scene Plan JSON" />

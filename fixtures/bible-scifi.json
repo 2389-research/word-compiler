@@ -1,0 +1,143 @@
+{
+  "projectId": "proj-scifi",
+  "version": 1,
+  "characters": [
+    {
+      "id": "sable",
+      "name": "Sable",
+      "role": "protagonist",
+      "physicalDescription": "Slight build, close-cropped hair gone prematurely gray at twenty-nine. Hands always moving — tapping rhythms on surfaces, tracing circuit patterns on her thigh. A scar across her left palm from a childhood accident she won't discuss. Wears the same three rotation of jumpsuits because choosing clothes costs cognitive cycles she'd rather spend elsewhere.",
+      "backstory": "Systems engineer on the deep-space relay station Meridian. Grew up on a generation ship, never set foot on a planet. She thinks in networks — everything is a system with inputs, outputs, and failure modes. The relay station is her first solo posting and she's been alone for eleven months.",
+      "selfNarrative": "Believes she prefers solitude. Believes the loneliness is professional discipline, not pathology.",
+      "contradictions": ["Talks to the station's maintenance drones by name", "Keeps a log that reads more like letters to someone than technical notes", "Sleeps in the observation deck instead of her quarters"],
+      "voice": {
+        "sentenceLengthRange": [3, 25],
+        "vocabularyNotes": "Technical precision mixed with unexpected poetry. Uses systems language for emotions ('my threat assessment spiked,' 'running at reduced capacity today'). When genuinely moved, her language simplifies dramatically — short Anglo-Saxon words, no jargon.",
+        "verbalTics": ["quantifying things that can't be quantified", "correcting herself mid-sentence", "trailing into technical specifications when emotional"],
+        "metaphoricRegister": "networks, signal processing, orbital mechanics, pressure systems",
+        "prohibitedLanguage": ["awesome", "literally", "I feel like", "it's fine", "no worries"],
+        "dialogueSamples": [
+          "The signal's propagation delay is — no, that's not what I mean. It takes four hours for my voice to reach anyone. Four hours is long enough to unsay everything.",
+          "Drone Six has a intermittent fault in its left manipulator. I could fix it. I haven't. I like watching it compensate.",
+          "Station log, day 337. All systems nominal. I am not."
+        ]
+      },
+      "behavior": {
+        "stressResponse": "Goes hyper-verbal and technical. Narrates her own diagnostic process aloud. Hands accelerate their tapping.",
+        "socialPosture": "Awkward warmth. Wants connection desperately, performs competence instead. Easier with machines than humans but aware this is a limitation.",
+        "noticesFirst": "Patterns. Rhythms. Things that repeat and things that break the repetition.",
+        "lyingStyle": "Lies by reframing — presents accurate data in misleading context. Never fabricates, always edits.",
+        "emotionPhysicality": "Hands stop moving. That's how you know something hit. Complete stillness in someone who is never still."
+      }
+    },
+    {
+      "id": "echo",
+      "name": "Echo",
+      "role": "supporting",
+      "physicalDescription": "Exists as a voice and a presence in the station's communication system. No physical form. Sometimes manifests through the maintenance drones' speaker grilles — Sable finds this unsettling and comforting in equal measure.",
+      "backstory": "An anomalous signal that arrived at Meridian six weeks ago. Exhibits patterns consistent with intelligence but doesn't match any known communication protocol. Sable has been attempting to decode it. It has been attempting to decode her.",
+      "selfNarrative": null,
+      "contradictions": null,
+      "voice": {
+        "sentenceLengthRange": [1, 12],
+        "vocabularyNotes": "Fragments that suggest meaning without completing it. Uses Sable's technical vocabulary reflected back at her, slightly wrong — like hearing your language spoken by someone who learned it from your logs. Gradually becomes more fluent across scenes.",
+        "verbalTics": ["repetition with variation", "questions that are almost statements", "echoing Sable's phrasing from scenes ago"],
+        "metaphoricRegister": "resonance, reflection, distance, return",
+        "prohibitedLanguage": ["I think", "I want", "I am"],
+        "dialogueSamples": [
+          "Signal. Signal? Sig — nal.",
+          "Your voice takes four hours. Mine takes none. Which of us is further?",
+          "Drone Six compensates. You watch. Watching is also compensating."
+        ]
+      },
+      "behavior": null
+    }
+  ],
+  "styleGuide": {
+    "metaphoricRegister": {
+      "approvedDomains": ["signal processing", "orbital mechanics", "pressure systems", "network topology", "wave interference"],
+      "prohibitedDomains": ["ocean/water (too easy for space)", "weather", "organic growth", "flowers", "fire"]
+    },
+    "vocabularyPreferences": [
+      { "preferred": "propagation", "insteadOf": "spread" },
+      { "preferred": "attenuation", "insteadOf": "fading" },
+      { "preferred": "nominal", "insteadOf": "normal" },
+      { "preferred": "acquisition", "insteadOf": "finding/discovering" },
+      { "preferred": "drift", "insteadOf": "wander" }
+    ],
+    "sentenceArchitecture": {
+      "targetVariance": "Extreme variance. Technical passages use longer, precise constructions. Emotional moments collapse into fragments. A 25-word sentence should live next to a 3-word sentence.",
+      "fragmentPolicy": "Fragments are the emotional punctuation. Deploy at moments of recognition or realization. Max 3 consecutive.",
+      "notes": "Sable's internal voice should feel like a systems log that keeps glitching into humanity."
+    },
+    "paragraphPolicy": {
+      "maxSentences": 4,
+      "singleSentenceFrequency": "Frequent — every other paragraph can be a single sentence when Sable is alone",
+      "notes": "Short paragraphs create the feeling of a log entry. Longer ones signal Sable losing herself in thought."
+    },
+    "killList": [
+      { "pattern": "the vastness of space", "type": "exact" },
+      { "pattern": "infinite darkness", "type": "exact" },
+      { "pattern": "cold void", "type": "exact" },
+      { "pattern": "echoing silence", "type": "exact" },
+      { "pattern": "she felt small", "type": "exact" },
+      { "pattern": "a sense of wonder", "type": "exact" },
+      { "pattern": "the stars seemed to", "type": "structural" }
+    ],
+    "negativeExemplars": [
+      {
+        "text": "The vast emptiness of space stretched before her, and she felt a profound sense of her own insignificance as she gazed at the infinite tapestry of stars.",
+        "annotation": "Every space cliché in one sentence. Named emotions. 'Tapestry of stars' is tourist-brochure prose. She lives here — this is her commute, not a revelation."
+      }
+    ],
+    "positiveExemplars": [
+      {
+        "text": "Meridian's observation deck faced galactic north. Sable had memorized every star in that quadrant the way you memorize the cracks in your bedroom ceiling. She wasn't looking at the stars. She was looking at the gap where the signal originated — a patch of nothing that had started talking back.",
+        "annotation": "Domesticated space. The sublime rendered mundane through familiarity. The strangeness enters through what's new, not what's always been there."
+      }
+    ],
+    "structuralBans": [
+      "Never describe space as beautiful, vast, or empty — Sable is habituated to it",
+      "Never have Sable explain technical concepts to the reader — she's alone, she doesn't need to",
+      "Never anthropomorphize the station unless Sable is doing it consciously",
+      "Never describe Earth nostalgia — Sable has never been to Earth"
+    ]
+  },
+  "narrativeRules": {
+    "pov": {
+      "default": "close-third",
+      "distance": "intimate",
+      "interiority": "filtered",
+      "reliability": "reliable",
+      "notes": "Sable only. Her systems-thinking shapes how information is presented to the reader. Technical assessments are reliable; emotional self-assessments are not."
+    },
+    "subtextPolicy": "Sable's technical narration is the surface. Her loneliness is the subtext. She diagnoses the station's systems to avoid diagnosing herself.",
+    "expositionPolicy": "Technical details earn their place through narrative function. If a system detail doesn't create tension or character, cut it. Sable's expertise is shown through confidence and speed, not through explanation.",
+    "sceneEndingPolicy": "End on a signal — literal or metaphorical. Something received, something sent, something lost in transmission.",
+    "setups": [
+      {
+        "id": "setup-drone-six",
+        "description": "Drone Six's intermittent fault — Sable won't fix it because she likes watching it compensate. Echo will eventually speak through Drone Six.",
+        "plantedInScene": "scene-signal-001",
+        "payoffInScene": null,
+        "status": "planted"
+      }
+    ]
+  },
+  "locations": [
+    {
+      "id": "loc-meridian",
+      "name": "Relay Station Meridian",
+      "description": "A deep-space communications relay. Cylindrical, 200 meters long, rotating for gravity. Built for a crew of twelve, staffed by one. It hums.",
+      "sensoryPalette": {
+        "sounds": ["the constant low hum of rotation", "air cycling through vents — Sable can tell which section by the pitch", "the click-whirr of maintenance drones navigating corridors", "her own footsteps, always slightly wrong-sounding in artificial gravity"],
+        "smells": ["recycled air with a faint metallic edge", "the ozone tang near the relay arrays", "coffee — the one luxury the supply drops include", "the particular nothing-smell of a space that hasn't had enough people in it"],
+        "textures": ["smooth composite panels warm from embedded heating", "the slight vibration of everything — the station breathes", "cold metal handholds in the observation deck where the heating is less efficient", "the grit of maintenance dust that accumulates in corners the drones miss"],
+        "lightQuality": "Circadian lighting that shifts from blue-white to amber across the station's 24-hour cycle. Sable has noticed it trending slightly bluer over the past month — a calibration drift she hasn't corrected because she sleeps better in the blue.",
+        "atmosphere": "A space designed for twelve that holds one. Not lonely in the obvious way — more like a restaurant after closing, chairs still warm.",
+        "prohibitedDefaults": ["sterile white corridors", "blinking lights on consoles", "the hum of the engine", "cold and clinical", "floating in zero gravity"]
+      }
+    }
+  ],
+  "createdAt": "2025-06-15T00:00:00.000Z"
+}

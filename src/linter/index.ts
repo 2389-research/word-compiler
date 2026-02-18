@@ -15,6 +15,7 @@ export function lintPayload(
   plan: ScenePlan,
   bible: Bible,
   config: CompilationConfig,
+  ring2TokenCount: number = 0,
 ): LintResult {
   const issues: LintIssue[] = [];
 
@@ -27,9 +28,22 @@ export function lintPayload(
     });
   }
 
+  // R2_OVER_CAP — Ring 2 should not exceed its budget fraction
+  if (ring2TokenCount > 0) {
+    const available = config.modelContextWindow - config.reservedForOutput;
+    const r2Cap = Math.floor(available * config.ring2MaxFraction);
+    if (ring2TokenCount > r2Cap) {
+      issues.push({
+        code: "R2_OVER_CAP",
+        severity: "warning",
+        message: `Ring 2 at ${ring2TokenCount} tokens (cap: ${r2Cap}). Chapter context may be too verbose.`,
+      });
+    }
+  }
+
   // R3_STARVED — check Ring 3's share of actually-used tokens, not the full window
   const available = config.modelContextWindow - config.reservedForOutput;
-  const totalUsed = ring1.tokenCount + ring3.tokenCount;
+  const totalUsed = ring1.tokenCount + ring2TokenCount + ring3.tokenCount;
   const r3Fraction = totalUsed > 0 ? ring3.tokenCount / totalUsed : 1;
   if (r3Fraction < 0.4) {
     issues.push({
@@ -122,7 +136,7 @@ export function lintPayload(
   }
 
   // TOTAL_OVER_BUDGET
-  const totalTokens = ring1.tokenCount + ring3.tokenCount;
+  const totalTokens = ring1.tokenCount + ring2TokenCount + ring3.tokenCount;
   if (totalTokens > available) {
     issues.push({
       code: "TOTAL_OVER_BUDGET",

@@ -1,0 +1,64 @@
+{
+  "id": "scene-signal-001",
+  "projectId": "proj-scifi",
+  "chapterId": null,
+  "title": "First Contact Protocol",
+  "povCharacterId": "sable",
+  "povDistance": "intimate",
+  "narrativeGoal": "Sable detects the anomalous signal during routine relay maintenance. What begins as a diagnostic puzzle becomes something she can't classify. The scene establishes her isolation, her competence, and the first crack in both — something that doesn't fit her systems.",
+  "emotionalBeat": "Professional curiosity sharpening into unease she refuses to name",
+  "readerEffect": "Feel the weight of Sable's solitude before the signal arrives, then feel it change shape — loneliness becoming something with an audience.",
+  "readerStateEntering": {
+    "knows": [],
+    "suspects": [],
+    "wrongAbout": ["This is just a day-in-the-life space story"],
+    "activeTensions": []
+  },
+  "readerStateExiting": {
+    "knows": ["Sable is alone on Meridian", "She's been here 337 days", "An anomalous signal has appeared", "It doesn't match any known protocol"],
+    "suspects": ["The signal might be intentional", "Sable's loneliness is affecting her judgment", "She's not going to report this immediately"],
+    "wrongAbout": ["That the signal is just interference"],
+    "activeTensions": ["What is the signal?", "Will Sable report it?", "How long has she really been alone?"]
+  },
+  "characterKnowledgeChanges": {
+    "sable": "Discovers an anomalous signal pattern that doesn't match any catalogue entry. Her diagnostic tools can't classify it. For the first time in months, she doesn't know what she's looking at."
+  },
+  "subtext": {
+    "surfaceConversation": "A systems engineer running diagnostics on an anomalous reading",
+    "actualConversation": "A lonely person encountering something that might be listening",
+    "enforcementRule": "Sable must frame everything technically. The loneliness enters through what she does, not what she thinks about doing."
+  },
+  "dialogueConstraints": {
+    "sable": ["Talks aloud to herself in technical fragments", "Addresses maintenance drones by name", "Her log entries are technically correct but emotionally transparent to the reader"]
+  },
+  "pacing": "Slow and rhythmic at first — the routine is the rhythm. When the signal appears, the rhythm breaks. Shorter paragraphs, more fragments.",
+  "density": "moderate",
+  "sensoryNotes": "The hum of the station. The difference between the expected sounds and a new one. The observation deck's particular quality of silence. Coffee cooling in a cup. Drone Six's compensating clicks.",
+  "sceneSpecificProhibitions": [
+    "No exposition about how relay stations work — Sable knows, the reader figures it out",
+    "No awe at space — she's been here almost a year",
+    "No 'is anyone there?' moment — Sable is too professional for that",
+    "Do not describe the signal as 'beautiful' or 'haunting'"
+  ],
+  "anchorLines": [
+    {
+      "text": "Station log, day 337. All systems nominal. I am not.",
+      "placement": "Opening line",
+      "verbatim": true
+    },
+    {
+      "text": "She ran the diagnostic three times. Three times it came back: UNCLASSIFIED. She'd never seen her own system say that.",
+      "placement": "The moment the signal becomes real",
+      "verbatim": true
+    }
+  ],
+  "estimatedWordCount": [800, 1200],
+  "chunkCount": 3,
+  "chunkDescriptions": [
+    "Day 337 — Sable's morning routine on Meridian. Log entry, coffee, drone check, the comfortable weight of solitude. Establish the rhythm that will break.",
+    "The anomaly — during routine relay maintenance, something appears in the signal data. Sable runs diagnostics. The results don't fit any pattern she knows.",
+    "The decision — Sable doesn't report the signal. Instead she saves it, labels it personal, and begins her own analysis. She tells herself it's professional curiosity. It isn't."
+  ],
+  "failureModeToAvoid": "Making the signal arrival too dramatic. It should feel like a puzzle, not an event. The drama is internal — the crack in Sable's certainty about what she knows.",
+  "locationId": "loc-meridian"
+}

@@ -1,24 +1,28 @@
 import { useCallback } from "react";
+import type { ScenePlan, Chunk } from "../../types/index.js";
 import type { AppState, AppAction } from "./useProject.js";
-import type { Chunk } from "../../types/index.js";
 import { generateId } from "../../types/index.js";
 import { generateStream } from "../../llm/client.js";
 import { runAudit } from "../../auditor/index.js";
 
-export function useGeneration(state: AppState, dispatch: React.Dispatch<AppAction>) {
+export function useGeneration(
+  state: AppState,
+  dispatch: React.Dispatch<AppAction>,
+  activeScenePlan: ScenePlan | null,
+  activeSceneChunks: Chunk[],
+) {
   const generateChunk = useCallback(async () => {
-    if (!state.compiledPayload || !state.bible || !state.scenePlan) return;
+    if (!state.compiledPayload || !state.bible || !activeScenePlan) return;
 
     dispatch({ type: "SET_GENERATING", value: true });
     dispatch({ type: "SET_ERROR", error: null });
 
     try {
-      // Create a pending chunk immediately so the user sees streaming text
       const chunkId = generateId();
-      const chunkIndex = state.chunks.length;
+      const chunkIndex = activeSceneChunks.length;
       const pendingChunk: Chunk = {
         id: chunkId,
-        sceneId: state.scenePlan.id,
+        sceneId: activeScenePlan.id,
         sequenceNumber: chunkIndex,
         generatedText: "",
         payloadHash: generateId(),
@@ -36,11 +40,9 @@ export function useGeneration(state: AppState, dispatch: React.Dispatch<AppActio
       await generateStream(state.compiledPayload, {
         onToken: (text) => {
           fullText += text;
-          // Update the chunk's text as tokens arrive
           dispatch({ type: "UPDATE_CHUNK", index: chunkIndex, chunk: { generatedText: fullText } });
         },
         onDone: () => {
-          // Final update with complete text
           dispatch({ type: "UPDATE_CHUNK", index: chunkIndex, chunk: { generatedText: fullText } });
         },
         onError: (err) => {
@@ -48,11 +50,11 @@ export function useGeneration(state: AppState, dispatch: React.Dispatch<AppActio
         },
       });
 
-      // Run audit on all chunks
-      const allText = [...state.chunks, { ...pendingChunk, generatedText: fullText }]
+      // Run audit on all chunks for this scene
+      const allText = [...activeSceneChunks, { ...pendingChunk, generatedText: fullText }]
         .map((c) => c.editedText ?? c.generatedText)
         .join("\n\n");
-      const { flags, metrics } = runAudit(allText, state.bible, state.scenePlan.id);
+      const { flags, metrics } = runAudit(allText, state.bible, activeScenePlan.id);
       dispatch({ type: "SET_AUDIT", flags, metrics });
     } catch (err) {
       dispatch({
@@ -62,17 +64,17 @@ export function useGeneration(state: AppState, dispatch: React.Dispatch<AppActio
     } finally {
       dispatch({ type: "SET_GENERATING", value: false });
     }
-  }, [state.compiledPayload, state.bible, state.scenePlan, state.chunks, dispatch]);
+  }, [state.compiledPayload, state.bible, activeScenePlan, activeSceneChunks, dispatch]);
 
   const runAuditManual = useCallback(() => {
-    if (!state.bible || !state.scenePlan || state.chunks.length === 0) return;
+    if (!state.bible || !activeScenePlan || activeSceneChunks.length === 0) return;
 
-    const allText = state.chunks
+    const allText = activeSceneChunks
       .map((c) => c.editedText ?? c.generatedText)
       .join("\n\n");
-    const { flags, metrics } = runAudit(allText, state.bible, state.scenePlan.id);
+    const { flags, metrics } = runAudit(allText, state.bible, activeScenePlan.id);
     dispatch({ type: "SET_AUDIT", flags, metrics });
-  }, [state.bible, state.scenePlan, state.chunks, dispatch]);
+  }, [state.bible, activeScenePlan, activeSceneChunks, dispatch]);
 
   return { generateChunk, runAuditManual };
 }

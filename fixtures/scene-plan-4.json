@@ -1,0 +1,56 @@
+{
+  "id": "scene-morning-004",
+  "projectId": "proj-fixture",
+  "chapterId": "arc-ch1",
+  "title": "Morning Prep",
+  "povCharacterId": "marcus",
+  "povDistance": "intimate",
+  "narrativeGoal": "Marcus prepares for the meeting he agreed to. The scene is entirely internal — him alone in the bar before opening, going through physical rituals that echo his old fight-prep routines. The reader sees Marcus becoming someone he thought he'd stopped being.",
+  "emotionalBeat": "Grim resolution settling into the body like muscle memory",
+  "readerEffect": "Understand that Marcus hasn't changed as much as he believes. Feel the weight of a man picking up something he put down.",
+  "readerStateEntering": {
+    "knows": ["Marcus agreed to help", "Dex connects them", "Someone is watching"],
+    "suspects": ["Marcus still has the capacity for violence", "Elena is more desperate than she lets on"],
+    "wrongAbout": ["Who Marcus is actually protecting"],
+    "activeTensions": ["Will the meeting go wrong?", "What does Elena actually know?", "Why does Marcus care about Dex?"]
+  },
+  "readerStateExiting": {
+    "knows": ["Marcus is physically preparing — this isn't just a conversation he's walking into", "His body remembers the old rituals", "He's crossing a threshold he can't uncross"],
+    "suspects": ["Marcus expects violence at the meeting", "He's done this before — prepared like this for something that went wrong", "The meeting is with someone dangerous"],
+    "wrongAbout": ["What the meeting is actually about"],
+    "activeTensions": ["What will happen at the meeting?", "Is Marcus walking into a trap?", "Does Elena know what she's asked him to do?"]
+  },
+  "characterKnowledgeChanges": {
+    "marcus": "No new information. But a physical reckoning — his body tells him truths his mind has been avoiding."
+  },
+  "subtext": {
+    "surfaceConversation": "A man doing morning chores in his bar",
+    "actualConversation": "A fighter returning to the ring",
+    "enforcementRule": "No internal acknowledgment that he's preparing for anything. The routine must read as normal to Marcus while reading as preparation to the audience."
+  },
+  "dialogueConstraints": {},
+  "pacing": "Meditative. Deliberate physical actions described with precision. Time moves slowly. Every gesture accumulates meaning.",
+  "density": "dense",
+  "sensoryNotes": "Morning light through dirty windows — different quality than night scenes. The smell of coffee over last night's beer. Cold water on hands. The specific sounds of an empty bar in daylight. The weight of familiar objects.",
+  "sceneSpecificProhibitions": [
+    "No dialogue at all — this is a silent scene",
+    "No flashbacks or memories — only the present moment",
+    "No mirror scene (he does not look at himself)",
+    "No explicit metaphor comparing bar prep to fight prep — the parallel must emerge from description alone"
+  ],
+  "anchorLines": [
+    {
+      "text": "He wrapped his hands before he realized he was doing it.",
+      "placement": "The moment the subtext becomes almost-text. Near the end.",
+      "verbatim": true
+    }
+  ],
+  "estimatedWordCount": [500, 800],
+  "chunkCount": 2,
+  "chunkDescriptions": [
+    "Dawn routine — Marcus in the bar alone. Coffee, cleaning, the physical rhythm of a man who's done this a thousand times. But something is different today — the movements are sharper, more deliberate.",
+    "The tell — the routine subtly shifts into preparation. The scene ends with Marcus leaving through the back door, the one he never uses."
+  ],
+  "failureModeToAvoid": "Being too on-the-nose about the fight-prep parallel. The reader should feel it building before they can name it. If it's obvious by the second paragraph, the scene has failed.",
+  "locationId": "loc-bar"
+}

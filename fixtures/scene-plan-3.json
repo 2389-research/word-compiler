@@ -1,0 +1,65 @@
+{
+  "id": "scene-phone-003",
+  "projectId": "proj-fixture",
+  "chapterId": "arc-ch1",
+  "title": "The Phone Call",
+  "povCharacterId": "marcus",
+  "povDistance": "intimate",
+  "narrativeGoal": "Marcus calls Elena to warn her. The conversation reveals more of their shared history and introduces the name 'Dex' — someone both of them know, someone who connects Marcus's past to Elena's present investigation. Marcus tries to stay detached and fails.",
+  "emotionalBeat": "Reluctant concern hardening into obligation",
+  "readerEffect": "Understand that Marcus's past and Elena's investigation are the same story. Feel the weight of a debt Marcus hasn't acknowledged.",
+  "readerStateEntering": {
+    "knows": ["Someone is watching", "Marcus's instincts are still sharp", "The threat is real"],
+    "suspects": ["The watcher is connected to Elena's story", "Marcus recognized something"],
+    "wrongAbout": ["Who sent the watcher"],
+    "activeTensions": ["Is Marcus in danger?", "Will he warn Elena?", "Can he stay uninvolved?"]
+  },
+  "readerStateExiting": {
+    "knows": ["Dex is a name from Marcus's past", "Elena has been investigating Dex's disappearance", "Marcus owes Dex something he won't name"],
+    "suspects": ["Dex might be dead", "Marcus's boxing career ended because of something connected to Dex", "Elena knows more about Marcus's past than he's comfortable with"],
+    "wrongAbout": ["The nature of Marcus's debt to Dex"],
+    "activeTensions": ["Will Marcus agree to help?", "What happened between Marcus and Dex?", "Is Elena being honest about what she knows?"]
+  },
+  "characterKnowledgeChanges": {
+    "marcus": "Learns Elena has been investigating Dex specifically, not a general story. Realizes she came to the bar knowing exactly what she needed from him.",
+    "elena": "Learns Marcus saw a watcher — confirms her fear that she's being followed. Hears something in Marcus's voice when Dex is mentioned that tells her she chose the right person."
+  },
+  "subtext": {
+    "surfaceConversation": "Marcus warning Elena about a potential threat outside his bar",
+    "actualConversation": "Marcus deciding whether to re-enter a world he left. Elena recognizing the moment and pressing gently.",
+    "enforcementRule": "Neither character says 'help' or 'please.' The ask and the answer happen entirely through indirection."
+  },
+  "dialogueConstraints": {
+    "marcus": ["Clipped, informational at first", "Gets quieter when Dex is mentioned", "Asks questions instead of making statements", "Long pauses rendered through physical detail"],
+    "elena": ["Controlled urgency", "Drops the journalist voice when Dex comes up", "Uses silence strategically — lets Marcus fill it", "One moment of genuine vulnerability"]
+  },
+  "pacing": "Two-tempo scene: fast exchange of information at the start, then a long slow middle when Dex enters the conversation. Ends on a single quiet sentence.",
+  "density": "moderate",
+  "sensoryNotes": "Phone against ear. The sound of Marcus's apartment — different acoustic from the bar. Whatever he's doing with his hands while he talks. The quality of silence on a phone line vs. silence in a room.",
+  "sceneSpecificProhibitions": [
+    "No exposition dumps about Dex — information comes in fragments and implications",
+    "No 'he remembered' flashbacks — the past surfaces only through present-tense reactions",
+    "Marcus never explains why he owes Dex"
+  ],
+  "anchorLines": [
+    {
+      "text": "Dex.",
+      "placement": "The single word that changes the conversation. Marcus says it, or Elena does. One word, its own paragraph.",
+      "verbatim": true
+    },
+    {
+      "text": "He told her he'd think about it, which they both knew was a yes.",
+      "placement": "Final line of the scene",
+      "verbatim": true
+    }
+  ],
+  "estimatedWordCount": [900, 1300],
+  "chunkCount": 3,
+  "chunkDescriptions": [
+    "The warning — Marcus calls Elena, delivers the news about the watcher. Quick, informational, both pretending this is practical.",
+    "Dex — the name surfaces. The conversation shifts. History bleeds through in pauses and half-sentences. The real reason Elena came to the bar.",
+    "The answer — Marcus's resistance collapses not with a dramatic moment but with a quiet one. He agrees to something without saying yes."
+  ],
+  "failureModeToAvoid": "Making the phone call feel like exposition delivery. Every piece of information must cost something to say and something to hear.",
+  "locationId": null
+}
