@@ -360,6 +360,37 @@ export interface CharacterDelta {
   relationshipChange: string | null;
 }
 
+// ─── Metrics ────────────────────────────────────────────
+
+export interface StyleDriftReport {
+  baselineSceneId: string;
+  currentSceneId: string;
+  baselineMetrics: ProseMetrics;
+  currentMetrics: ProseMetrics;
+  driftPercent: {
+    avgSentenceLength: number;
+    sentenceLengthVariance: number;
+    typeTokenRatio: number;
+    avgParagraphLength: number;
+  };
+  flagged: boolean;
+  flaggedFields: string[];
+}
+
+export interface VoiceSeparabilityReport {
+  characterStats: Array<{
+    characterId: string;
+    characterName: string;
+    dialogueCount: number;
+    avgSentenceLength: number;
+    sentenceLengthVariance: number;
+    typeTokenRatio: number;
+  }>;
+  interCharacterVariance: number;
+  separable: boolean;
+  detail: string;
+}
+
 // ─── Utility Functions ──────────────────────────────────
 
 export function generateId(): string {
@@ -564,6 +595,22 @@ export function createDefaultCompilationConfig(modelId: string = DEFAULT_MODEL):
     defaultTopP: 0.92,
     defaultModel: spec.id,
     sceneTypeOverrides: {},
+  };
+}
+
+export function createEmptyNarrativeIR(sceneId: string): NarrativeIR {
+  return {
+    sceneId,
+    verified: false,
+    events: [],
+    factsIntroduced: [],
+    factsRevealedToReader: [],
+    factsWithheld: [],
+    characterDeltas: [],
+    setupsPlanted: [],
+    payoffsExecuted: [],
+    characterPositions: {},
+    unresolvedTensions: [],
   };
 }
 

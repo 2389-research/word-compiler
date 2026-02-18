@@ -1,5 +1,13 @@
 import { countTokens, lastNTokens } from "../tokens/index.js";
-import type { Bible, Chunk, CompilationConfig, Ring3Result, RingSection, ScenePlan } from "../types/index.js";
+import type {
+  Bible,
+  Chunk,
+  CompilationConfig,
+  NarrativeIR,
+  Ring3Result,
+  RingSection,
+  ScenePlan,
+} from "../types/index.js";
 import { getCanonicalText } from "../types/index.js";
 import {
   assembleSections,
@@ -16,6 +24,7 @@ export function buildRing3(
   _chunkNumber: number,
   config: CompilationConfig,
   previousSceneLastChunk?: Chunk,
+  previousSceneIR?: NarrativeIR,
 ): Ring3Result {
   const sections: RingSection[] = [];
 
@@ -102,6 +111,30 @@ export function buildRing3(
       priority: 3,
       immune: false,
     });
+
+    // Part B: IR state bullets (when verified IR is available for the previous scene)
+    if (previousSceneIR?.verified && config.bridgeIncludeStateBullets) {
+      const stateParts: string[] = [];
+      if (previousSceneIR.unresolvedTensions.length > 0) {
+        stateParts.push(
+          `Unresolved tensions:\n${previousSceneIR.unresolvedTensions.map((t) => `  - ${t}`).join("\n")}`,
+        );
+      }
+      const positionEntries = Object.entries(previousSceneIR.characterPositions);
+      if (positionEntries.length > 0) {
+        stateParts.push(
+          `Character positions:\n${positionEntries.map(([name, pos]) => `  - ${name}: ${pos}`).join("\n")}`,
+        );
+      }
+      if (stateParts.length > 0) {
+        sections.push({
+          name: "CONTINUITY_BRIDGE_STATE",
+          text: `=== STATE AT SCENE ENTRY ===\n${stateParts.join("\n")}`,
+          priority: 3,
+          immune: false,
+        });
+      }
+    }
   }
 
   // --- Anti-Ablation (immune) ---

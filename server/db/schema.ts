@@ -91,5 +91,17 @@ export function createSchema(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_compiled_payloads_chunk ON compiled_payloads(chunk_id);
+
+    -- Narrative IRs (one per scene, LLM-extracted, human-verified)
+    CREATE TABLE IF NOT EXISTS narrative_irs (
+      id TEXT PRIMARY KEY,
+      scene_id TEXT NOT NULL REFERENCES scene_plans(id),
+      verified INTEGER NOT NULL DEFAULT 0,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      verified_at TEXT,
+      UNIQUE(scene_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_narrative_irs_scene ON narrative_irs(scene_id);
   `);
 }

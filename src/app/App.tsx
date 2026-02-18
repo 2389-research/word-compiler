@@ -55,6 +55,16 @@ export function App() {
     }
   }, [activeScenePlan, dispatch]);
 
+  const handleOpenIRInspector = useCallback(() => {
+    dispatch({ type: "SET_IR_INSPECTOR_OPEN", value: true });
+  }, [dispatch]);
+
+  const handleExtractIR = useCallback(() => {
+    // IR extraction is triggered from the UI; the actual LLM call is handled
+    // in a separate async flow. For now, open the inspector to show pending state.
+    dispatch({ type: "SET_IR_INSPECTOR_OPEN", value: true });
+  }, [dispatch]);
+
   const handleResolveFlag = useCallback(
     (flagId: string, action: string) => {
       dispatch({ type: "RESOLVE_AUDIT_FLAG", flagId, action, wasActionable: true });
@@ -70,6 +80,7 @@ export function App() {
   );
 
   const canGenerate = !!state.bible && !!activeScenePlan && !!state.compiledPayload;
+  const activeSceneIR = activeScenePlan ? (state.sceneIRs[activeScenePlan.id] ?? null) : null;
 
   // Gate messages — computed each render for instant feedback
   const gateMessages = useMemo(() => {
@@ -180,11 +191,15 @@ export function App() {
           canGenerate={canGenerate}
           gateMessages={gateMessages}
           auditFlags={state.auditFlags}
+          sceneIR={activeSceneIR}
+          isExtractingIR={false}
           onGenerate={generateChunk}
           onUpdateChunk={handleUpdateChunk}
           onRemoveChunk={handleRemoveChunk}
           onRunAudit={runAuditManual}
           onCompleteScene={handleCompleteScene}
+          onOpenIRInspector={handleOpenIRInspector}
+          onExtractIR={handleExtractIR}
         />
         <CompilerView
           payload={state.compiledPayload}

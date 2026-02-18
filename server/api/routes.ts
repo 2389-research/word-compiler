@@ -5,6 +5,7 @@ import * as bibles from "../db/repositories/bibles.js";
 import * as chapterArcs from "../db/repositories/chapter-arcs.js";
 import * as chunks from "../db/repositories/chunks.js";
 import * as compilationLogs from "../db/repositories/compilation-logs.js";
+import * as narrativeIRs from "../db/repositories/narrative-irs.js";
 import * as projects from "../db/repositories/projects.js";
 import * as scenePlans from "../db/repositories/scene-plans.js";
 
@@ -161,6 +162,37 @@ export function createApiRouter(db: Database.Database): Router {
 
   router.get("/scenes/:sceneId/audit-stats", (req, res) => {
     res.json(auditFlags.getAuditStats(db, req.params.sceneId));
+  });
+
+  // ─── Narrative IRs ─────────────────────────────────
+  router.get("/scenes/:sceneId/ir", (req, res) => {
+    const ir = narrativeIRs.getNarrativeIR(db, req.params.sceneId);
+    if (!ir) return res.status(404).json({ error: "IR not found" });
+    res.json(ir);
+  });
+
+  router.post("/scenes/:sceneId/ir", (req, res) => {
+    const ir = narrativeIRs.createNarrativeIR(db, req.body);
+    res.status(201).json(ir);
+  });
+
+  router.put("/scenes/:sceneId/ir", (req, res) => {
+    const ir = narrativeIRs.updateNarrativeIR(db, req.body);
+    res.json(ir);
+  });
+
+  router.patch("/scenes/:sceneId/ir/verify", (req, res) => {
+    const ok = narrativeIRs.verifyNarrativeIR(db, req.params.sceneId);
+    if (!ok) return res.status(404).json({ error: "IR not found" });
+    res.json({ ok: true });
+  });
+
+  router.get("/chapters/:chapterId/irs", (req, res) => {
+    res.json(narrativeIRs.listAllIRsForChapter(db, req.params.chapterId));
+  });
+
+  router.get("/chapters/:chapterId/irs/verified", (req, res) => {
+    res.json(narrativeIRs.listVerifiedIRsForChapter(db, req.params.chapterId));
   });
 
   // ─── Compilation Logs ──────────────────────────────

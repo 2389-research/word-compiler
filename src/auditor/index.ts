@@ -1,6 +1,16 @@
 import { countWords } from "../tokens/index.js";
-import type { AuditFlag, AuditStats, Bible, KillListEntry, ProseMetrics } from "../types/index.js";
+import type {
+  AuditFlag,
+  AuditStats,
+  Bible,
+  KillListEntry,
+  NarrativeIR,
+  ProseMetrics,
+  ScenePlan,
+} from "../types/index.js";
 import { generateId } from "../types/index.js";
+import { checkEpistemicLeaks } from "./epistemic.js";
+import { checkSetupPayoff } from "./setupPayoff.js";
 
 // ─── Kill List ──────────────────────────────────────────
 
@@ -202,14 +212,33 @@ export function getAuditStats(flags: AuditFlag[]): AuditStats {
   };
 }
 
+// ─── IR Audit Options ───────────────────────────────────
+
+export interface IRAuditContext {
+  sceneIR: NarrativeIR;
+  allPriorIRs: NarrativeIR[];
+  plan: ScenePlan;
+}
+
 // ─── Convenience ────────────────────────────────────────
 
-export function runAudit(prose: string, bible: Bible, sceneId: string): { flags: AuditFlag[]; metrics: ProseMetrics } {
+export function runAudit(
+  prose: string,
+  bible: Bible,
+  sceneId: string,
+  irContext?: IRAuditContext,
+): { flags: AuditFlag[]; metrics: ProseMetrics } {
   const flags: AuditFlag[] = [
     ...checkKillList(prose, bible.styleGuide.killList, sceneId),
     ...checkSentenceVariance(prose, sceneId),
     ...checkParagraphLength(prose, bible.styleGuide.paragraphPolicy?.maxSentences ?? null, sceneId),
   ];
+
+  // IR-driven checks (only when IR context is provided with verified IRs)
+  if (irContext?.sceneIR?.verified) {
+    flags.push(...checkEpistemicLeaks(irContext.sceneIR, irContext.allPriorIRs, bible));
+    flags.push(...checkSetupPayoff(irContext.sceneIR, irContext.plan, bible));
+  }
 
   const metrics = computeMetrics(prose);
 

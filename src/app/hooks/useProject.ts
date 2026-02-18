@@ -10,6 +10,7 @@ import type {
   CompiledPayload,
   LintResult,
   ModelSpec,
+  NarrativeIR,
   Project,
   ProseMetrics,
   ScenePlan,
@@ -30,6 +31,7 @@ export interface AppState {
   scenes: SceneEntry[];
   activeSceneIndex: number;
   sceneChunks: Record<string, Chunk[]>;
+  sceneIRs: Record<string, NarrativeIR>;
   bible: Bible | null;
   bibleVersions: Array<{ version: number; createdAt: string }>;
   // Config
@@ -45,6 +47,7 @@ export interface AppState {
   isGenerating: boolean;
   selectedChunkIndex: number | null;
   bootstrapModalOpen: boolean;
+  irInspectorOpen: boolean;
   error: string | null;
 }
 
@@ -70,6 +73,9 @@ export type AppAction =
   | { type: "SET_BOOTSTRAP_OPEN"; value: boolean }
   | { type: "SET_ERROR"; error: string | null }
   | { type: "SELECT_CHUNK"; index: number | null }
+  | { type: "SET_SCENE_IR"; sceneId: string; ir: NarrativeIR }
+  | { type: "VERIFY_SCENE_IR"; sceneId: string }
+  | { type: "SET_IR_INSPECTOR_OPEN"; value: boolean }
   | {
       type: "LOAD_FROM_SERVER";
       project: Project;
@@ -171,6 +177,15 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, isGenerating: action.value };
     case "SET_BOOTSTRAP_OPEN":
       return { ...state, bootstrapModalOpen: action.value };
+    case "SET_SCENE_IR":
+      return { ...state, sceneIRs: { ...state.sceneIRs, [action.sceneId]: action.ir } };
+    case "VERIFY_SCENE_IR": {
+      const ir = state.sceneIRs[action.sceneId];
+      if (!ir) return state;
+      return { ...state, sceneIRs: { ...state.sceneIRs, [action.sceneId]: { ...ir, verified: true } } };
+    }
+    case "SET_IR_INSPECTOR_OPEN":
+      return { ...state, irInspectorOpen: action.value };
     case "SET_ERROR":
       return { ...state, error: action.error };
     case "SELECT_CHUNK":
@@ -210,6 +225,7 @@ const initialState: AppState = {
   scenes: [],
   activeSceneIndex: 0,
   sceneChunks: {},
+  sceneIRs: {},
   bible: null,
   bibleVersions: [],
   compilationConfig: createDefaultCompilationConfig(),
@@ -222,6 +238,7 @@ const initialState: AppState = {
   isGenerating: false,
   selectedChunkIndex: null,
   bootstrapModalOpen: false,
+  irInspectorOpen: false,
   error: null,
 };
 

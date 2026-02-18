@@ -1,4 +1,13 @@
-import type { AuditFlag, Bible, ChapterArc, Chunk, CompilationLog, Project, ScenePlan } from "../types/index.js";
+import type {
+  AuditFlag,
+  Bible,
+  ChapterArc,
+  Chunk,
+  CompilationLog,
+  NarrativeIR,
+  Project,
+  ScenePlan,
+} from "../types/index.js";
 
 const BASE = "/api/data";
 
@@ -178,4 +187,36 @@ export function apiSaveCompilationLog(log: CompilationLog): Promise<CompilationL
     method: "POST",
     body: JSON.stringify(log),
   });
+}
+
+// ─── Narrative IRs ────────────────────────────────────
+
+export function apiGetSceneIR(sceneId: string): Promise<NarrativeIR> {
+  return fetchJson(`${BASE}/scenes/${sceneId}/ir`);
+}
+
+export function apiCreateSceneIR(sceneId: string, ir: NarrativeIR): Promise<NarrativeIR> {
+  return fetchJson(`${BASE}/scenes/${sceneId}/ir`, {
+    method: "POST",
+    body: JSON.stringify(ir),
+  });
+}
+
+export function apiUpdateSceneIR(sceneId: string, ir: NarrativeIR): Promise<NarrativeIR> {
+  return fetchJson(`${BASE}/scenes/${sceneId}/ir`, {
+    method: "PUT",
+    body: JSON.stringify(ir),
+  });
+}
+
+export function apiVerifySceneIR(sceneId: string): Promise<void> {
+  return fetchJson(`${BASE}/scenes/${sceneId}/ir/verify`, { method: "PATCH" });
+}
+
+export function apiListChapterIRs(chapterId: string): Promise<NarrativeIR[]> {
+  return fetchJson(`${BASE}/chapters/${chapterId}/irs`);
+}
+
+export function apiListVerifiedChapterIRs(chapterId: string): Promise<NarrativeIR[]> {
+  return fetchJson(`${BASE}/chapters/${chapterId}/irs/verified`);
 }

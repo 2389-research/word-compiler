@@ -8,10 +8,16 @@ import {
   createEmptyChapterArc,
   createEmptyScenePlan,
   generateId,
+  type NarrativeIR,
   type ScenePlan,
 } from "../src/types/index.js";
 import { saveArtifact } from "./artifacts.js";
-import { type DeterministicCheckInputs, runAllDeterministicChecks } from "./checks/deterministic.js";
+import {
+  checkIRCompleteness,
+  checkSetupPayoffClosure,
+  type DeterministicCheckInputs,
+  runAllDeterministicChecks,
+} from "./checks/deterministic.js";
 import {
   evaluateContinuity,
   evaluateMetaphoricRegister,
@@ -148,6 +154,134 @@ function defaultChapterArc(): ChapterArc {
   };
 }
 
+// ─── Mock IR Fixtures ───────────────────────────────────
+
+function defaultMockIRs(): NarrativeIR[] {
+  return [
+    {
+      sceneId: "scene-1",
+      verified: true,
+      events: [
+        "Marcus notices the substitute teacher's desk has been deliberately emptied",
+        "Marcus finds the window latch seated but not locked — a two-millimeter gap",
+        "A replacement eraser left behind with a clean edge suggests a visitor brought their own",
+      ],
+      factsIntroduced: ["The substitute teacher is absent", "Someone was in the classroom before Marcus"],
+      factsRevealedToReader: ["The classroom shows deliberate disturbance", "The visitor came with specific intent"],
+      factsWithheld: ["Who emptied the desk", "What the visitor was looking for"],
+      characterDeltas: [
+        {
+          characterId: "marcus",
+          learned: "The filing cabinet was moved, the window latch unseated, a replacement eraser left behind",
+          suspicionGained: "Someone with intent was in the classroom — not a student",
+          emotionalShift: "Unease transitioning into investigative alertness",
+          relationshipChange: null,
+        },
+      ],
+      setupsPlanted: ["envelope taped under the desk drawer"],
+      payoffsExecuted: [],
+      characterPositions: { marcus: "Empty classroom, end of school day, window sealed" },
+      unresolvedTensions: ["Where is the substitute teacher?", "Who was in the classroom and why?"],
+    },
+    {
+      sceneId: "scene-2",
+      verified: true,
+      events: [
+        "Marcus finds Elena alone in the staff room",
+        "Elena confirms the substitute came recommended by someone she trusted",
+        "Elena implies the trust relationship has since broken — past tense signals",
+      ],
+      factsIntroduced: ["The substitute was recommended by someone Elena once trusted"],
+      factsRevealedToReader: [
+        "Elena knows more than she is saying about the recommender",
+        "Elena's trust in that person has collapsed",
+      ],
+      factsWithheld: ["The name of the recommender", "What Elena suspects the substitute did"],
+      characterDeltas: [
+        {
+          characterId: "marcus",
+          learned: "Elena received the substitute through a trust relationship she no longer holds",
+          suspicionGained: "Elena is deliberately withholding the recommender's name",
+          emotionalShift: "Controlled patience — Marcus is waiting Elena out",
+          relationshipChange: null,
+        },
+      ],
+      setupsPlanted: [],
+      payoffsExecuted: [],
+      characterPositions: {
+        marcus: "Staff room, seated, observing Elena",
+        elena: "Staff room corner, thermos as defensive prop",
+      },
+      unresolvedTensions: ["Who recommended the substitute?", "What does Elena know that she won't say?"],
+    },
+    {
+      sceneId: "scene-3",
+      verified: true,
+      events: [
+        "Marcus returns to the classroom after dark",
+        "Marcus locates an envelope taped under the desk drawer with packing tape",
+        "The envelope bears the school address typed on what appears to be an old typewriter with worn ribbon",
+      ],
+      factsIntroduced: ["An envelope was hidden under the desk, placed by someone expecting retrieval"],
+      factsRevealedToReader: [
+        "This is an intentional message — a dead drop",
+        "Old typewriter obscures the sender's identity",
+      ],
+      factsWithheld: ["Contents of the envelope", "Who placed it and when"],
+      characterDeltas: [
+        {
+          characterId: "marcus",
+          learned:
+            "An envelope was taped under the drawer — deliberately placed for retrieval, school address typed on worn ribbon",
+          suspicionGained: "Someone is communicating through a dead drop at the school",
+          emotionalShift: "Dread and heightened focus — hands go still",
+          relationshipChange: null,
+        },
+      ],
+      setupsPlanted: [],
+      payoffsExecuted: ["envelope taped under the desk drawer"],
+      characterPositions: { marcus: "Classroom after dark, holding retrieved envelope, unread" },
+      unresolvedTensions: ["What is in the envelope?", "Who placed it?"],
+    },
+    {
+      sceneId: "scene-4",
+      verified: true,
+      events: [
+        "Elena confronts Marcus in the corridor",
+        "Elena reveals she knew Marcus was looking before he started",
+        "Elena admits she placed the envelope herself",
+      ],
+      factsIntroduced: [],
+      factsRevealedToReader: [
+        "Elena is the source, not a suspect — she orchestrated the discovery",
+        "Elena has been ahead of Marcus throughout",
+      ],
+      factsWithheld: ["Why Elena placed the envelope", "What the envelope contains"],
+      characterDeltas: [
+        {
+          characterId: "marcus",
+          learned: "Elena placed the envelope and was aware of his investigation before it began",
+          suspicionGained: null,
+          emotionalShift: "Controlled fury giving way to structural recalibration — all prior assumptions revised",
+          relationshipChange:
+            "Elena shifts from suspected withholding party to active orchestrator with unknown intent",
+        },
+      ],
+      setupsPlanted: [],
+      payoffsExecuted: [],
+      characterPositions: {
+        marcus: "Corridor, envelope in hand, facing Elena",
+        elena: "Far end of corridor, no thermos, undefended posture",
+      },
+      unresolvedTensions: [
+        "What is in the envelope?",
+        "What does Elena want Marcus to do with it?",
+        "Why did Elena engineer this rather than come to Marcus directly?",
+      ],
+    },
+  ];
+}
+
 // ─── Mock LLM ───────────────────────────────────────────
 
 const MOCK_PROSE = [
@@ -264,6 +398,13 @@ async function runEval(options: RunnerOptions): Promise<void> {
 
       allDetChecks.push(...runAllDeterministicChecks(inputs));
     }
+
+    // Run IR-level checks using mock fixtures (simulates post-extraction state)
+    const mockIRs = options.mock ? defaultMockIRs() : [];
+    const irMap = new Map<string, NarrativeIR>(mockIRs.map((ir) => [ir.sceneId, ir]));
+    const completedSceneIds = driverResult.scenes.map((s) => s.sceneId);
+    allDetChecks.push(checkIRCompleteness(completedSceneIds, irMap));
+    allDetChecks.push(checkSetupPayoffClosure(mockIRs, bible, completedSceneIds[completedSceneIds.length - 1] ?? ""));
 
     // Run judge evaluations (skip in mock mode)
     const judgeScores: JudgeScore[] = [];

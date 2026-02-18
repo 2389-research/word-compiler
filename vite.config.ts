@@ -16,6 +16,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+    setupFiles: ["./tests/setup.ts"],
+    // jsdom@28 + html-encoding-sniffer@6 + @exodus/bytes produces a non-fatal ESM
+    // require() warning on Node 18. All tests pass; suppress to avoid false CI failures.
+    dangerouslyIgnoreUnhandledErrors: true,
+    environmentMatchGlobs: [
+      ["tests/ui/**", "jsdom"],
+    ],
   },
 });

@@ -5,6 +5,8 @@ import {
   type ChapterArc,
   createDefaultCompilationConfig,
   createEmptyBible,
+  createEmptyNarrativeIR,
+  type NarrativeIR,
   type ReaderState,
 } from "../../src/types/index.js";
 
@@ -152,9 +154,133 @@ describe("buildRing2", () => {
     expect(result.sections[0]!.name).toBe("CHAPTER_BRIEF");
   });
 
-  it("previousSceneIRs param accepted (empty in Phase 1)", () => {
-    // Just verify the function accepts the param without error
+  it("previousSceneIRs param accepted (empty array)", () => {
     const result = buildRing2(makeArc(), makeBible(), [], config);
     expect(result.sections.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildRing2 with IR-derived character states", () => {
+  function makeVerifiedIR(sceneId: string, overrides: Partial<NarrativeIR> = {}): NarrativeIR {
+    return {
+      ...createEmptyNarrativeIR(sceneId),
+      verified: true,
+      ...overrides,
+    };
+  }
+
+  function makeBibleWithChar(): Bible {
+    return {
+      ...makeBible(),
+      characters: [
+        {
+          id: "char-alice",
+          name: "Alice",
+          role: "protagonist",
+          physicalDescription: null,
+          backstory: null,
+          selfNarrative: null,
+          contradictions: null,
+          voice: {
+            sentenceLengthRange: null,
+            vocabularyNotes: null,
+            verbalTics: [],
+            metaphoricRegister: null,
+            prohibitedLanguage: [],
+            dialogueSamples: [],
+          },
+          behavior: null,
+        },
+      ],
+    };
+  }
+
+  it("adds character state section when verified IR has deltas", () => {
+    const ir = makeVerifiedIR("scene-1", {
+      characterDeltas: [
+        {
+          characterId: "char-alice",
+          learned: "the secret",
+          suspicionGained: null,
+          emotionalShift: null,
+          relationshipChange: null,
+        },
+      ],
+    });
+    const result = buildRing2(makeArc(), makeBibleWithChar(), [ir], config);
+    const charSection = result.sections.find((s) => s.name.startsWith("CHAR_STATE_"));
+    expect(charSection).toBeDefined();
+    expect(charSection!.text).toContain("ALICE");
+    expect(charSection!.text).toContain("the secret");
+    expect(charSection!.immune).toBe(false);
+    expect(charSection!.priority).toBe(2);
+  });
+
+  it("omits character state sections when no verified IRs", () => {
+    const unverifiedIR = makeVerifiedIR("scene-1", { verified: false });
+    const result = buildRing2(makeArc(), makeBibleWithChar(), [unverifiedIR], config);
+    const charSections = result.sections.filter((s) => s.name.startsWith("CHAR_STATE_"));
+    expect(charSections).toHaveLength(0);
+  });
+
+  it("adds unresolved tensions from last IR", () => {
+    const ir = makeVerifiedIR("scene-1", {
+      unresolvedTensions: ["Why did Bob leave?", "Who has the letter?"],
+    });
+    const result = buildRing2(makeArc(), makeBibleWithChar(), [ir], config);
+    const tensions = result.sections.find((s) => s.name === "UNRESOLVED_TENSIONS");
+    expect(tensions).toBeDefined();
+    expect(tensions!.text).toContain("Why did Bob leave?");
+    expect(tensions!.text).toContain("Who has the letter?");
+    expect(tensions!.immune).toBe(false);
+  });
+
+  it("cumulates character deltas across multiple IRs", () => {
+    const ir1 = makeVerifiedIR("scene-1", {
+      characterDeltas: [
+        {
+          characterId: "char-alice",
+          learned: "fact from scene 1",
+          suspicionGained: null,
+          emotionalShift: null,
+          relationshipChange: null,
+        },
+      ],
+    });
+    const ir2 = makeVerifiedIR("scene-2", {
+      characterDeltas: [
+        {
+          characterId: "char-alice",
+          learned: "fact from scene 2",
+          suspicionGained: null,
+          emotionalShift: null,
+          relationshipChange: null,
+        },
+      ],
+    });
+    const result = buildRing2(makeArc(), makeBibleWithChar(), [ir1, ir2], config);
+    const charSection = result.sections.find((s) => s.name.startsWith("CHAR_STATE_"));
+    expect(charSection!.text).toContain("fact from scene 1");
+    expect(charSection!.text).toContain("fact from scene 2");
+  });
+
+  it("includes character position from last IR", () => {
+    const ir = makeVerifiedIR("scene-1", {
+      // A delta is required for the character to enter the state section loop;
+      // position is then appended to the state text.
+      characterDeltas: [
+        {
+          characterId: "char-alice",
+          learned: null,
+          suspicionGained: null,
+          emotionalShift: "composed",
+          relationshipChange: null,
+        },
+      ],
+      characterPositions: { Alice: "standing at the doorway" },
+    });
+    const result = buildRing2(makeArc(), makeBibleWithChar(), [ir], config);
+    const allText = result.sections.map((s) => s.text).join("\n");
+    expect(allText).toContain("standing at the doorway");
   });
 });

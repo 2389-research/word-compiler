@@ -6,7 +6,9 @@ import {
   type Chunk,
   createDefaultCompilationConfig,
   createEmptyBible,
+  createEmptyNarrativeIR,
   createEmptyScenePlan,
+  type NarrativeIR,
   type ScenePlan,
 } from "../../src/types/index.js";
 
@@ -265,5 +267,79 @@ describe("buildRing3", () => {
     expect(bridge).toBeDefined();
     expect(bridge!.immune).toBe(false);
     expect(bridge!.priority).toBe(3);
+  });
+});
+
+describe("buildRing3 Part B continuity bridge", () => {
+  function makeVerifiedIR(sceneId: string, overrides: Partial<NarrativeIR> = {}): NarrativeIR {
+    return { ...createEmptyNarrativeIR(sceneId), verified: true, ...overrides };
+  }
+
+  it("adds CONTINUITY_BRIDGE_STATE when verified IR available and bridgeIncludeStateBullets is true", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevChunk = makeChunk();
+    const ir = makeVerifiedIR("scene-prev", {
+      unresolvedTensions: ["Who sent the letter?"],
+      characterPositions: { Marcus: "at the bar exit" },
+    });
+
+    const result = buildRing3(plan, bible, [], 0, config, prevChunk, ir);
+    const names = result.sections.map((s) => s.name);
+
+    expect(names).toContain("CONTINUITY_BRIDGE_STATE");
+    const stateSection = result.sections.find((s) => s.name === "CONTINUITY_BRIDGE_STATE")!;
+    expect(stateSection.text).toContain("Who sent the letter?");
+    expect(stateSection.text).toContain("at the bar exit");
+    expect(stateSection.immune).toBe(false);
+    expect(stateSection.priority).toBe(3);
+  });
+
+  it("omits CONTINUITY_BRIDGE_STATE when IR is not verified", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevChunk = makeChunk();
+    const ir: NarrativeIR = {
+      ...createEmptyNarrativeIR("scene-prev"),
+      verified: false,
+      unresolvedTensions: ["tension"],
+    };
+
+    const result = buildRing3(plan, bible, [], 0, config, prevChunk, ir);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("CONTINUITY_BRIDGE_STATE");
+  });
+
+  it("omits CONTINUITY_BRIDGE_STATE when no IR provided", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevChunk = makeChunk();
+
+    const result = buildRing3(plan, bible, [], 0, config, prevChunk, undefined);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("CONTINUITY_BRIDGE_STATE");
+  });
+
+  it("omits CONTINUITY_BRIDGE_STATE when IR has no tensions or positions", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const prevChunk = makeChunk();
+    const ir = makeVerifiedIR("scene-prev"); // empty arrays/maps
+
+    const result = buildRing3(plan, bible, [], 0, config, prevChunk, ir);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("CONTINUITY_BRIDGE_STATE");
+  });
+
+  it("does not add Part B for intra-scene bridge (not a scene crossing)", () => {
+    // When there are previous chunks, it's intra-scene — Part B only applies to cross-scene
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+    const intraChunks = [makeChunk()];
+    const ir = makeVerifiedIR("scene-prev", { unresolvedTensions: ["tension"] });
+
+    const result = buildRing3(plan, bible, intraChunks, 1, config, undefined, ir);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("CONTINUITY_BRIDGE_STATE");
   });
 });

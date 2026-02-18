@@ -19,7 +19,22 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "typecheck": "tsc --noEmit",
-    "check-all": "biome check && tsc --noEmit && npx vitest run"
+    "check-all": "biome check && tsc --noEmit && npx vitest run",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "biome check --write"
+    ],
+    "server/**/*.ts": [
+      "biome check --write"
+    ],
+    "eval/**/*.ts": [
+      "biome check --write"
+    ],
+    "tests/**/*.{ts,tsx}": [
+      "biome check --write"
+    ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.75.0",
@@ -38,13 +53,20 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.2",
     "@browserbasehq/stagehand": "^3.0.8",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsdom": "^27.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
+    "husky": "^9.1.7",
+    "jsdom": "^28.1.0",
+    "lint-staged": "^16.2.7",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",

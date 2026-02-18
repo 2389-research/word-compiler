@@ -1,4 +1,5 @@
 import { checkKillList } from "../../src/auditor/index.js";
+import { checkDanglingSetups } from "../../src/auditor/setupPayoff.js";
 import { checkCompileGate } from "../../src/gates/index.js";
 import type {
   Bible,
@@ -6,6 +7,7 @@ import type {
   CompilationConfig,
   CompilationLog,
   LintResult,
+  NarrativeIR,
   ProseMetrics,
   ScenePlan,
 } from "../../src/types/index.js";
@@ -176,6 +178,51 @@ export function checkDialoguePresence(prose: string): CheckResult {
     name: "dialogue_presence",
     passed: true, // Informational — doesn't fail
     detail: hasDialogue ? `Found ${quoteMatches.length} dialogue segment(s).` : "No dialogue found in prose.",
+  };
+}
+
+// ─── IR Checks ──────────────────────────────────────────
+
+export function checkIRCompleteness(completedSceneIds: string[], sceneIRs: Map<string, NarrativeIR>): CheckResult {
+  if (completedSceneIds.length === 0) {
+    return { name: "ir_completeness", passed: true, detail: "No completed scenes to check." };
+  }
+
+  const missing = completedSceneIds.filter((id) => {
+    const ir = sceneIRs.get(id);
+    return !ir || !ir.verified;
+  });
+
+  if (missing.length === 0) {
+    return {
+      name: "ir_completeness",
+      passed: true,
+      detail: `All ${completedSceneIds.length} completed scene(s) have verified IRs.`,
+    };
+  }
+
+  return {
+    name: "ir_completeness",
+    passed: false,
+    detail: `${missing.length} completed scene(s) missing verified IRs: ${missing.join(", ")}`,
+  };
+}
+
+export function checkSetupPayoffClosure(allIRs: NarrativeIR[], bible: Bible, finalSceneId: string): CheckResult {
+  const flags = checkDanglingSetups(allIRs, bible, finalSceneId);
+
+  if (flags.length === 0) {
+    return {
+      name: "setup_payoff_closure",
+      passed: true,
+      detail: "No dangling setups detected at manuscript completion.",
+    };
+  }
+
+  return {
+    name: "setup_payoff_closure",
+    passed: false,
+    detail: `${flags.length} dangling setup(s): ${flags.map((f) => f.message).join("; ")}`,
   };
 }
 

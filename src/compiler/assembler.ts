@@ -8,6 +8,7 @@ import type {
   CompilationLog,
   CompiledPayload,
   LintResult,
+  NarrativeIR,
   ScenePlan,
 } from "../types/index.js";
 import { generateId } from "../types/index.js";
@@ -30,11 +31,24 @@ export function compilePayload(
   config: CompilationConfig,
   chapterArc?: ChapterArc,
   previousSceneLastChunk?: Chunk,
+  previousSceneIRs?: NarrativeIR[],
 ): CompileResult {
+  const irList = previousSceneIRs ?? [];
+
   // 1. Build rings
   const ring1Result = buildRing1(bible, config);
-  const ring2Result: Ring2Result | null = chapterArc ? buildRing2(chapterArc, bible, [], config) : null;
-  const ring3Result = buildRing3(plan, bible, previousChunks, chunkNumber, config, previousSceneLastChunk);
+  const ring2Result: Ring2Result | null = chapterArc ? buildRing2(chapterArc, bible, irList, config) : null;
+  // Pass the last verified IR as the previous-scene IR for Part B bridge
+  const lastVerifiedIR = [...irList].reverse().find((ir) => ir.verified);
+  const ring3Result = buildRing3(
+    plan,
+    bible,
+    previousChunks,
+    chunkNumber,
+    config,
+    previousSceneLastChunk,
+    lastVerifiedIR,
+  );
 
   // 2. Budget enforcement
   const available = config.modelContextWindow - config.reservedForOutput;

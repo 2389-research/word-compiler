@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   checkBudgetCompliance,
   checkDialoguePresence,
+  checkIRCompleteness,
   checkKillListCompliance,
   checkLintCompliance,
   checkProhibitedLanguage,
   checkRing1Cap,
   checkSentenceDistribution,
+  checkSetupPayoffClosure,
   checkStructuralBans,
   checkWordCount,
   runAllDeterministicChecks,
@@ -18,8 +20,10 @@ import {
   createDefaultCompilationConfig,
   createEmptyBible,
   createEmptyCharacterDossier,
+  createEmptyNarrativeIR,
   createEmptyScenePlan,
   type LintResult,
+  type NarrativeIR,
   type ProseMetrics,
   type ScenePlan,
 } from "../../src/types/index.js";
@@ -311,6 +315,133 @@ describe("checkDialoguePresence", () => {
     const result = checkDialoguePresence("Marcus walked silently through the corridor.");
     expect(result.passed).toBe(true); // Informational, doesn't fail
     expect(result.detail).toContain("No dialogue");
+  });
+});
+
+// ─── IR Completeness ────────────────────────────────
+
+describe("checkIRCompleteness", () => {
+  function makeVerifiedIR(sceneId: string): NarrativeIR {
+    return { ...createEmptyNarrativeIR(sceneId), verified: true };
+  }
+
+  it("passes when all completed scenes have verified IRs", () => {
+    const irMap = new Map([
+      ["scene-1", makeVerifiedIR("scene-1")],
+      ["scene-2", makeVerifiedIR("scene-2")],
+    ]);
+    const result = checkIRCompleteness(["scene-1", "scene-2"], irMap);
+    expect(result.passed).toBe(true);
+    expect(result.detail).toContain("2 completed");
+  });
+
+  it("passes with empty completed scenes list", () => {
+    const result = checkIRCompleteness([], new Map());
+    expect(result.passed).toBe(true);
+  });
+
+  it("fails when a completed scene has no IR in the map", () => {
+    const irMap = new Map([["scene-1", makeVerifiedIR("scene-1")]]);
+    const result = checkIRCompleteness(["scene-1", "scene-2"], irMap);
+    expect(result.passed).toBe(false);
+    expect(result.detail).toContain("scene-2");
+  });
+
+  it("fails when a completed scene has an unverified IR", () => {
+    const ir = { ...createEmptyNarrativeIR("scene-1"), verified: false };
+    const result = checkIRCompleteness(["scene-1"], new Map([["scene-1", ir]]));
+    expect(result.passed).toBe(false);
+    expect(result.detail).toContain("scene-1");
+  });
+
+  it("only reports the missing/unverified scenes", () => {
+    const irMap = new Map([
+      ["scene-1", makeVerifiedIR("scene-1")],
+      ["scene-3", makeVerifiedIR("scene-3")],
+    ]);
+    const result = checkIRCompleteness(["scene-1", "scene-2", "scene-3"], irMap);
+    expect(result.passed).toBe(false);
+    expect(result.detail).toContain("scene-2");
+    expect(result.detail).not.toContain("scene-1");
+    expect(result.detail).not.toContain("scene-3");
+  });
+});
+
+// ─── Setup/Payoff Closure ───────────────────────────
+
+describe("checkSetupPayoffClosure", () => {
+  function makeBibleWithSetup(description: string): Bible {
+    return {
+      ...makeBible(),
+      narrativeRules: {
+        ...makeBible().narrativeRules,
+        setups: [
+          {
+            id: "setup-1",
+            description,
+            plantedInScene: "scene-1",
+            payoffInScene: null,
+            status: "planted",
+          },
+        ],
+      },
+    };
+  }
+
+  it("passes when bible has no setups", () => {
+    const result = checkSetupPayoffClosure([], makeBible(), "scene-4");
+    expect(result.passed).toBe(true);
+    expect(result.detail).toContain("No dangling");
+  });
+
+  it("passes when all planted setups are paid off across IRs", () => {
+    const bible = makeBibleWithSetup("the hidden envelope");
+    const ir = {
+      ...createEmptyNarrativeIR("scene-4"),
+      payoffsExecuted: ["the hidden envelope revealed"],
+    };
+    const result = checkSetupPayoffClosure([ir], bible, "scene-4");
+    expect(result.passed).toBe(true);
+  });
+
+  it("fails when a planted setup has no corresponding payoff", () => {
+    const bible = makeBibleWithSetup("the missing student");
+    const ir = {
+      ...createEmptyNarrativeIR("scene-4"),
+      payoffsExecuted: ["unrelated payoff"],
+    };
+    const result = checkSetupPayoffClosure([ir], bible, "scene-4");
+    expect(result.passed).toBe(false);
+    expect(result.detail).toContain("dangling");
+    expect(result.detail).toContain("1 dangling");
+  });
+
+  it("fails with correct count for multiple dangling setups", () => {
+    const bible = {
+      ...makeBible(),
+      narrativeRules: {
+        ...makeBible().narrativeRules,
+        setups: [
+          {
+            id: "s1",
+            description: "setup alpha",
+            plantedInScene: "scene-1",
+            payoffInScene: null,
+            status: "planted" as const,
+          },
+          {
+            id: "s2",
+            description: "setup beta",
+            plantedInScene: "scene-2",
+            payoffInScene: null,
+            status: "planted" as const,
+          },
+        ],
+      },
+    };
+    const result = checkSetupPayoffClosure([], bible, "scene-4");
+    expect(result.passed).toBe(false);
+    expect(result.detail).toContain("2 dangling");
   });
 });
 
