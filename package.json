@@ -9,7 +9,12 @@
     "test": "npx vitest run",
     "test:watch": "vitest",
     "proxy": "tsx server/proxy.ts",
-    "dev:all": "concurrently \"vite\" \"tsx server/proxy.ts\""
+    "dev:all": "concurrently \"vite\" \"tsx server/proxy.ts\"",
+    "eval": "tsx eval/runner.ts",
+    "eval:quick": "tsx eval/runner.ts --rollouts=1",
+    "eval:mock": "tsx eval/runner.ts --mock --rollouts=1",
+    "eval:nightly": "tsx eval/runner.ts --rollouts=5",
+    "eval:smoke": "tsx eval/stagehand/smoke.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.75.0",
@@ -26,6 +31,7 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "@browserbasehq/stagehand": "^3.0.8",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

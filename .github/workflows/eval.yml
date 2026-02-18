@@ -1,0 +1,94 @@
+name: Evaluation Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly at 3am UTC
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      rollouts:
+        description: "Number of rollouts"
+        required: false
+        default: "1"
+      mode:
+        description: "Run mode"
+        required: false
+        default: "live"
+        type: choice
+        options:
+          - live
+          - mock
+
+jobs:
+  # ─── PR Gate: Unit tests + mock eval ──────────────
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm eval:mock
+
+  # ─── Nightly: Full eval with real LLM ────────────
+  nightly:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm eval:nightly
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-artifacts-${{ github.run_id }}
+          path: eval/runs/*.json
+          retention-days: 30
+
+  # ─── Manual dispatch ──────────────────────────────
+  manual:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - name: Run evaluation
+        run: |
+          if [ "${{ inputs.mode }}" = "mock" ]; then
+            tsx eval/runner.ts --mock --rollouts=${{ inputs.rollouts }}
+          else
+            tsx eval/runner.ts --rollouts=${{ inputs.rollouts }}
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-artifacts-${{ github.run_id }}
+          path: eval/runs/*.json
+          retention-days: 30

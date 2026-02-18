@@ -4,3 +4,4 @@ data/
 .env
 *.local
 .DS_Store
+eval/runs/*.json
