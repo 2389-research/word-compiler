@@ -5,6 +5,8 @@ import * as bibles from "../db/repositories/bibles.js";
 import * as chapterArcs from "../db/repositories/chapter-arcs.js";
 import * as chunks from "../db/repositories/chunks.js";
 import * as compilationLogs from "../db/repositories/compilation-logs.js";
+import * as editPatterns from "../db/repositories/edit-patterns.js";
+import * as learnedPatterns from "../db/repositories/learned-patterns.js";
 import * as narrativeIRs from "../db/repositories/narrative-irs.js";
 import * as projects from "../db/repositories/projects.js";
 import * as scenePlans from "../db/repositories/scene-plans.js";
@@ -209,6 +211,37 @@ export function createApiRouter(db: Database.Database): Router {
 
   router.get("/chunks/:chunkId/compilation-logs", (req, res) => {
     res.json(compilationLogs.listCompilationLogs(db, req.params.chunkId));
+  });
+
+  // ─── Edit Patterns (Learner) ──────────────────────
+  router.get("/projects/:projectId/edit-patterns", (req, res) => {
+    res.json(editPatterns.listEditPatterns(db, req.params.projectId));
+  });
+
+  router.get("/scenes/:sceneId/edit-patterns", (req, res) => {
+    res.json(editPatterns.listEditPatternsForScene(db, req.params.sceneId));
+  });
+
+  router.post("/edit-patterns", (req, res) => {
+    const patterns = editPatterns.createEditPatterns(db, req.body);
+    res.status(201).json(patterns);
+  });
+
+  // ─── Learned Patterns (Learner) ─────────────────────
+  router.get("/projects/:projectId/learned-patterns", (req, res) => {
+    const status = req.query.status as string | undefined;
+    res.json(learnedPatterns.listLearnedPatterns(db, req.params.projectId, status));
+  });
+
+  router.post("/learned-patterns", (req, res) => {
+    const pattern = learnedPatterns.createLearnedPattern(db, req.body);
+    res.status(201).json(pattern);
+  });
+
+  router.patch("/learned-patterns/:id/status", (req, res) => {
+    const ok = learnedPatterns.updateLearnedPatternStatus(db, req.params.id, req.body.status);
+    if (!ok) return res.status(404).json({ error: "Learned pattern not found" });
+    res.json({ ok: true });
   });
 
   return router;

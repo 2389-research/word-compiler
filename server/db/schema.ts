@@ -103,5 +103,36 @@ export function createSchema(db: Database.Database): void {
       UNIQUE(scene_id)
     );
     CREATE INDEX IF NOT EXISTS idx_narrative_irs_scene ON narrative_irs(scene_id);
+
+    -- Edit Patterns (raw diff-classified edits)
+    CREATE TABLE IF NOT EXISTS edit_patterns (
+      id TEXT PRIMARY KEY,
+      chunk_id TEXT NOT NULL,
+      scene_id TEXT NOT NULL,
+      project_id TEXT NOT NULL REFERENCES projects(id),
+      edit_type TEXT NOT NULL,
+      sub_type TEXT NOT NULL,
+      original_text TEXT NOT NULL,
+      edited_text TEXT NOT NULL,
+      context TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_edit_patterns_project ON edit_patterns(project_id, sub_type);
+    CREATE INDEX IF NOT EXISTS idx_edit_patterns_scene ON edit_patterns(scene_id);
+
+    -- Learned Patterns (accumulated from edit_patterns)
+    CREATE TABLE IF NOT EXISTS learned_patterns (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id),
+      pattern_type TEXT NOT NULL,
+      pattern_data TEXT NOT NULL,
+      occurrences INTEGER NOT NULL,
+      confidence REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      proposed_action TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_learned_patterns_project ON learned_patterns(project_id, status);
   `);
 }
