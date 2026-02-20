@@ -21,6 +21,7 @@ let {
 
 let bibleJson = $derived(store.bible ? JSON.stringify(store.bible, null, 2) : "");
 let planJson = $derived(store.activeScenePlan ? JSON.stringify(store.activeScenePlan, null, 2) : "");
+let arcJson = $derived(store.chapterArc ? JSON.stringify(store.chapterArc, null, 2) : "");
 
 const extensions = [json(), oneDark];
 
@@ -34,6 +35,19 @@ function handleBibleChange(text: string) {
     }
   } catch {
     // Invalid JSON — don't update state until valid
+  }
+}
+
+function handleArcChange(text: string) {
+  try {
+    const parsed = JSON.parse(text) as ChapterArc;
+    if (actions) {
+      actions.updateChapterArc(parsed);
+    } else {
+      store.setChapterArc(parsed);
+    }
+  } catch {
+    // Invalid JSON
   }
 }
 
@@ -119,6 +133,7 @@ async function handleLoadArc() {
       <Button onclick={handleLoadPlan}>Load Plan</Button>
       <Button onclick={() => store.activeScenePlan && store.saveFile(store.activeScenePlan, "scene-plan.json")} disabled={!store.activeScenePlan}>Save Plan</Button>
       <Button onclick={handleLoadArc}>Load Arc</Button>
+      <Button onclick={() => store.chapterArc && store.saveFile(store.chapterArc, "chapter-arc.json")} disabled={!store.chapterArc}>Save Arc</Button>
       {#if store.bible}
         <span class="bible-version">v{store.bible.version}</span>
       {/if}
@@ -135,6 +150,14 @@ async function handleLoadArc() {
         <CodeMirror value={planJson} on:change={(e) => handlePlanChange(e.detail)} {extensions} />
       </div>
     </div>
+    {#if arcJson}
+      <div class="editor-section">
+        <div class="editor-label">Chapter Arc JSON</div>
+        <div class="editor-wrapper">
+          <CodeMirror value={arcJson} on:change={(e) => handleArcChange(e.detail)} {extensions} />
+        </div>
+      </div>
+    {/if}
 </Pane>
 
 <style>
