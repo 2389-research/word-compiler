@@ -1,9 +1,14 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
+import { mockStartup } from "./helpers.js";
 
 const BIBLE_FIXTURE = path.join(import.meta.dirname, "..", "fixtures", "bible.json");
 
 test.describe("Bible workflow", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockStartup(page);
+  });
+
   test("loads Bible from fixture JSON via file chooser", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("text=Bible + Plan")).toBeVisible();

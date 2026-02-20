@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { mockStartup } from "./helpers.js";
 
 test.describe("Error handling", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockStartup(page);
+  });
+
   test("handles API timeout gracefully", async ({ page }) => {
     // Mock the streaming endpoint to timeout (never respond)
     await page.route("**/api/generate/stream", (route) => {
@@ -14,6 +19,7 @@ test.describe("Error handling", () => {
     await page.locator("button", { hasText: "New Bible" }).click();
 
     const textarea = page.locator("textarea").first();
+    await expect(textarea).toBeVisible();
     await textarea.fill("A test synopsis.");
     await page.locator("button", { hasText: "Bootstrap Bible" }).click();
 
@@ -23,7 +29,10 @@ test.describe("Error handling", () => {
 
     // The UI should not be stuck — either shows an error or returns to input state
     const hasError = await page.locator("text=failed").isVisible().catch(() => false);
-    const hasButton = await page.locator("button", { hasText: "Bootstrap Bible" }).isEnabled().catch(() => false);
+    const hasButton = await page
+      .locator("button", { hasText: "Bootstrap Bible" })
+      .isEnabled()
+      .catch(() => false);
     expect(hasError || hasButton).toBe(true);
   });
 
@@ -42,6 +51,7 @@ test.describe("Error handling", () => {
     await page.locator("button", { hasText: "New Bible" }).click();
 
     const textarea = page.locator("textarea").first();
+    await expect(textarea).toBeVisible();
     await textarea.fill("Another test synopsis.");
     await page.locator("button", { hasText: "Bootstrap Bible" }).click();
 
@@ -51,7 +61,10 @@ test.describe("Error handling", () => {
     // Should show parse failure or return to usable state
     const hasParseError = await page.locator("text=Parse failed").isVisible().catch(() => false);
     const hasError = await page.locator("text=failed").isVisible().catch(() => false);
-    const isUsable = await page.locator("button", { hasText: "Bootstrap Bible" }).isEnabled().catch(() => false);
+    const isUsable = await page
+      .locator("button", { hasText: "Bootstrap Bible" })
+      .isEnabled()
+      .catch(() => false);
     expect(hasParseError || hasError || isUsable).toBe(true);
   });
 
@@ -70,6 +83,7 @@ test.describe("Error handling", () => {
     await page.locator("button", { hasText: "New Bible" }).click();
 
     const textarea = page.locator("textarea").first();
+    await expect(textarea).toBeVisible();
     await textarea.fill("Yet another test synopsis.");
     await page.locator("button", { hasText: "Bootstrap Bible" }).click();
 
@@ -82,6 +96,7 @@ test.describe("Error handling", () => {
     page.on("pageerror", (error) => errors.push(error.message));
 
     await page.goto("/");
+    await expect(page.locator("text=Bible + Plan")).toBeVisible();
 
     // Navigate through all tabs
     for (const tab of ["IR Inspector", "Forward Sim", "Style Drift", "Voice Sep", "Compiler"]) {

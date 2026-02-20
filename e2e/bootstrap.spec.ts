@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mockStartup } from "./helpers.js";
 
 const MOCK_BOOTSTRAP_RESPONSE = JSON.stringify({
   characters: [
@@ -33,6 +34,10 @@ const MOCK_BOOTSTRAP_RESPONSE = JSON.stringify({
 });
 
 test.describe("Bootstrap workflow", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockStartup(page);
+  });
+
   test("open bootstrap modal, mock SSE stream, verify bible populated", async ({ page }) => {
     // Mock the streaming endpoint
     await page.route("**/api/generate/stream", (route) => {
@@ -41,7 +46,7 @@ test.describe("Bootstrap workflow", () => {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
         },
         body: [
           `data: ${JSON.stringify({ type: "delta", text: MOCK_BOOTSTRAP_RESPONSE })}\n\n`,
@@ -56,11 +61,11 @@ test.describe("Bootstrap workflow", () => {
     await page.locator("button", { hasText: "New Bible" }).click();
     await expect(page.locator("text=Bible Authoring")).toBeVisible();
 
-    // Should be on AI Bootstrap tab by default
-    await expect(page.locator("text=Paste your story synopsis")).toBeVisible();
+    // Should be on AI Bootstrap tab by default — look for the synopsis textarea
+    const textarea = page.locator("textarea").first();
+    await expect(textarea).toBeVisible();
 
     // Type a synopsis
-    const textarea = page.locator("textarea").first();
     await textarea.fill("Marcus Cole runs a jazz bar called The Velvet in a decaying waterfront district.");
 
     // Click Bootstrap Bible
@@ -94,6 +99,7 @@ test.describe("Bootstrap workflow", () => {
     await page.locator("button", { hasText: "New Bible" }).click();
 
     const textarea = page.locator("textarea").first();
+    await expect(textarea).toBeVisible();
     await textarea.fill("A story about nothing parseable.");
     await page.locator("button", { hasText: "Bootstrap Bible" }).click();
 

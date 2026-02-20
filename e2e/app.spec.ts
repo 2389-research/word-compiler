@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { mockStartup } from "./helpers.js";
 
 test.describe("Word Compiler App", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockStartup(page);
+  });
+
   test("loads and renders the header", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("text=Word Compiler").first()).toBeVisible();
