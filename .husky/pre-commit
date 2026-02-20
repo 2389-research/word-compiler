@@ -1,3 +1,4 @@
+eval "$(mise activate bash --shims)"
 pnpm lint-staged
 pnpm typecheck
 pnpm test

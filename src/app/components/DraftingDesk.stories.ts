@@ -1,0 +1,104 @@
+import type { Meta, StoryObj } from "@storybook/svelte";
+import { fn } from "storybook/test";
+import { makeAuditFlag, makeChunk, makeNarrativeIR, makeScenePlan } from "../stories/factories.js";
+import DraftingDesk from "./DraftingDesk.svelte";
+
+const meta: Meta<DraftingDesk> = {
+  title: "Components/DraftingDesk",
+  component: DraftingDesk,
+  parameters: {
+    layout: "fullscreen",
+    docs: {
+      description: {
+        component:
+          "Main drafting workspace — displays chunks, scene plan, generation controls, audit flags, and IR extraction. Orchestrates the per-scene writing workflow.",
+      },
+    },
+  },
+  args: {
+    scenePlan: makeScenePlan(),
+    sceneStatus: "drafting",
+    isGenerating: false,
+    canGenerate: true,
+    gateMessages: [],
+    auditFlags: [],
+    sceneIR: null,
+    isExtractingIR: false,
+    onGenerate: fn(),
+    onUpdateChunk: fn(),
+    onRemoveChunk: fn(),
+    onRunAudit: fn(),
+    onCompleteScene: fn(),
+    onOpenIRInspector: fn(),
+    onExtractIR: fn(),
+  },
+};
+
+export default meta;
+type Story = StoryObj<DraftingDesk>;
+
+export const EmptyScene: Story = {
+  args: { chunks: [] },
+};
+
+export const WithChunks: Story = {
+  args: {
+    chunks: [
+      makeChunk({ sequenceNumber: 0, status: "accepted" }),
+      makeChunk({
+        sequenceNumber: 1,
+        status: "edited",
+        editedText: "The rain fell softly. Elena pressed her forehead to the cool glass.",
+      }),
+      makeChunk({ sequenceNumber: 2, status: "pending" }),
+    ],
+  },
+};
+
+export const Generating: Story = {
+  args: {
+    chunks: [makeChunk({ sequenceNumber: 0, status: "accepted" })],
+    isGenerating: true,
+  },
+};
+
+export const GateFailed: Story = {
+  args: {
+    chunks: [makeChunk({ sequenceNumber: 0, status: "accepted" })],
+    gateMessages: [
+      "Scene plan is missing — load or create a scene plan before generating",
+      "Bible is not loaded — load a Bible JSON file first",
+    ],
+    canGenerate: false,
+  },
+};
+
+export const CompleteScene: Story = {
+  args: {
+    chunks: [
+      makeChunk({ sequenceNumber: 0, status: "accepted" }),
+      makeChunk({ sequenceNumber: 1, status: "accepted" }),
+      makeChunk({ sequenceNumber: 2, status: "accepted" }),
+    ],
+    sceneStatus: "complete",
+    sceneIR: makeNarrativeIR({ verified: true }),
+  },
+};
+
+export const WithAuditFlags: Story = {
+  args: {
+    chunks: [makeChunk({ sequenceNumber: 0, status: "accepted" }), makeChunk({ sequenceNumber: 1, status: "pending" })],
+    auditFlags: [
+      makeAuditFlag({
+        severity: "critical",
+        category: "kill-list",
+        message: '"suddenly" in paragraph 1',
+      }),
+      makeAuditFlag({
+        severity: "warning",
+        category: "sentence-variance",
+        message: "Low variance (1.3)",
+      }),
+    ],
+  },
+};

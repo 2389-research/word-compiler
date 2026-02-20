@@ -44,6 +44,24 @@ export async function generate(payload: CompiledPayload): Promise<GenerateRespon
   return response.json() as Promise<GenerateResponse>;
 }
 
+export async function callLLM(
+  systemMessage: string,
+  userMessage: string,
+  model: string,
+  maxTokens: number,
+): Promise<string> {
+  const payload: CompiledPayload = {
+    systemMessage,
+    userMessage,
+    temperature: 0,
+    topP: 1,
+    maxTokens,
+    model,
+  };
+  const result = await generate(payload);
+  return result.text;
+}
+
 export interface StreamCallbacks {
   onToken: (text: string) => void;
   onDone: (usage: { input_tokens: number; output_tokens: number }, stopReason: string) => void;

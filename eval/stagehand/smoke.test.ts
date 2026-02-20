@@ -1,9 +1,9 @@
 /**
  * Stagehand v3 UI Smoke Test
  *
- * Validates that the React UI wiring works — buttons trigger actions,
+ * Validates that the Svelte 5 UI wiring works — buttons trigger actions,
  * components render, state updates propagate. This is NOT a prose quality
- * gate; it catches React-layer regressions.
+ * gate; it catches UI-layer regressions.
  *
  * Prerequisites:
  *   1. Dev server running: `pnpm dev` (localhost:5173)

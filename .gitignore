@@ -5,3 +5,6 @@ data/
 *.local
 .DS_Store
 eval/runs/*.json
+storybook-static/
+test-results/
+playwright-report/

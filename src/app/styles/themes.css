@@ -1,0 +1,134 @@
+/* ─── Dark Theme (default) ──────────────────── */
+
+:root {
+  /* Backgrounds */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-panel: #0f3460;
+  --bg-card: #1a1a3e;
+  --bg-input: #0d1b2a;
+
+  /* Text */
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0b0;
+  --text-muted: #6a6a7a;
+
+  /* Accent */
+  --accent: #00d4ff;
+  --accent-dim: #0088aa;
+
+  /* Semantic */
+  --error: #ff4757;
+  --warning: #ffa502;
+  --info: #5f9ea0;
+  --success: #2ed573;
+
+  /* Borders */
+  --border: #2a2a4a;
+  --border-strong: #333;
+  --border-subtle: #222;
+
+  /* Status indicators */
+  --status-ok: #7affb0;
+  --status-bad: #ff7a7a;
+  --status-tension: #ffaf7a;
+  --status-resolved: #aaffaa;
+
+  /* Ring colors (budget gauge) */
+  --ring1-color: #4a6fa5;
+  --ring2-color: #7a5a9e;
+  --ring3-color: #2d8a6a;
+
+  /* Badge backgrounds */
+  --badge-accepted-bg: #1a3a2a;
+  --badge-edited-bg: #2a2a1a;
+  --badge-rejected-bg: #2a1a1a;
+  --badge-warning-bg: #2a2a1a;
+
+  /* Overlay */
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+
+  /* Severity backgrounds */
+  --severity-critical-bg: rgba(255, 71, 87, 0.15);
+  --severity-error-bg: rgba(255, 71, 87, 0.1);
+  --severity-warning-bg: rgba(255, 165, 2, 0.1);
+  --severity-info-bg: rgba(95, 158, 160, 0.1);
+
+  /* Focus (active node) */
+  --focus-color: #7070ff;
+  --focus-bg: #2a2a4a;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  /* Typography */
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+}
+
+/* ─── Light Theme ───────────────────────────── */
+
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #f5f5f8;
+  --bg-secondary: #e8e8ee;
+  --bg-panel: #dcdce5;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+
+  /* Text */
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a5a;
+  --text-muted: #8a8a9a;
+
+  /* Accent */
+  --accent: #0077aa;
+  --accent-dim: #005580;
+
+  /* Semantic */
+  --error: #d63031;
+  --warning: #e17055;
+  --info: #3d7d80;
+  --success: #00b894;
+
+  /* Borders */
+  --border: #ccccdd;
+  --border-strong: #aaaabb;
+  --border-subtle: #ddddee;
+
+  /* Status indicators */
+  --status-ok: #00b894;
+  --status-bad: #d63031;
+  --status-tension: #e17055;
+  --status-resolved: #00b894;
+
+  /* Ring colors (budget gauge) */
+  --ring1-color: #4a6fa5;
+  --ring2-color: #7a5a9e;
+  --ring3-color: #2d8a6a;
+
+  /* Badge backgrounds */
+  --badge-accepted-bg: #d4edda;
+  --badge-edited-bg: #fff3cd;
+  --badge-rejected-bg: #f8d7da;
+  --badge-warning-bg: #fff3cd;
+
+  /* Overlay */
+  --overlay-bg: rgba(0, 0, 0, 0.4);
+
+  /* Severity backgrounds */
+  --severity-critical-bg: rgba(214, 48, 49, 0.1);
+  --severity-error-bg: rgba(214, 48, 49, 0.08);
+  --severity-warning-bg: rgba(225, 112, 85, 0.1);
+  --severity-info-bg: rgba(61, 125, 128, 0.1);
+
+  /* Focus (active node) */
+  --focus-color: #4040cc;
+  --focus-bg: #e8e8f5;
+
+  /* Radius — same in both themes */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+}
