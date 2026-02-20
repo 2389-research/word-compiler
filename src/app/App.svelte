@@ -31,7 +31,7 @@ setupCompilerEffect(store);
 const actions = createApiActions(store);
 
 // Create generation action handlers
-const { generateChunk, runAuditManual, runDeepAudit, extractSceneIR } = createGenerationActions(store, actions);
+const { generateChunk, runAuditManual, runDeepAudit, extractSceneIR, runAutopilot } = createGenerationActions(store, actions);
 
 // ─── Startup ────────────────────────────────────
 let appReady = $state(false);
@@ -427,6 +427,7 @@ function exportState() {
       scenePlan={store.activeScenePlan}
       sceneStatus={store.activeScene?.status ?? null}
       isGenerating={store.isGenerating}
+      isAutopilot={store.isAutopilot}
       {canGenerate}
       {gateMessages}
       auditFlags={store.auditFlags}
@@ -438,6 +439,8 @@ function exportState() {
       onRunAudit={runAuditManual}
       onRunDeepAudit={runDeepAudit}
       onCompleteScene={handleCompleteScene}
+      onAutopilot={() => runAutopilot(handleCompleteScene)}
+      onCancelAutopilot={() => store.cancelAutopilot()}
       onOpenIRInspector={() => { activeTab = 'ir'; }}
       onExtractIR={extractSceneIR}
     />

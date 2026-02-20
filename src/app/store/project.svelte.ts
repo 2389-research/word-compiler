@@ -47,6 +47,8 @@ export class ProjectStore {
 
   // ─── UI state ──────────────────────────────────
   isGenerating = $state(false);
+  isAutopilot = $state(false);
+  autopilotCancelled = $state(false);
   extractingIRSceneId = $state<string | null>(null);
   selectedChunkIndex = $state<number | null>(null);
   bootstrapModalOpen = $state(false);
@@ -196,6 +198,16 @@ export class ProjectStore {
 
   setGenerating(value: boolean) {
     this.isGenerating = value;
+  }
+
+  setAutopilot(value: boolean) {
+    this.isAutopilot = value;
+    if (value) this.autopilotCancelled = false;
+  }
+
+  cancelAutopilot() {
+    this.autopilotCancelled = true;
+    this.isAutopilot = false;
   }
 
   setExtractingIR(sceneId: string | null) {

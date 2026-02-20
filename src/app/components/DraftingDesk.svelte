@@ -20,13 +20,17 @@ let {
   onRunAudit,
   onRunDeepAudit,
   onCompleteScene,
+  onAutopilot,
+  onCancelAutopilot,
   onOpenIRInspector,
   onExtractIR,
+  isAutopilot = false,
 }: {
   chunks: Chunk[];
   scenePlan: ScenePlan | null;
   sceneStatus: SceneStatus | null;
   isGenerating: boolean;
+  isAutopilot: boolean;
   canGenerate: boolean;
   gateMessages: string[];
   auditFlags: AuditFlag[];
@@ -38,6 +42,8 @@ let {
   onRunAudit: () => void;
   onRunDeepAudit?: () => void;
   onCompleteScene: () => void;
+  onAutopilot: () => void;
+  onCancelAutopilot: () => void;
   onOpenIRInspector: () => void;
   onExtractIR: () => void;
 } = $props();
@@ -81,16 +87,27 @@ $effect(() => {
         <Button onclick={onRunDeepAudit} disabled={chunks.length === 0} title="LLM-assisted subtext compliance check">Deep Audit</Button>
       {/if}
       {#if sceneStatus !== "complete"}
-        <Button
-          variant="primary"
-          onclick={onGenerate}
-          disabled={!canGenerateNext}
-          title={gateMessages.length > 0 ? gateMessages.join("\n") : undefined}
-        >
-          {#if isGenerating}Generating...{:else if atChunkLimit}All chunks generated{:else}Generate Chunk {chunks.length + 1}{/if}
-        </Button>
+        {#if isAutopilot}
+          <Button variant="danger" onclick={onCancelAutopilot}>
+            Cancel Autopilot ({chunks.length}/{maxChunks})
+          </Button>
+        {:else}
+          <Button
+            variant="primary"
+            onclick={onGenerate}
+            disabled={!canGenerateNext}
+            title={gateMessages.length > 0 ? gateMessages.join("\n") : undefined}
+          >
+            {#if isGenerating}Generating...{:else if atChunkLimit}All chunks generated{:else}Generate Chunk {chunks.length + 1}{/if}
+          </Button>
+          {#if canGenerateNext && chunks.length === 0}
+            <Button onclick={onAutopilot} title="Generate all chunks, auto-accept, and complete scene">
+              Autopilot
+            </Button>
+          {/if}
+        {/if}
       {/if}
-      {#if atChunkLimit && sceneStatus !== "complete"}
+      {#if atChunkLimit && sceneStatus !== "complete" && !isAutopilot}
         <Button
           variant="primary"
           onclick={onCompleteScene}

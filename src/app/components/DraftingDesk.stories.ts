@@ -29,8 +29,11 @@ const meta: Meta<DraftingDesk> = {
     onRemoveChunk: fn(),
     onRunAudit: fn(),
     onCompleteScene: fn(),
+    onAutopilot: fn(),
+    onCancelAutopilot: fn(),
     onOpenIRInspector: fn(),
     onExtractIR: fn(),
+    isAutopilot: false,
   },
 };
 

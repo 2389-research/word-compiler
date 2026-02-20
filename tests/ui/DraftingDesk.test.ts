@@ -24,8 +24,11 @@ function defaultProps() {
     onRemoveChunk: vi.fn(),
     onRunAudit: vi.fn(),
     onCompleteScene: vi.fn(),
+    onAutopilot: vi.fn(),
+    onCancelAutopilot: vi.fn(),
     onOpenIRInspector: vi.fn(),
     onExtractIR: vi.fn(),
+    isAutopilot: false,
   };
 }
 

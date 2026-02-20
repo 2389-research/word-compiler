@@ -129,5 +129,38 @@ export function createGenerationActions(store: ProjectStore, actions?: ApiAction
     }
   }
 
-  return { generateChunk, runAuditManual, runDeepAudit, extractSceneIR };
+  async function runAutopilot(completeScene: () => Promise<void>) {
+    const plan = store.activeScenePlan;
+    if (!plan || !store.compiledPayload || !store.bible) return;
+
+    store.setAutopilot(true);
+    const maxChunks = plan.chunkCount ?? 3;
+
+    try {
+      while (store.activeSceneChunks.length < maxChunks) {
+        if (store.autopilotCancelled) break;
+
+        // Generate next chunk
+        await generateChunk();
+        if (store.autopilotCancelled) break;
+
+        // Auto-accept the chunk we just generated
+        const chunkIndex = store.activeSceneChunks.length - 1;
+        store.updateChunk(chunkIndex, { status: "accepted" });
+        const accepted = store.activeSceneChunks[chunkIndex];
+        if (accepted && actions) await actions.updateChunk(accepted);
+      }
+
+      if (!store.autopilotCancelled) {
+        // Complete scene (which also triggers blueprint extraction)
+        await completeScene();
+      }
+    } catch (err) {
+      store.setError(err instanceof Error ? err.message : "Autopilot failed");
+    } finally {
+      store.setAutopilot(false);
+    }
+  }
+
+  return { generateChunk, runAuditManual, runDeepAudit, extractSceneIR, runAutopilot };
 }
