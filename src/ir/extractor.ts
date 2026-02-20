@@ -17,6 +17,7 @@ export interface IRLLMClient {
 
 export const narrativeIRSchema: Record<string, unknown> = {
   type: "object",
+  additionalProperties: false,
   properties: {
     events: { type: "array", items: { type: "string" } },
     factsIntroduced: { type: "array", items: { type: "string" } },
@@ -26,6 +27,7 @@ export const narrativeIRSchema: Record<string, unknown> = {
       type: "array",
       items: {
         type: "object",
+        additionalProperties: false,
         properties: {
           characterId: { type: "string" },
           learned: { type: ["string", "null"] },
@@ -33,14 +35,22 @@ export const narrativeIRSchema: Record<string, unknown> = {
           emotionalShift: { type: ["string", "null"] },
           relationshipChange: { type: ["string", "null"] },
         },
-        required: ["characterId"],
+        required: ["characterId", "learned", "suspicionGained", "emotionalShift", "relationshipChange"],
       },
     },
     setupsPlanted: { type: "array", items: { type: "string" } },
     payoffsExecuted: { type: "array", items: { type: "string" } },
     characterPositions: {
-      type: "object",
-      additionalProperties: { type: "string" },
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          characterId: { type: "string" },
+          position: { type: "string" },
+        },
+        required: ["characterId", "position"],
+      },
     },
     unresolvedTensions: { type: "array", items: { type: "string" } },
   },
@@ -101,9 +111,9 @@ Extract the narrative internal record for this scene. Return ONLY valid JSON in 
   ],
   "setupsPlanted": ["description of each setup planted in this scene — quote from prose if possible"],
   "payoffsExecuted": ["description of each setup paid off in this scene"],
-  "characterPositions": {
-    "character name or id": "physical/narrative position at scene end"
-  },
+  "characterPositions": [
+    { "characterId": "character name or id", "position": "physical/narrative position at scene end" }
+  ],
   "unresolvedTensions": ["tensions still active at scene end — what keeps the reader wanting to turn the page"]
 }
 

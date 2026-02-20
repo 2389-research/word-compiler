@@ -79,21 +79,25 @@ export interface ParsedSceneBootstrap {
 
 const readerStateSchema = {
   type: "object",
+  additionalProperties: false,
   properties: {
     knows: { type: "array", items: { type: "string" } },
     suspects: { type: "array", items: { type: "string" } },
     wrongAbout: { type: "array", items: { type: "string" } },
     activeTensions: { type: "array", items: { type: "string" } },
   },
+  required: ["knows", "suspects", "wrongAbout", "activeTensions"],
 };
 
 export const sceneBootstrapSchema: Record<string, unknown> = {
   type: "object",
+  additionalProperties: false,
   properties: {
     scenes: {
       type: "array",
       items: {
         type: "object",
+        additionalProperties: false,
         properties: {
           title: { type: "string" },
           povCharacterId: { type: "string" },
@@ -115,30 +119,57 @@ export const sceneBootstrapSchema: Record<string, unknown> = {
           readerStateExiting: readerStateSchema,
           subtext: {
             type: "object",
+            additionalProperties: false,
             properties: {
               surfaceConversation: { type: "string" },
               actualConversation: { type: "string" },
               enforcementRule: { type: "string" },
             },
+            required: ["surfaceConversation", "actualConversation", "enforcementRule"],
           },
           sceneSpecificProhibitions: { type: "array", items: { type: "string" } },
           anchorLines: {
             type: "array",
             items: {
               type: "object",
+              additionalProperties: false,
               properties: {
                 text: { type: "string" },
                 placement: { type: "string" },
                 verbatim: { type: "boolean" },
               },
+              required: ["text", "placement", "verbatim"],
             },
           },
         },
-        required: ["title", "narrativeGoal", "emotionalBeat"],
+        required: [
+          "title",
+          "povCharacterId",
+          "povCharacterName",
+          "povDistance",
+          "narrativeGoal",
+          "emotionalBeat",
+          "readerEffect",
+          "failureModeToAvoid",
+          "density",
+          "pacing",
+          "sensoryNotes",
+          "locationId",
+          "locationName",
+          "estimatedWordCount",
+          "chunkCount",
+          "chunkDescriptions",
+          "readerStateEntering",
+          "readerStateExiting",
+          "subtext",
+          "sceneSpecificProhibitions",
+          "anchorLines",
+        ],
       },
     },
     chapterArc: {
       type: "object",
+      additionalProperties: false,
       properties: {
         workingTitle: { type: "string" },
         narrativeFunction: { type: "string" },
@@ -148,9 +179,18 @@ export const sceneBootstrapSchema: Record<string, unknown> = {
         readerStateEntering: readerStateSchema,
         readerStateExiting: readerStateSchema,
       },
+      required: [
+        "workingTitle",
+        "narrativeFunction",
+        "dominantRegister",
+        "pacingTarget",
+        "endingPosture",
+        "readerStateEntering",
+        "readerStateExiting",
+      ],
     },
   },
-  required: ["scenes"],
+  required: ["scenes", "chapterArc"],
 };
 
 export function buildSceneBootstrapPrompt(params: SceneBootstrapParams): CompiledPayload {

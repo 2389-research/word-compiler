@@ -25,7 +25,19 @@ function coerceStringArray(v: unknown): string[] {
 }
 
 function coerceCharacterPositions(v: unknown): Record<string, string> {
-  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  if (!v || typeof v !== "object") return {};
+  // New format: array of { characterId, position }
+  if (Array.isArray(v)) {
+    const result: Record<string, string> = {};
+    for (const item of v) {
+      if (item && typeof item === "object" && "characterId" in item) {
+        const entry = item as { characterId: string; position?: string };
+        result[entry.characterId] = typeof entry.position === "string" ? entry.position : "";
+      }
+    }
+    return result;
+  }
+  // Legacy format: { [characterId]: position }
   const result: Record<string, string> = {};
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
     result[k] = typeof val === "string" ? val : String(val);

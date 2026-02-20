@@ -13,11 +13,13 @@ export {
 
 export const bootstrapSchema: Record<string, unknown> = {
   type: "object",
+  additionalProperties: false,
   properties: {
     characters: {
       type: "array",
       items: {
         type: "object",
+        additionalProperties: false,
         properties: {
           name: { type: "string" },
           role: { type: "string" },
@@ -26,17 +28,19 @@ export const bootstrapSchema: Record<string, unknown> = {
           voiceNotes: { type: "string" },
           emotionPhysicality: { type: "string" },
         },
-        required: ["name", "role"],
+        required: ["name", "role", "physicalDescription", "backstory", "voiceNotes", "emotionPhysicality"],
       },
     },
     locations: {
       type: "array",
       items: {
         type: "object",
+        additionalProperties: false,
         properties: {
           name: { type: "string" },
           sensoryPalette: {
             type: "object",
+            additionalProperties: false,
             properties: {
               sounds: { type: "array", items: { type: "string" } },
               smells: { type: "array", items: { type: "string" } },
@@ -44,23 +48,26 @@ export const bootstrapSchema: Record<string, unknown> = {
               lightQuality: { type: "string" },
               prohibitedDefaults: { type: "array", items: { type: "string" } },
             },
+            required: ["sounds", "smells", "textures", "lightQuality", "prohibitedDefaults"],
           },
         },
-        required: ["name"],
+        required: ["name", "sensoryPalette"],
       },
     },
     suggestedTone: {
       type: "object",
+      additionalProperties: false,
       properties: {
         metaphoricDomains: { type: "array", items: { type: "string" } },
         prohibitedDomains: { type: "array", items: { type: "string" } },
         pacingNotes: { type: "string" },
         interiority: { type: "string" },
       },
+      required: ["metaphoricDomains", "prohibitedDomains", "pacingNotes", "interiority"],
     },
     suggestedKillList: { type: "array", items: { type: "string" } },
   },
-  required: ["characters", "locations"],
+  required: ["characters", "locations", "suggestedTone", "suggestedKillList"],
 };
 
 export function buildBootstrapPrompt(synopsis: string): CompiledPayload {
