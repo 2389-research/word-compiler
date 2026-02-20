@@ -55,12 +55,12 @@ let currentStep = $state("foundations");
 let completedSteps = $state<string[]>([]);
 
 // The working Bible — start from store or empty
-let bible = $state<Bible>(store.bible ? structuredClone(store.bible) : createEmptyBible(store.project?.id ?? ""));
+let bible = $state<Bible>(store.bible ? $state.snapshot(store.bible) : createEmptyBible(store.project?.id ?? ""));
 
 // Re-init when modal opens with existing Bible
 $effect(() => {
   if (store.bibleAuthoringOpen) {
-    bible = store.bible ? structuredClone(store.bible) : createEmptyBible(store.project?.id ?? "");
+    bible = store.bible ? $state.snapshot(store.bible) : createEmptyBible(store.project?.id ?? "");
     currentStep = "foundations";
     completedSteps = [];
   }

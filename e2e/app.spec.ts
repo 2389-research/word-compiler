@@ -32,7 +32,7 @@ test.describe("Word Compiler App", () => {
   test("can switch to Style Drift tab", async ({ page }) => {
     await page.goto("/");
     await page.locator("button", { hasText: "Style Drift" }).click();
-    await expect(page.locator("text=No drift data")).toBeVisible();
+    await expect(page.locator("text=Complete at least 2 scenes")).toBeVisible();
   });
 
   test("can switch to Voice Sep tab", async ({ page }) => {
@@ -41,9 +41,9 @@ test.describe("Word Compiler App", () => {
     await expect(page.locator("text=No voice separability data")).toBeVisible();
   });
 
-  test("Bootstrap button is visible", async ({ page }) => {
+  test("New Bible button is visible", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("button", { hasText: "Bootstrap" })).toBeVisible();
+    await expect(page.locator("button", { hasText: "New Bible" })).toBeVisible();
   });
 
   test("shows Compiler empty state", async ({ page }) => {
