@@ -4,14 +4,17 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "svelte-codemirror-editor";
 import type { Bible, ChapterArc, ScenePlan } from "../../types/index.js";
 import { Button, Pane } from "../primitives/index.js";
+import type { ApiActions } from "../store/api-actions.js";
 import type { ProjectStore } from "../store/project.svelte.js";
 
 let {
   store,
+  actions,
   onBootstrap,
   onAuthor,
 }: {
   store: ProjectStore;
+  actions?: ApiActions;
   onBootstrap: () => void;
   onAuthor?: () => void;
 } = $props();
@@ -24,7 +27,11 @@ const extensions = [json(), oneDark];
 function handleBibleChange(text: string) {
   try {
     const parsed = JSON.parse(text) as Bible;
-    store.setBible(parsed);
+    if (actions) {
+      actions.saveBible(parsed);
+    } else {
+      store.setBible(parsed);
+    }
   } catch {
     // Invalid JSON — don't update state until valid
   }
@@ -33,8 +40,9 @@ function handleBibleChange(text: string) {
 function handlePlanChange(text: string) {
   try {
     const parsed = JSON.parse(text) as ScenePlan;
-    if (store.activeScenePlan) {
-      // Update the active scene plan in place
+    if (actions) {
+      actions.saveScenePlan(parsed, store.activeSceneIndex);
+    } else if (store.activeScenePlan) {
       store.addScenePlan(parsed);
     } else {
       store.setScenePlan(parsed);
@@ -49,7 +57,11 @@ async function handleLoadBible() {
   if (text) {
     try {
       const parsed = JSON.parse(text) as Bible;
-      store.setBible(parsed);
+      if (actions) {
+        await actions.saveBible(parsed);
+      } else {
+        store.setBible(parsed);
+      }
     } catch {
       store.setError("Invalid Bible JSON");
     }
@@ -61,7 +73,9 @@ async function handleLoadPlan() {
   if (text) {
     try {
       const parsed = JSON.parse(text) as ScenePlan;
-      if (store.scenes.length > 0) {
+      if (actions) {
+        await actions.saveScenePlan(parsed, store.scenes.length);
+      } else if (store.scenes.length > 0) {
         store.addScenePlan(parsed);
       } else {
         store.setScenePlan(parsed);
@@ -77,7 +91,11 @@ async function handleLoadArc() {
   if (text) {
     try {
       const parsed = JSON.parse(text) as ChapterArc;
-      store.setChapterArc(parsed);
+      if (actions) {
+        await actions.saveChapterArc(parsed);
+      } else {
+        store.setChapterArc(parsed);
+      }
     } catch {
       store.setError("Invalid Chapter Arc JSON");
     }

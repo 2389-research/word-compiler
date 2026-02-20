@@ -19,12 +19,15 @@ import {
   TagInput,
   TextArea,
 } from "../primitives/index.js";
+import type { ApiActions } from "../store/api-actions.js";
 import type { ProjectStore } from "../store/project.svelte.js";
 
 let {
   store,
+  actions,
 }: {
   store: ProjectStore;
+  actions?: ApiActions;
 } = $props();
 
 // ─── Tab state ──────────────────────────────────
@@ -120,7 +123,11 @@ async function handleBootstrap() {
 
     const result = bootstrapToBible(parsed, store.project?.id ?? `proj-${Date.now()}`);
     bsStatus = "Done!";
-    store.setBible(result);
+    if (actions) {
+      await actions.saveBible(result);
+    } else {
+      store.setBible(result);
+    }
 
     setTimeout(() => {
       handleClose();
@@ -163,8 +170,12 @@ function prevStep() {
   }
 }
 
-function saveBible() {
-  store.setBible(bible);
+async function saveBible() {
+  if (actions) {
+    await actions.saveBible(bible);
+  } else {
+    store.setBible(bible);
+  }
   handleClose();
 }
 

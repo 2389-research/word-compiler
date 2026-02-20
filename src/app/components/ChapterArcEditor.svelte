@@ -1,20 +1,28 @@
 <script lang="ts">
 import type { ChapterArc, ReaderState } from "../../types/index.js";
 import { Button, Input, Modal, TextArea } from "../primitives/index.js";
+import type { ApiActions } from "../store/api-actions.js";
 import type { ProjectStore } from "../store/project.svelte.js";
 
 let {
   arc,
   store,
+  actions,
   onClose,
 }: {
   arc: ChapterArc;
   store: ProjectStore;
+  actions?: ApiActions;
   onClose: () => void;
 } = $props();
 
 function update(changes: Partial<ChapterArc>) {
-  store.setChapterArc({ ...arc, ...changes });
+  const updated = { ...arc, ...changes };
+  if (actions) {
+    actions.updateChapterArc(updated);
+  } else {
+    store.setChapterArc(updated);
+  }
 }
 
 function updateReaderState(field: "readerStateEntering" | "readerStateExiting", rs: ReaderState) {

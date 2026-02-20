@@ -2,12 +2,15 @@
 import { bootstrapToBible, buildBootstrapPrompt, parseBootstrapResponse } from "../../bootstrap/index.js";
 import { generateStream } from "../../llm/client.js";
 import { Button, ErrorBanner, Modal, Spinner, TextArea } from "../primitives/index.js";
+import type { ApiActions } from "../store/api-actions.js";
 import type { ProjectStore } from "../store/project.svelte.js";
 
 let {
   store,
+  actions,
 }: {
   store: ProjectStore;
+  actions?: ApiActions;
 } = $props();
 
 let synopsis = $state("");
@@ -70,7 +73,11 @@ async function handleBootstrap() {
 
     const bible = bootstrapToBible(parsed, `proj-${Date.now()}`);
     status = "Done!";
-    store.setBible(bible);
+    if (actions) {
+      await actions.saveBible(bible);
+    } else {
+      store.setBible(bible);
+    }
 
     setTimeout(() => {
       store.setBootstrapOpen(false);

@@ -17,15 +17,29 @@ import SceneAuthoringModal from "./components/SceneAuthoringModal.svelte";
 import SceneSequencer from "./components/SceneSequencer.svelte";
 import StyleDriftPanel from "./components/StyleDriftPanel.svelte";
 import VoiceSeparabilityView from "./components/VoiceSeparabilityView.svelte";
+import { onMount } from "svelte";
 import { Button, ErrorBanner, Select, Tabs } from "./primitives/index.js";
-import { createGenerationActions, setupCompilerEffect, store } from "./store/index.svelte.js";
+import { createApiActions, createGenerationActions, initializeApp, setupCompilerEffect, store } from "./store/index.svelte.js";
 import { theme } from "./store/theme.svelte.js";
 
 // Set up compiler auto-recompile effect
 setupCompilerEffect(store);
 
+// Create persisted action handlers
+const actions = createApiActions(store);
+
 // Create generation action handlers
 const { generateChunk, runAuditManual, extractSceneIR } = createGenerationActions(store);
+
+// ─── Startup ────────────────────────────────────
+let appReady = $state(false);
+let startupStatus = $state<string>("loading");
+
+onMount(async () => {
+  const result = await initializeApp(store);
+  startupStatus = result;
+  appReady = result === "loaded" || result === "no-projects";
+});
 
 // ─── Local UI state ─────────────────────────────
 let showArcEditor = $state(false);
@@ -121,29 +135,29 @@ function handleRemoveChunk(index: number) {
   store.removeChunk(index);
 }
 
-function handleCompleteScene() {
+async function handleCompleteScene() {
   if (store.activeScenePlan) {
-    store.completeScene(store.activeScenePlan.id);
+    await actions.completeScene(store.activeScenePlan.id);
   }
 }
 
-function handleResolveFlag(flagId: string, action: string) {
-  store.resolveAuditFlag(flagId, action, true);
+async function handleResolveFlag(flagId: string, action: string) {
+  await actions.resolveAuditFlag(flagId, action, true);
 }
 
-function handleDismissFlag(flagId: string) {
-  store.dismissAuditFlag(flagId);
+async function handleDismissFlag(flagId: string) {
+  await actions.dismissAuditFlag(flagId);
 }
 
-function handleVerifyIR() {
+async function handleVerifyIR() {
   if (store.activeScenePlan) {
-    store.verifySceneIR(store.activeScenePlan.id);
+    await actions.verifySceneIR(store.activeScenePlan.id);
   }
 }
 
-function handleUpdateIR(ir: import("../types/index.js").NarrativeIR) {
+async function handleUpdateIR(ir: import("../types/index.js").NarrativeIR) {
   if (store.activeScenePlan) {
-    store.setSceneIR(store.activeScenePlan.id, ir);
+    await actions.saveSceneIR(store.activeScenePlan.id, ir);
   }
 }
 
@@ -302,6 +316,18 @@ function exportState() {
 }
 </script>
 
+{#if !appReady}
+  <div class="app loading-screen">
+    <span class="app-title">Word Compiler</span>
+    {#if startupStatus === "loading"}
+      <p>Loading project...</p>
+    {:else if startupStatus === "error"}
+      <ErrorBanner message={store.error ?? "Failed to load"} onDismiss={() => store.setError(null)} />
+    {:else if startupStatus === "multiple-projects"}
+      <p>Multiple projects found. Project list coming in Phase 3.</p>
+    {/if}
+  </div>
+{:else}
 <div class="app">
   <div class="app-header">
     <span class="app-title">Word Compiler</span>
@@ -356,7 +382,7 @@ function exportState() {
   <Tabs items={tabItems} active={activeTab} onSelect={(id) => { activeTab = id as typeof activeTab; }} />
 
   <div class="cockpit">
-    <BiblePane {store} onBootstrap={() => store.setBootstrapOpen(true)} onAuthor={() => store.setBibleAuthoringOpen(true)} />
+    <BiblePane {store} {actions} onBootstrap={() => store.setBootstrapOpen(true)} onAuthor={() => store.setBibleAuthoringOpen(true)} />
     <DraftingDesk
       chunks={store.activeSceneChunks}
       scenePlan={store.activeScenePlan}
@@ -411,14 +437,15 @@ function exportState() {
     {/if}
   </div>
 
-  <BootstrapModal {store} />
-  <BibleAuthoringModal {store} />
-  <SceneAuthoringModal {store} />
+  <BootstrapModal {store} {actions} />
+  <BibleAuthoringModal {store} {actions} />
+  <SceneAuthoringModal {store} {actions} />
 
   {#if showArcEditor && store.chapterArc}
-    <ChapterArcEditor arc={store.chapterArc} {store} onClose={() => { showArcEditor = false; }} />
+    <ChapterArcEditor arc={store.chapterArc} {store} {actions} onClose={() => { showArcEditor = false; }} />
   {/if}
 </div>
+{/if}
 
 <style>
   .header-right { display: flex; align-items: center; gap: 12px; }
@@ -426,4 +453,5 @@ function exportState() {
     display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary);
   }
   .error-margin { margin: 0 8px; }
+  .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 200px; }
 </style>
