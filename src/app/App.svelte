@@ -498,7 +498,7 @@ function exportState() {
     {:else if activeTab === "voice"}
       <VoiceSeparabilityView report={voiceReport} />
     {:else if activeTab === "setups"}
-      <SetupPayoffPanel sceneIRs={store.sceneIRs} {sceneTitles} />
+      <SetupPayoffPanel sceneIRs={store.sceneIRs} {sceneTitles} sceneOrders={Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.sceneOrder]))} />
     {/if}
   </div>
 

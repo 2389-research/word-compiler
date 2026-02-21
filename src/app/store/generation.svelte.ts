@@ -42,6 +42,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       store.addChunk(pendingChunk);
 
       let fullText = "";
+      let streamFailed = false;
       await generateStream(store.compiledPayload, {
         onToken: (text) => {
           fullText += text;
@@ -51,9 +52,13 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
           store.updateChunkForScene(sceneId, chunkIndex, { generatedText: fullText });
         },
         onError: (err) => {
+          streamFailed = true;
           store.setError(`Generation failed: ${err}`);
         },
       });
+
+      // Abort if stream errored — don't persist partial/invalid prose
+      if (streamFailed) return;
 
       // Persist the finalized chunk
       const finalChunk = chunksForScene(sceneId)[chunkIndex];

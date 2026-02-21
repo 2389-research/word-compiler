@@ -5,9 +5,11 @@ import { Badge, Pane } from "../primitives/index.js";
 let {
   sceneIRs,
   sceneTitles,
+  sceneOrders,
 }: {
   sceneIRs: Record<string, NarrativeIR>;
   sceneTitles: Record<string, string>;
+  sceneOrders: Record<string, number>;
 } = $props();
 
 interface SetupEntry {
@@ -18,22 +20,28 @@ interface SetupEntry {
 
 let entries = $derived.by((): SetupEntry[] => {
   const setups: SetupEntry[] = [];
+  // Map payoff text → sceneId (only keep earliest payoff per text)
   const payoffSet = new Map<string, string>();
 
-  // Collect all payoffs first so we can match
   for (const [sceneId, ir] of Object.entries(sceneIRs)) {
     if (!ir.verified) continue;
     for (const payoff of ir.payoffsExecuted) {
-      payoffSet.set(payoff.toLowerCase(), sceneId);
+      const key = payoff.toLowerCase();
+      const existing = payoffSet.get(key);
+      if (!existing || (sceneOrders[sceneId] ?? 0) < (sceneOrders[existing] ?? 0)) {
+        payoffSet.set(key, sceneId);
+      }
     }
   }
 
-  // Collect all setups and match against payoffs
+  // Match setups to payoffs, respecting chronological order
   for (const [sceneId, ir] of Object.entries(sceneIRs)) {
     if (!ir.verified) continue;
     for (const setup of ir.setupsPlanted) {
-      const paidOffIn = payoffSet.get(setup.toLowerCase()) ?? null;
-      setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: paidOffIn });
+      const payoffSceneId = payoffSet.get(setup.toLowerCase()) ?? null;
+      // Only count as resolved if payoff comes after the setup
+      const resolved = payoffSceneId !== null && (sceneOrders[payoffSceneId] ?? 0) > (sceneOrders[sceneId] ?? 0);
+      setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: resolved ? payoffSceneId : null });
     }
   }
 
