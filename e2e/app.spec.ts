@@ -68,6 +68,12 @@ test.describe("Word Compiler App", () => {
     expect(options).toBeGreaterThan(0);
   });
 
+  test("Learner tab shows empty state", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("button", { hasText: "Learner" }).click();
+    await expect(page.locator("text=No edit patterns yet")).toBeVisible();
+  });
+
   test("no JavaScript errors on load", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
