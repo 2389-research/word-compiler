@@ -42,6 +42,7 @@ const meta: Meta<LearnerPanel> = {
   title: "Components/LearnerPanel",
   component: LearnerPanel,
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component: "Displays edit pattern analysis, bible proposals, and tuning suggestions from the revision learner.",

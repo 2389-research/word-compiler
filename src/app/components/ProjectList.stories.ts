@@ -19,6 +19,7 @@ const meta: Meta<ProjectList> = {
   title: "Components/ProjectList",
   component: ProjectList,
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component: "Multi-project selector — lists projects with status badges and provides create/delete actions.",

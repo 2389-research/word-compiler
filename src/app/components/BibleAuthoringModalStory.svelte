@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Bible } from "../../types/index.js";
 import { createEmptyBible, createEmptyCharacterDossier, generateId } from "../../types/index.js";
+import { createCommands } from "../store/commands.js";
 import { ProjectStore } from "../store/project.svelte.js";
 import BibleAuthoringModal from "./BibleAuthoringModal.svelte";
 
@@ -13,6 +14,7 @@ let {
 } = $props();
 
 const store = new ProjectStore();
+const commands = createCommands(store);
 store.setBibleAuthoringOpen(true);
 
 if (prePopulated) {
@@ -45,4 +47,4 @@ if (prePopulated) {
 }
 </script>
 
-<BibleAuthoringModal {store} />
+<BibleAuthoringModal {store} {commands} />

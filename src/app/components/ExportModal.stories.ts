@@ -5,7 +5,9 @@ const meta: Meta<ExportModalStory> = {
   title: "Components/ExportModal",
   component: ExportModalStory,
   parameters: {
+    layout: "fullscreen",
     docs: {
+      story: { height: "500px" },
       description: {
         component:
           "Export modal — renders chapter prose as Markdown or Plain Text with preview, word count, copy, and download.",

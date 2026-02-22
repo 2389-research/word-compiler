@@ -1,5 +1,6 @@
 <script lang="ts">
 import { createEmptyBible } from "../../types/index.js";
+import { createCommands } from "../store/commands.js";
 import { ProjectStore } from "../store/project.svelte.js";
 import SceneAuthoringModal from "./SceneAuthoringModal.svelte";
 
@@ -10,6 +11,7 @@ let {
 } = $props();
 
 const store = new ProjectStore();
+const commands = createCommands(store);
 store.setSceneAuthoringOpen(true);
 
 if (withBible) {
@@ -84,4 +86,4 @@ if (withBible) {
 }
 </script>
 
-<SceneAuthoringModal {store} />
+<SceneAuthoringModal {store} {commands} />

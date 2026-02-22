@@ -6,6 +6,7 @@ const meta: Meta<SetupPayoffPanel> = {
   title: "Components/SetupPayoffPanel",
   component: SetupPayoffPanel,
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:
