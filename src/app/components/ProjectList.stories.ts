@@ -33,7 +33,7 @@ export const SingleProject: Story = {
   },
 };
 
-export const MultipleProjects: Story = {
+export const MixedStatuses: Story = {
   args: {
     projects: [
       makeProject({ title: "The Letter", status: "drafting" }),
@@ -44,16 +44,7 @@ export const MultipleProjects: Story = {
   },
 };
 
-export const WithDelete: Story = {
-  args: {
-    projects: [
-      makeProject({ title: "Active Story", status: "drafting" }),
-      makeProject({ title: "Old Draft", status: "bible" }),
-    ],
-  },
-};
-
-export const ManyProjects: Story = {
+export const AllStatuses: Story = {
   args: {
     projects: [
       makeProject({ title: "The Letter", status: "drafting" }),

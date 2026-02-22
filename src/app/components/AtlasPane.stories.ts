@@ -22,6 +22,10 @@ const meta: Meta<AtlasPaneStory> = {
       control: "boolean",
       description: "When true, initializes the mock store with an empty scene plan (shows Scene Plan JSON editor).",
     },
+    hasArc: {
+      control: "boolean",
+      description: "When true, initializes the mock store with a filled Chapter Arc (shows Chapter Arc JSON editor).",
+    },
   },
 };
 
@@ -38,4 +42,8 @@ export const WithBible: Story = {
 
 export const WithScenes: Story = {
   args: { hasBible: true, hasScenes: true },
+};
+
+export const WithArc: Story = {
+  args: { hasBible: true, hasScenes: true, hasArc: true },
 };
