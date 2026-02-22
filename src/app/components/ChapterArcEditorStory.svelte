@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { ChapterArc } from "../../types/index.js";
 import { createEmptyChapterArc } from "../../types/index.js";
+import { createCommands } from "../store/commands.js";
 import ChapterArcEditor from "./ChapterArcEditor.svelte";
 
 let {
@@ -40,6 +41,7 @@ class MockStore {
 }
 
 const store = new MockStore();
+const commands = createCommands(store as any);
 
 // Apply prefilled data after initialization
 if (prefilled) {
@@ -47,4 +49,4 @@ if (prefilled) {
 }
 </script>
 
-<ChapterArcEditor {arc} {store} onClose={() => {}} />
+<ChapterArcEditor {arc} {store} {commands} onClose={() => {}} />

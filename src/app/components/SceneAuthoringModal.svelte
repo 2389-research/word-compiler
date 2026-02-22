@@ -28,13 +28,15 @@ import type { ProjectStore } from "../store/project.svelte.js";
 let {
   store,
   commands,
+  initialTab,
 }: {
   store: ProjectStore;
   commands: Commands;
+  initialTab?: "bootstrap" | "form";
 } = $props();
 
 // ─── Tab state ──────────────────────────────────
-let activeTab = $state("bootstrap");
+let activeTab = $state(initialTab ?? "bootstrap");
 const tabItems = [
   { id: "bootstrap", label: "AI Bootstrap" },
   { id: "form", label: "Guided Form" },

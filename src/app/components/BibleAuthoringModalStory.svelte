@@ -53,4 +53,4 @@ if (prePopulated) {
 }
 </script>
 
-<BibleAuthoringModal {store} {commands} />
+<BibleAuthoringModal {store} {commands} initialTab={mode === "form" ? "form" : "bootstrap"} />

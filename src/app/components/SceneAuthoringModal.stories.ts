@@ -23,6 +23,11 @@ const meta: Meta<SceneAuthoringModalStory> = {
       control: "boolean",
       description: "Whether to add extra characters/locations with filled voice and sensory data.",
     },
+    initialTab: {
+      control: "select",
+      options: ["bootstrap", "form"],
+      description: "Which tab to open on (bootstrap or guided form).",
+    },
   },
 };
 
@@ -39,4 +44,12 @@ export const WithBible: Story = {
 
 export const WithRichBible: Story = {
   args: { withBible: true, richData: true },
+};
+
+export const GuidedFormEmpty: Story = {
+  args: { withBible: false, initialTab: "form" },
+};
+
+export const GuidedFormWithBible: Story = {
+  args: { withBible: true, initialTab: "form" },
 };

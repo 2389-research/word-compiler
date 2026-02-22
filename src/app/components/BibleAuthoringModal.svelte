@@ -1,4 +1,5 @@
 <script lang="ts">
+import { applyGenreTemplate, GENRE_TEMPLATES } from "../../bootstrap/genres.js";
 import { bootstrapToBible, buildBootstrapPrompt, parseBootstrapResponse } from "../../bootstrap/index.js";
 import { generateStream } from "../../llm/client.js";
 import type { Bible, CharacterDossier, Exemplar, KillListEntry, Location, VocabPreference } from "../../types/index.js";
@@ -13,6 +14,7 @@ import {
   Modal,
   NumberRange,
   RadioGroup,
+  Select,
   Spinner,
   Stepper,
   Tabs,
@@ -25,13 +27,15 @@ import type { ProjectStore } from "../store/project.svelte.js";
 let {
   store,
   commands,
+  initialTab,
 }: {
   store: ProjectStore;
   commands: Commands;
+  initialTab?: "bootstrap" | "form";
 } = $props();
 
 // ─── Tab state ──────────────────────────────────
-let activeTab = $state("bootstrap");
+let activeTab = $state(initialTab ?? "bootstrap");
 const tabItems = [
   { id: "bootstrap", label: "AI Bootstrap" },
   { id: "form", label: "Guided Form" },
@@ -295,6 +299,23 @@ function removeVocabPref(index: number) {
 
   {:else}
     <!-- ─── Guided Form Tab ──────────────────────── -->
+    <div class="genre-selector">
+      <FormField label="Genre Template">
+        <Select
+          value=""
+          onchange={(e) => {
+            const id = (e.target as HTMLSelectElement).value;
+            const tmpl = GENRE_TEMPLATES.find((t) => t.id === id);
+            if (tmpl) bible = applyGenreTemplate(bible, tmpl);
+          }}
+        >
+          <option value="" disabled>Select a genre to pre-fill defaults...</option>
+          {#each GENRE_TEMPLATES as tmpl (tmpl.id)}
+            <option value={tmpl.id}>{tmpl.name} — {tmpl.description}</option>
+          {/each}
+        </Select>
+      </FormField>
+    </div>
     <Stepper steps={stepDefs} {currentStep} {completedSteps} onStepClick={goToStep} />
 
     <div class="form-body">
@@ -570,6 +591,7 @@ function removeVocabPref(index: number) {
 </Modal>
 
 <style>
+  .genre-selector { margin-bottom: 8px; }
   .modal-instructions { margin-bottom: 12px; color: var(--text-secondary); font-size: 12px; }
   .stream-display {
     font-family: var(--font-mono); font-size: 11px; background: var(--bg-input);

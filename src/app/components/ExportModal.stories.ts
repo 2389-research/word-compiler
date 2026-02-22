@@ -23,6 +23,11 @@ const meta: Meta<ExportModalStory> = {
       control: "boolean",
       description: "Whether to add a second scene for multi-scene export.",
     },
+    initialFormat: {
+      control: "select",
+      options: ["markdown", "plaintext"],
+      description: "Which export format to select initially.",
+    },
   },
 };
 
@@ -38,5 +43,5 @@ export const MarkdownFormat: Story = {
 };
 
 export const PlainTextFormat: Story = {
-  args: { withProse: true },
+  args: { withProse: true, initialFormat: "plaintext" },
 };

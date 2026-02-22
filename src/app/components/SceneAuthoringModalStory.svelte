@@ -7,9 +7,11 @@ import SceneAuthoringModal from "./SceneAuthoringModal.svelte";
 let {
   withBible = false,
   richData = false,
+  initialTab,
 }: {
   withBible?: boolean;
   richData?: boolean;
+  initialTab?: "bootstrap" | "form";
 } = $props();
 
 const store = new ProjectStore();
@@ -122,4 +124,4 @@ if (withBible) {
 }
 </script>
 
-<SceneAuthoringModal {store} {commands} />
+<SceneAuthoringModal {store} {commands} {initialTab} />
