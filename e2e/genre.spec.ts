@@ -31,10 +31,10 @@ test.describe("Genre Templates", () => {
     await page.goto("/");
     await page.locator("button", { hasText: "New Bible" }).click();
     await page.locator("button", { hasText: "Guided Form" }).click();
-    // Stepper steps are visible
-    await expect(page.locator("text=Foundations")).toBeVisible();
-    await expect(page.locator("text=Characters")).toBeVisible();
-    await expect(page.locator("text=Review")).toBeVisible();
+    // Stepper steps are visible (use role locators to avoid matching hidden tab text)
+    await expect(page.getByRole("button", { name: "Foundations" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Characters" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review" })).toBeVisible();
     // Can navigate with Next button
     await page.locator("button", { hasText: "Next" }).click();
     await expect(page.locator("text=Add Character")).toBeVisible();
