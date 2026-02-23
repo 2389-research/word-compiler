@@ -58,14 +58,14 @@ export function levenshteinDistance(a: string, b: string): number {
 // ─── Edit Ratio ─────────────────────────────────
 
 /**
- * Compute the edit ratio for a chunk: levenshtein(generated, edited) / max(len(generated), 1).
- * Returns 0 for chunks without edits.
+ * Compute the edit ratio for a chunk: levenshtein(generated, edited) / max(len(generated), len(edited), 1).
+ * Returns a normalized 0..1 value. Returns 0 for chunks without edits.
  */
 export function computeEditRatio(chunk: Chunk): number {
   if (chunk.editedText === null) return 0;
   if (chunk.generatedText === chunk.editedText) return 0;
   const dist = levenshteinDistance(chunk.generatedText, chunk.editedText);
-  return dist / Math.max(chunk.generatedText.length, 1);
+  return dist / Math.max(chunk.generatedText.length, chunk.editedText.length, 1);
 }
 
 // ─── Constants ──────────────────────────────────

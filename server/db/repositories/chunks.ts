@@ -11,7 +11,7 @@ export function createChunk(db: Database.Database, chunk: Chunk): Chunk {
        sequence_number = excluded.sequence_number,
        data = excluded.data,
        updated_at = excluded.updated_at`,
-  ).run(chunk.id ?? null, chunk.sceneId ?? null, chunk.sequenceNumber ?? 0, JSON.stringify(chunk), now, now);
+  ).run(chunk.id, chunk.sceneId, chunk.sequenceNumber ?? 0, JSON.stringify(chunk), now, now);
   return chunk;
 }
 
@@ -30,11 +30,7 @@ export function listChunksForScene(db: Database.Database, sceneId: string): Chun
 
 export function updateChunk(db: Database.Database, chunk: Chunk): Chunk {
   const now = new Date().toISOString();
-  db.prepare(`UPDATE chunks SET data = ?, updated_at = ? WHERE id = ?`).run(
-    JSON.stringify(chunk),
-    now,
-    chunk.id ?? null,
-  );
+  db.prepare(`UPDATE chunks SET data = ?, updated_at = ? WHERE id = ?`).run(JSON.stringify(chunk), now, chunk.id);
   return chunk;
 }
 

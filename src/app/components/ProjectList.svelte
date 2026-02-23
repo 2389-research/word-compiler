@@ -41,7 +41,7 @@ let {
       <div class="project-grid">
         {#each projects as project (project.id)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="project-card" role="button" tabindex="0" onclick={() => onSelectProject(project.id)} onkeydown={(e) => { if (e.key === 'Enter') onSelectProject(project.id); }}>
+          <div class="project-card" role="button" tabindex="0" onclick={() => onSelectProject(project.id)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectProject(project.id); } }}>
             <div class="project-card-title">{project.title}</div>
             <div class="project-card-meta">
               <span class="project-status project-status-{project.status}">{project.status}</span>

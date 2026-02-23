@@ -7,11 +7,11 @@ export function createAuditFlag(db: Database.Database, flag: AuditFlag): AuditFl
     `INSERT INTO audit_flags (id, scene_id, severity, category, message, line_reference, resolved, resolved_action, was_actionable, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    flag.id ?? null,
-    flag.sceneId ?? null,
-    flag.severity ?? null,
-    flag.category ?? null,
-    flag.message ?? null,
+    flag.id,
+    flag.sceneId,
+    flag.severity,
+    flag.category,
+    flag.message,
     flag.lineReference ?? null,
     flag.resolved ? 1 : 0,
     flag.resolvedAction ?? null,
@@ -31,11 +31,11 @@ export function createAuditFlags(db: Database.Database, flags: AuditFlag[]): Aud
   const tx = db.transaction(() => {
     for (const flag of flags) {
       insert.run(
-        flag.id ?? null,
-        flag.sceneId ?? null,
-        flag.severity ?? null,
-        flag.category ?? null,
-        flag.message ?? null,
+        flag.id,
+        flag.sceneId,
+        flag.severity,
+        flag.category,
+        flag.message,
         flag.lineReference ?? null,
         flag.resolved ? 1 : 0,
         flag.resolvedAction ?? null,
