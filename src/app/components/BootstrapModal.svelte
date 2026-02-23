@@ -72,7 +72,7 @@ async function handleBootstrap() {
       return;
     }
 
-    const bible = bootstrapToBible(parsed, store.project?.id ?? generateId());
+    const bible = bootstrapToBible(parsed, store.project?.id ?? generateId(), synopsis);
     status = "Done!";
     await commands.saveBible(bible);
 

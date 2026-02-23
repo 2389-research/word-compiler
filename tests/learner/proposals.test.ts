@@ -93,6 +93,7 @@ function makeMinimalBible(): Bible {
       },
     ],
     createdAt: new Date().toISOString(),
+    sourcePrompt: null,
   };
 }
 

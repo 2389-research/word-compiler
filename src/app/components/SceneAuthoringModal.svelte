@@ -1,5 +1,8 @@
 <script lang="ts">
 import {
+  type BootstrapActiveSetup,
+  type BootstrapCharacterDossier,
+  type BootstrapLocationDetail,
   buildSceneBootstrapPrompt,
   mapSceneBootstrapToPlans,
   parseSceneBootstrapResponse,
@@ -46,7 +49,7 @@ const tabItems = [
 let direction = $state("");
 let sceneCount = $state(3);
 let constraints = $state("");
-let includeChapterArc = $state(false);
+let includeChapterArc = $state(true);
 let selectedCharIds = $state<string[]>([]);
 let selectedLocIds = $state<string[]>([]);
 let loading = $state(false);
@@ -134,6 +137,75 @@ async function handleGenerate() {
       .map((c) => ({ id: c.id, name: c.name, role: c.role }));
     const locs = bibleLocations.filter((l) => selectedLocIds.includes(l.id)).map((l) => ({ id: l.id, name: l.name }));
 
+    // Gather rich context from store
+    const existingScenes = store.scenes.map((s) => ({
+      title: s.plan.title,
+      povCharacterName: bibleCharacters.find((c) => c.id === s.plan.povCharacterId)?.name ?? "",
+      povDistance: s.plan.povDistance,
+      narrativeGoal: s.plan.narrativeGoal,
+      emotionalBeat: s.plan.emotionalBeat,
+      readerStateExiting: s.plan.readerStateExiting,
+    }));
+
+    const chapterArc = store.chapterArc
+      ? {
+          workingTitle: store.chapterArc.workingTitle,
+          narrativeFunction: store.chapterArc.narrativeFunction,
+          dominantRegister: store.chapterArc.dominantRegister,
+          pacingTarget: store.chapterArc.pacingTarget,
+          endingPosture: store.chapterArc.endingPosture,
+        }
+      : undefined;
+
+    const narrativeRules = store.bible?.narrativeRules
+      ? {
+          pov: store.bible.narrativeRules.pov,
+          subtextPolicy: store.bible.narrativeRules.subtextPolicy,
+          expositionPolicy: store.bible.narrativeRules.expositionPolicy,
+          sceneEndingPolicy: store.bible.narrativeRules.sceneEndingPolicy,
+        }
+      : undefined;
+
+    const activeSetups: BootstrapActiveSetup[] = (store.bible?.narrativeRules?.setups ?? [])
+      .filter((s) => s.status === "planned" || s.status === "planted")
+      .map((s) => ({ description: s.description, status: s.status }));
+
+    const characterDossiers: BootstrapCharacterDossier[] = bibleCharacters
+      .filter((c) => selectedCharIds.includes(c.id))
+      .map((c) => ({
+        name: c.name,
+        role: c.role,
+        backstory: c.backstory,
+        contradictions: c.contradictions,
+        voice: {
+          vocabularyNotes: c.voice.vocabularyNotes,
+          verbalTics: c.voice.verbalTics,
+          prohibitedLanguage: c.voice.prohibitedLanguage,
+          metaphoricRegister: c.voice.metaphoricRegister,
+        },
+        behavior: c.behavior
+          ? {
+              stressResponse: c.behavior.stressResponse,
+              noticesFirst: c.behavior.noticesFirst,
+              emotionPhysicality: c.behavior.emotionPhysicality,
+            }
+          : null,
+      }));
+
+    const locationDetails: BootstrapLocationDetail[] = bibleLocations
+      .filter((l) => selectedLocIds.includes(l.id))
+      .map((l) => ({
+        name: l.name,
+        description: l.description,
+        atmosphere: l.sensoryPalette?.atmosphere ?? null,
+        sounds: l.sensoryPalette?.sounds ?? [],
+        smells: l.sensoryPalette?.smells ?? [],
+        prohibitedDefaults: l.sensoryPalette?.prohibitedDefaults ?? [],
+      }));
+
+    const killList = (store.bible?.styleGuide?.killList ?? []).map((k) => k.pattern);
+    const structuralBans = store.bible?.styleGuide?.structuralBans ?? [];
+
     const payload = buildSceneBootstrapPrompt({
       direction: direction.trim(),
       sceneCount,
@@ -141,6 +213,14 @@ async function handleGenerate() {
       locations: locs,
       constraints: constraints.trim() || undefined,
       includeChapterArc,
+      existingScenes: existingScenes.length > 0 ? existingScenes : undefined,
+      chapterArc,
+      narrativeRules,
+      activeSetups: activeSetups.length > 0 ? activeSetups : undefined,
+      characterDossiers: characterDossiers.length > 0 ? characterDossiers : undefined,
+      locationDetails: locationDetails.length > 0 ? locationDetails : undefined,
+      killList: killList.length > 0 ? killList : undefined,
+      structuralBans: structuralBans.length > 0 ? structuralBans : undefined,
     });
 
     status = "Streaming from LLM...";
@@ -226,12 +306,25 @@ function acceptAll() {
 }
 
 async function commitAccepted() {
-  const plans = generatedPlans.filter((_, i) => acceptedIndices.has(i));
+  // Build sourcePrompt from direction + constraints
+  const sourcePrompt = direction.trim() + (constraints.trim() ? `\n\nConstraints: ${constraints.trim()}` : "");
+
+  // Save chapter arc first so we have its ID for scene plans
+  if (generatedArc) {
+    generatedArc.sourcePrompt = sourcePrompt;
+    await commands.saveChapterArc(generatedArc);
+  } else if (!store.chapterArc) {
+    // Auto-create a minimal chapter arc so scenes have a chapterId to persist under
+    const arc = createEmptyChapterArc(store.project?.id ?? "");
+    arc.sourcePrompt = sourcePrompt;
+    await commands.saveChapterArc(arc);
+  }
+
+  const chapterId = store.chapterArc?.id ?? null;
+  const plans = generatedPlans.filter((_, i) => acceptedIndices.has(i)).map((p) => ({ ...p, chapterId }));
+
   if (plans.length > 0) {
     await commands.saveMultipleScenePlans(plans);
-  }
-  if (generatedArc) {
-    await commands.saveChapterArc(generatedArc);
   }
   handleClose();
 }
@@ -256,7 +349,12 @@ function prevFormStep() {
 }
 
 async function saveFormPlan() {
-  await commands.saveScenePlan(formPlan, store.scenes.length);
+  if (!store.chapterArc) {
+    const arc = createEmptyChapterArc(store.project?.id ?? "");
+    await commands.saveChapterArc(arc);
+  }
+  const chapterId = store.chapterArc?.id ?? null;
+  await commands.saveScenePlan({ ...formPlan, chapterId }, store.scenes.length);
   formPlan = createEmptyScenePlan(store.project?.id ?? "");
   formStep = "core";
   handleClose();

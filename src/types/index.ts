@@ -18,6 +18,7 @@ export interface Bible {
   narrativeRules: NarrativeRules;
   locations: Location[];
   createdAt: string;
+  sourcePrompt: string | null;
 }
 
 export interface CharacterDossier {
@@ -337,6 +338,7 @@ export interface ChapterArc {
   endingPosture: string;
   readerStateEntering: ReaderState;
   readerStateExiting: ReaderState;
+  sourcePrompt: string | null;
 }
 
 export interface NarrativeIR {
@@ -444,6 +446,7 @@ export function createEmptyBible(projectId: string): Bible {
     },
     locations: [],
     createdAt: new Date().toISOString(),
+    sourcePrompt: null,
   };
 }
 
@@ -488,6 +491,7 @@ export function createEmptyChapterArc(projectId: string, chapterNumber: number =
     endingPosture: "",
     readerStateEntering: { knows: [], suspects: [], wrongAbout: [], activeTensions: [] },
     readerStateExiting: { knows: [], suspects: [], wrongAbout: [], activeTensions: [] },
+    sourcePrompt: null,
   };
 }
 

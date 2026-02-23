@@ -206,7 +206,7 @@ export function parseBootstrapResponse(response: string): ParsedBootstrap | { er
 
 // ─── Bootstrap → Bible ──────────────────────────────────
 
-export function bootstrapToBible(parsed: ParsedBootstrap, projectId: string): Bible {
+export function bootstrapToBible(parsed: ParsedBootstrap, projectId: string, sourcePrompt?: string): Bible {
   const characters = (parsed.characters || []).map((c) => ({
     id: generateId(),
     name: c.name,
@@ -291,5 +291,6 @@ export function bootstrapToBible(parsed: ParsedBootstrap, projectId: string): Bi
     },
     locations,
     createdAt: new Date().toISOString(),
+    sourcePrompt: sourcePrompt ?? null,
   };
 }

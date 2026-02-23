@@ -30,6 +30,7 @@ function makeArc(overrides: Partial<ChapterArc> = {}): ChapterArc {
       activeTensions: ["who sent the letter"],
     }),
     readerStateExiting: makeReaderState(),
+    sourcePrompt: null,
     ...overrides,
   };
 }

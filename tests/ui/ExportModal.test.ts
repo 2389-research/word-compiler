@@ -45,6 +45,7 @@ function makeChapterArc(): ChapterArc {
     endingPosture: "Cliffhanger",
     readerStateEntering: { knows: [], suspects: [], wrongAbout: [], activeTensions: [] },
     readerStateExiting: { knows: [], suspects: [], wrongAbout: [], activeTensions: [] },
+    sourcePrompt: null,
   };
 }
 

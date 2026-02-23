@@ -125,7 +125,7 @@ async function handleBootstrap() {
       return;
     }
 
-    const result = bootstrapToBible(parsed, store.project?.id ?? `proj-${Date.now()}`);
+    const result = bootstrapToBible(parsed, store.project?.id ?? `proj-${Date.now()}`, synopsis);
     bsStatus = "Done!";
     await commands.saveBible(result);
 

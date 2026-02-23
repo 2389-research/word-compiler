@@ -279,6 +279,7 @@ export function makeChapterArc(overrides: Partial<ChapterArc> = {}): ChapterArc 
       wrongAbout: [],
       activeTensions: ["What will Alice do with the letter?", "Is Bob dangerous?"],
     },
+    sourcePrompt: null,
     ...overrides,
   };
 }

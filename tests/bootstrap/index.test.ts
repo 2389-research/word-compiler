@@ -6,6 +6,7 @@ import {
   type ParsedBootstrap,
   parseBootstrapResponse,
 } from "../../src/bootstrap/index.js";
+import { createEmptyBible, createEmptyChapterArc } from "../../src/types/index.js";
 
 describe("buildBootstrapPrompt", () => {
   it("includes synopsis in user message", () => {
@@ -149,5 +150,27 @@ describe("bootstrapToBible", () => {
     expect(bible.characters).toEqual([]);
     expect(bible.locations).toEqual([]);
     expect(bible.styleGuide.killList).toEqual([]);
+  });
+
+  it("sets sourcePrompt when provided", () => {
+    const bible = bootstrapToBible(parsed, "proj-1", "A noir detective story in a jazz bar.");
+    expect(bible.sourcePrompt).toBe("A noir detective story in a jazz bar.");
+  });
+
+  it("defaults sourcePrompt to null when omitted", () => {
+    const bible = bootstrapToBible(parsed, "proj-1");
+    expect(bible.sourcePrompt).toBeNull();
+  });
+});
+
+describe("factory function sourcePrompt defaults", () => {
+  it("createEmptyBible includes sourcePrompt: null", () => {
+    const bible = createEmptyBible("proj-1");
+    expect(bible.sourcePrompt).toBeNull();
+  });
+
+  it("createEmptyChapterArc includes sourcePrompt: null", () => {
+    const arc = createEmptyChapterArc("proj-1");
+    expect(arc.sourcePrompt).toBeNull();
   });
 });

@@ -49,6 +49,7 @@ function makeChapterArc(projectId: string, overrides: Partial<ChapterArc> = {}):
     endingPosture: "question",
     readerStateEntering: makeReaderState(),
     readerStateExiting: makeReaderState(),
+    sourcePrompt: null,
     ...overrides,
   };
 }
