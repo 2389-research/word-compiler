@@ -291,19 +291,19 @@ function removeVocabPref(index: number) {
           <CollapsibleSection summary="Behavior">
             <div class="char-section">
               <FormField label="Stress Response">
-                <TextArea value={char.behavior?.stressResponse ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...char.behavior, stressResponse: (e.target as HTMLTextAreaElement).value || null } })} />
+                <TextArea value={char.behavior?.stressResponse ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), stressResponse: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
               <FormField label="Social Posture">
-                <TextArea value={char.behavior?.socialPosture ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...char.behavior, socialPosture: (e.target as HTMLTextAreaElement).value || null } })} />
+                <TextArea value={char.behavior?.socialPosture ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), socialPosture: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
               <FormField label="Notices First">
-                <TextArea value={char.behavior?.noticesFirst ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...char.behavior, noticesFirst: (e.target as HTMLTextAreaElement).value || null } })} />
+                <TextArea value={char.behavior?.noticesFirst ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), noticesFirst: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
               <FormField label="Lying Style">
-                <TextArea value={char.behavior?.lyingStyle ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...char.behavior, lyingStyle: (e.target as HTMLTextAreaElement).value || null } })} />
+                <TextArea value={char.behavior?.lyingStyle ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), lyingStyle: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
               <FormField label="Emotion Physicality">
-                <TextArea value={char.behavior?.emotionPhysicality ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...char.behavior, emotionPhysicality: (e.target as HTMLTextAreaElement).value || null } })} />
+                <TextArea value={char.behavior?.emotionPhysicality ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), emotionPhysicality: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
             </div>
           </CollapsibleSection>

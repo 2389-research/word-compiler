@@ -46,7 +46,8 @@ function handleClose() {
 
 async function handleBootstrapCommit(bible: Bible, _sourcePrompt: string) {
   await commands.saveBible(bible);
-  setTimeout(() => handleClose(), 600);
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  handleClose();
 }
 
 async function handleFormSave(bible: Bible) {
@@ -64,7 +65,7 @@ async function handleFormSave(bible: Bible) {
     <BibleBootstrapTab
       bind:this={bootstrapRef}
       bind:footerState={bootstrapFooter}
-      projectId={store.project?.id ?? ""}
+      projectId={store.project?.id ?? `proj-${Date.now()}`}
       onCommit={handleBootstrapCommit}
     />
   </div>
