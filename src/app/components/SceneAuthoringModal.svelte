@@ -4,7 +4,9 @@ import { createEmptyChapterArc } from "../../types/index.js";
 import { Button, Modal, Tabs } from "../primitives/index.js";
 import type { Commands } from "../store/commands.js";
 import type { ProjectStore } from "../store/project.svelte.js";
+import type { BootstrapFooterState } from "./SceneBootstrapTab.svelte";
 import SceneBootstrapTab from "./SceneBootstrapTab.svelte";
+import type { FormFooterState } from "./SceneGuidedFormTab.svelte";
 import SceneGuidedFormTab from "./SceneGuidedFormTab.svelte";
 
 let {
@@ -28,11 +30,14 @@ const tabItems = [
 let bootstrapRef: SceneBootstrapTab | undefined = $state();
 let formRef: SceneGuidedFormTab | undefined = $state();
 
-// ─── Reactive footer state ──────────────────────
-let bootstrapFooter = $derived(
-  bootstrapRef?.getFooterState() ?? { loading: false, canGenerate: false, hasPlans: false, acceptCount: 0 },
-);
-let formFooter = $derived(formRef?.getFooterState() ?? { formStep: "core", isFirstStep: true, isLastStep: false });
+// ─── Reactive footer state (bound from children) ─
+let bootstrapFooter = $state<BootstrapFooterState>({
+  loading: false,
+  canGenerate: false,
+  hasPlans: false,
+  acceptCount: 0,
+});
+let formFooter = $state<FormFooterState>({ formStep: "core", isFirstStep: true, isLastStep: false });
 
 // ─── Handlers ───────────────────────────────────
 function handleClose() {
@@ -77,23 +82,26 @@ async function handleFormSave(plan: ScenePlan) {
 
   <Tabs items={tabItems} active={activeTab} onSelect={(id) => { activeTab = id; }} />
 
-  {#if activeTab === "bootstrap"}
+  <div hidden={activeTab !== "bootstrap"}>
     <SceneBootstrapTab
       bind:this={bootstrapRef}
+      bind:footerState={bootstrapFooter}
       {store}
       onCommit={handleBootstrapCommit}
-      onClose={handleClose}
     />
-  {:else}
+  </div>
+
+  <div hidden={activeTab !== "form"}>
     <SceneGuidedFormTab
       bind:this={formRef}
+      bind:footerState={formFooter}
       characters={store.bible?.characters ?? []}
       locations={store.bible?.locations ?? []}
       projectId={store.project?.id ?? ""}
       open={store.sceneAuthoringOpen}
       onSave={handleFormSave}
     />
-  {/if}
+  </div>
 
   {#snippet footer()}
     {#if activeTab === "bootstrap"}

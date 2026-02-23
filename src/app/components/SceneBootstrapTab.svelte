@@ -13,14 +13,21 @@ import { createEmptyChapterArc } from "../../types/index.js";
 import { Button, ErrorBanner, FormField, Input, Spinner, TextArea } from "../primitives/index.js";
 import type { ProjectStore } from "../store/project.svelte.js";
 
+export type BootstrapFooterState = {
+  loading: boolean;
+  canGenerate: boolean;
+  hasPlans: boolean;
+  acceptCount: number;
+};
+
 let {
   store,
   onCommit,
-  onClose,
+  footerState = $bindable({ loading: false, canGenerate: false, hasPlans: false, acceptCount: 0 }),
 }: {
   store: ProjectStore;
   onCommit: (plans: ScenePlan[], arc: ChapterArc | null, sourcePrompt: string) => Promise<void>;
-  onClose: () => void;
+  footerState?: BootstrapFooterState;
 } = $props();
 
 // ─── Bootstrap state ────────────────────────────
@@ -43,6 +50,23 @@ let acceptedIndices = $state<Set<number>>(new Set());
 // ─── Derived ────────────────────────────────────
 let bibleCharacters = $derived(store.bible?.characters ?? []);
 let bibleLocations = $derived(store.bible?.locations ?? []);
+
+// ─── Keep footer state in sync for parent ───────
+$effect(() => {
+  footerState = {
+    loading,
+    canGenerate: !!direction.trim(),
+    hasPlans: generatedPlans.length > 0,
+    acceptCount: acceptedIndices.size,
+  };
+});
+
+// ─── Cleanup interval on unmount ────────────────
+$effect(() => {
+  return () => {
+    if (timerRef) clearInterval(timerRef);
+  };
+});
 
 // ─── Handlers ───────────────────────────────────
 function toggleCharacter(id: string) {
@@ -234,7 +258,10 @@ async function handleGenerate() {
     loading = false;
     status = "";
   } finally {
-    if (timerRef) clearInterval(timerRef);
+    if (timerRef) {
+      clearInterval(timerRef);
+      timerRef = null;
+    }
   }
 }
 
@@ -267,15 +294,6 @@ export function generate() {
   handleGenerate();
 }
 
-export function getFooterState() {
-  return {
-    loading,
-    canGenerate: !!direction.trim(),
-    hasPlans: generatedPlans.length > 0,
-    acceptCount: acceptedIndices.size,
-  };
-}
-
 export function reset() {
   error = null;
   status = "";
@@ -284,7 +302,10 @@ export function reset() {
   generatedPlans = [];
   generatedArc = null;
   acceptedIndices = new Set();
-  if (timerRef) clearInterval(timerRef);
+  if (timerRef) {
+    clearInterval(timerRef);
+    timerRef = null;
+  }
 }
 </script>
 

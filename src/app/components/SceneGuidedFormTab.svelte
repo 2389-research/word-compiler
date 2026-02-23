@@ -12,18 +12,26 @@ import {
   TextArea,
 } from "../primitives/index.js";
 
+export type FormFooterState = {
+  formStep: string;
+  isFirstStep: boolean;
+  isLastStep: boolean;
+};
+
 let {
   characters,
   locations,
   projectId,
   open,
   onSave,
+  footerState = $bindable({ formStep: "core", isFirstStep: true, isLastStep: false }),
 }: {
   characters: CharacterDossier[];
   locations: Location[];
   projectId: string;
   open: boolean;
   onSave: (plan: ScenePlan) => Promise<void>;
+  footerState?: FormFooterState;
 } = $props();
 
 // ─── Form state ─────────────────────────────────
@@ -43,6 +51,15 @@ $effect(() => {
     formPlan = createEmptyScenePlan(projectId);
     formStep = "core";
   }
+});
+
+// ─── Keep footer state in sync for parent ───────
+$effect(() => {
+  footerState = {
+    formStep,
+    isFirstStep: formStep === "core",
+    isLastStep: formStep === "structure",
+  };
 });
 
 // ─── Handlers ───────────────────────────────────
@@ -81,14 +98,6 @@ export function prev() {
 
 export function save() {
   saveFormPlan();
-}
-
-export function getFooterState() {
-  return {
-    formStep,
-    isFirstStep: formStep === "core",
-    isLastStep: formStep === "structure",
-  };
 }
 </script>
 
