@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
-import { mockStartup } from "./helpers.js";
+import { mockStartup, switchToJsonTab } from "./helpers.js";
 
 const BIBLE_FIXTURE = path.join(import.meta.dirname, "..", "fixtures", "bible.json");
 
@@ -12,6 +12,7 @@ test.describe("Bible workflow", () => {
   test("loads Bible from fixture JSON via file chooser", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("text=Project Atlas")).toBeVisible();
+    await switchToJsonTab(page);
 
     // Trigger file chooser and load fixture
     const [fileChooser] = await Promise.all([
@@ -26,6 +27,7 @@ test.describe("Bible workflow", () => {
 
   test("shows Bible JSON in editor after load", async ({ page }) => {
     await page.goto("/");
+    await switchToJsonTab(page);
 
     const [fileChooser] = await Promise.all([
       page.waitForEvent("filechooser"),
@@ -41,6 +43,7 @@ test.describe("Bible workflow", () => {
 
   test("Save Bible button becomes enabled after loading Bible", async ({ page }) => {
     await page.goto("/");
+    await switchToJsonTab(page);
 
     // Before load — Save Bible should be disabled
     const saveBtn = page.locator("button", { hasText: "Save Bible" });

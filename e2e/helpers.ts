@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 const PROJECT_ID = "proj-e2e-test";
@@ -74,4 +75,12 @@ export async function mockStartup(page: Page) {
     }
     return route.continue();
   });
+}
+
+/** Switch to the JSON tab inside the Project Atlas pane. */
+export async function switchToJsonTab(page: Page) {
+  // Atlas pane tabs are inside a .tabs container — find the JSON tab button
+  const jsonTab = page.locator(".tabs button", { hasText: "JSON" });
+  await expect(jsonTab).toBeVisible();
+  await jsonTab.click();
 }

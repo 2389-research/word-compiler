@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mockStartup } from "./helpers.js";
+import { mockStartup, switchToJsonTab } from "./helpers.js";
 
 test.describe("Word Compiler App", () => {
   test.beforeEach(async ({ page }) => {
@@ -56,8 +56,9 @@ test.describe("Word Compiler App", () => {
     await expect(page.locator("text=Load a Bible and Scene Plan")).toBeVisible();
   });
 
-  test("Load Bible button is present", async ({ page }) => {
+  test("Load Bible button is present in JSON tab", async ({ page }) => {
     await page.goto("/");
+    await switchToJsonTab(page);
     await expect(page.locator("button", { hasText: "Load Bible" })).toBeVisible();
   });
 

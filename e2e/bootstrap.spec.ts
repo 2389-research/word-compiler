@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mockStartup } from "./helpers.js";
+import { mockStartup, switchToJsonTab } from "./helpers.js";
 
 const MOCK_BOOTSTRAP_RESPONSE = JSON.stringify({
   characters: [
@@ -73,6 +73,9 @@ test.describe("Bootstrap workflow", () => {
 
     // Wait for the modal to close (bootstrap completes and closes after 600ms)
     await expect(page.locator("text=Bible Authoring")).not.toBeVisible({ timeout: 5000 });
+
+    // Switch to JSON tab to verify bible data
+    await switchToJsonTab(page);
 
     // Bible should be loaded — check version badge
     await expect(page.locator(".bible-version")).toBeVisible({ timeout: 3000 });

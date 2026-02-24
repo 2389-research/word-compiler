@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
-import { mockStartup } from "./helpers.js";
+import { mockStartup, switchToJsonTab } from "./helpers.js";
 
 const BIBLE_FIXTURE = path.join(import.meta.dirname, "..", "fixtures", "bible.json");
 
@@ -9,6 +9,7 @@ test.describe("Scene authoring workflow", () => {
     await mockStartup(page);
     await page.goto("/");
     await expect(page.locator("text=Project Atlas")).toBeVisible();
+    await switchToJsonTab(page);
 
     // Load Bible fixture first
     const [fileChooser] = await Promise.all([
