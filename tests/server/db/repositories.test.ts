@@ -8,84 +8,19 @@ import * as compilationLogs from "../../../server/db/repositories/compilation-lo
 import * as projects from "../../../server/db/repositories/projects.js";
 import * as scenePlans from "../../../server/db/repositories/scene-plans.js";
 import { createSchema } from "../../../server/db/schema.js";
+import type { CompilationLog } from "../../../src/types/index.js";
 import {
-  type AuditFlag,
-  type ChapterArc,
-  type Chunk,
-  type CompilationLog,
   createEmptyBible,
   createEmptyScenePlan,
   generateId,
-  type Project,
-  type ReaderState,
-} from "../../../src/types/index.js";
+  makeAuditFlag,
+  makeChapterArc,
+  makeChunk,
+  makeCompilationLog,
+  makeProject,
+} from "../../helpers/factories.js";
 
 let db: Database.Database;
-
-function makeReaderState(): ReaderState {
-  return { knows: [], suspects: [], wrongAbout: [], activeTensions: [] };
-}
-
-function makeProject(overrides: Partial<Project> = {}): Project {
-  return {
-    id: generateId(),
-    title: "Test Project",
-    status: "bootstrap",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    ...overrides,
-  };
-}
-
-function makeChapterArc(projectId: string, overrides: Partial<ChapterArc> = {}): ChapterArc {
-  return {
-    id: generateId(),
-    projectId,
-    chapterNumber: 1,
-    workingTitle: "Chapter One",
-    narrativeFunction: "Establish world",
-    dominantRegister: "literary",
-    pacingTarget: "moderate",
-    endingPosture: "question",
-    readerStateEntering: makeReaderState(),
-    readerStateExiting: makeReaderState(),
-    sourcePrompt: null,
-    ...overrides,
-  };
-}
-
-function makeChunk(sceneId: string, seq: number, overrides: Partial<Chunk> = {}): Chunk {
-  return {
-    id: generateId(),
-    sceneId,
-    sequenceNumber: seq,
-    generatedText: "Some generated text.",
-    payloadHash: "hash",
-    model: "test",
-    temperature: 0.8,
-    topP: 0.92,
-    generatedAt: new Date().toISOString(),
-    status: "pending",
-    editedText: null,
-    humanNotes: null,
-    ...overrides,
-  };
-}
-
-function makeAuditFlag(sceneId: string, overrides: Partial<AuditFlag> = {}): AuditFlag {
-  return {
-    id: generateId(),
-    sceneId,
-    severity: "warning",
-    category: "kill_list",
-    message: "Test violation",
-    lineReference: null,
-    resolved: false,
-    resolvedAction: null,
-    wasActionable: null,
-    ...overrides,
-  };
-}
 
 beforeEach(() => {
   db = new Database(":memory:");

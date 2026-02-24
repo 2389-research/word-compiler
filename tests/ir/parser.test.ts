@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseIRResponse } from "../../src/ir/parser.js";
+import { isStringArray, parseIRResponse } from "../../src/ir/parser.js";
 
 const SCENE_ID = "scene-test-1";
 
@@ -34,7 +34,7 @@ describe("parseIRResponse", () => {
     expect(ir.characterDeltas).toHaveLength(1);
     expect(ir.characterDeltas[0]!.characterId).toBe("char-alice");
     expect(ir.characterDeltas[0]!.learned).toBe("Bob has been lying");
-    expect(ir.characterPositions["Alice"]).toBe("study, alone");
+    expect(ir.characterPositions.Alice).toBe("study, alone");
     expect(ir.unresolvedTensions).toHaveLength(1);
   });
 
@@ -110,8 +110,8 @@ describe("parseIRResponse", () => {
       unresolvedTensions: [],
     });
     const ir = parseIRResponse(json, SCENE_ID);
-    expect(ir.characterPositions["Alice"]).toBe("42");
-    expect(ir.characterPositions["Bob"]).toBe("true");
+    expect(ir.characterPositions.Alice).toBe("42");
+    expect(ir.characterPositions.Bob).toBe("true");
   });
 
   it("handles null characterDelta fields", () => {
@@ -131,5 +131,78 @@ describe("parseIRResponse", () => {
     const ir = parseIRResponse(json, SCENE_ID);
     expect(ir.characterDeltas[0]!.learned).toBeNull();
     expect(ir.characterDeltas[0]!.suspicionGained).toBeNull();
+  });
+
+  it("coerces array-format characterPositions (new format)", () => {
+    const json = JSON.stringify({
+      events: ["Alice entered"],
+      factsIntroduced: [],
+      factsRevealedToReader: [],
+      factsWithheld: [],
+      characterDeltas: [],
+      setupsPlanted: [],
+      payoffsExecuted: [],
+      characterPositions: [{ characterId: "alice", position: "study" }, { characterId: "bob" }],
+      unresolvedTensions: [],
+    });
+    const ir = parseIRResponse(json, SCENE_ID);
+    expect(ir.characterPositions.alice).toBe("study");
+    expect(ir.characterPositions.bob).toBe("");
+  });
+
+  it("returns empty defaults for non-object characterDelta items", () => {
+    const json = JSON.stringify({
+      events: ["something happened"],
+      factsIntroduced: [],
+      factsRevealedToReader: [],
+      factsWithheld: [],
+      characterDeltas: [null, 42, "bad"],
+      setupsPlanted: [],
+      payoffsExecuted: [],
+      characterPositions: {},
+      unresolvedTensions: [],
+    });
+    const ir = parseIRResponse(json, SCENE_ID);
+    expect(ir.characterDeltas).toHaveLength(3);
+    for (const delta of ir.characterDeltas) {
+      expect(delta.characterId).toBe("");
+      expect(delta.learned).toBeNull();
+      expect(delta.suspicionGained).toBeNull();
+      expect(delta.emotionalShift).toBeNull();
+      expect(delta.relationshipChange).toBeNull();
+    }
+  });
+
+  it("throws when IR has no recognizable content", () => {
+    const json = JSON.stringify({
+      events: [],
+      factsIntroduced: [],
+      characterDeltas: [],
+      unresolvedTensions: [],
+    });
+    expect(() => parseIRResponse(json, SCENE_ID)).toThrow("no recognizable content");
+  });
+
+  it("coerces object items in arrays to JSON strings", () => {
+    const json = JSON.stringify({
+      events: [{ nested: true }],
+      factsIntroduced: [],
+      factsRevealedToReader: [],
+      factsWithheld: [],
+      characterDeltas: [],
+      setupsPlanted: [],
+      payoffsExecuted: [],
+      characterPositions: {},
+      unresolvedTensions: [],
+    });
+    const ir = parseIRResponse(json, SCENE_ID);
+    expect(ir.events).toHaveLength(1);
+    expect(ir.events[0]).toBe('{"nested":true}');
+  });
+
+  it("isStringArray rejects non-string arrays", () => {
+    expect(isStringArray([1, 2])).toBe(false);
+    expect(isStringArray("not-array")).toBe(false);
+    expect(isStringArray(["a", "b"])).toBe(true);
   });
 });
