@@ -44,6 +44,71 @@ function emptyState(): ReaderState {
   };
 }
 
+/** Accumulate facts revealed to reader and track withheld facts as wrong beliefs. */
+function accumulateFactsFromIR(ir: NarrativeIR, current: ReaderState): string[] {
+  const newFacts: string[] = [];
+
+  for (const fact of ir.factsRevealedToReader) {
+    if (!current.knownFacts.has(fact)) {
+      newFacts.push(fact);
+      current.knownFacts.add(fact);
+    }
+  }
+
+  // Track withheld facts as potential wrong beliefs
+  for (const withheld of ir.factsWithheld) {
+    current.wrongBeliefs.add(withheld);
+  }
+
+  // Remove wrong beliefs when facts are revealed
+  for (const fact of ir.factsRevealedToReader) {
+    current.wrongBeliefs.delete(fact);
+  }
+
+  return newFacts;
+}
+
+/** Accumulate suspicions from character deltas. */
+function accumulateSuspicionsFromIR(ir: NarrativeIR, current: ReaderState): void {
+  for (const delta of ir.characterDeltas) {
+    if (delta.suspicionGained) {
+      current.suspicions.add(delta.suspicionGained);
+    }
+  }
+}
+
+/** Track new tensions and detect resolved ones. */
+function accumulateTensionsFromIR(
+  ir: NarrativeIR,
+  current: ReaderState,
+): { newTensions: string[]; resolvedTensions: string[] } {
+  const newTensions: string[] = [];
+  const resolvedTensions: string[] = [];
+
+  // Track tensions
+  for (const tension of ir.unresolvedTensions) {
+    if (!current.unresolvedTensions.has(tension)) {
+      newTensions.push(tension);
+      current.unresolvedTensions.add(tension);
+    }
+  }
+
+  // Detect resolved tensions (were in cumulative set but not in current scene's list)
+  const currentSceneTensions = new Set(ir.unresolvedTensions);
+  for (const existing of current.unresolvedTensions) {
+    if (!currentSceneTensions.has(existing) && !newTensions.includes(existing)) {
+      // This tension was in the cumulative set but the scene's IR no longer lists it
+      // Only count as resolved if it was in the previous cumulative state
+      resolvedTensions.push(existing);
+    }
+  }
+  for (const resolved of resolvedTensions) {
+    current.unresolvedTensions.delete(resolved);
+  }
+
+  return { newTensions, resolvedTensions };
+}
+
 /**
  * Accumulate reader epistemic state across a sequence of scenes.
  * Only verified IRs contribute to state changes.
@@ -55,62 +120,20 @@ export function accumulateReaderState(scenes: SceneInput[]): SceneReaderState[] 
 
   for (const scene of sorted) {
     const ir = scene.ir;
-    const newFacts: string[] = [];
-    const newTensions: string[] = [];
-    const resolvedTensions: string[] = [];
-    const setupsPlanted: string[] = [];
-    const payoffsExecuted: string[] = [];
+    let newFacts: string[] = [];
+    let newTensions: string[] = [];
+    let resolvedTensions: string[] = [];
+    let setupsPlanted: string[] = [];
+    let payoffsExecuted: string[] = [];
 
     if (ir?.verified) {
-      // Accumulate facts revealed to reader
-      for (const fact of ir.factsRevealedToReader) {
-        if (!current.knownFacts.has(fact)) {
-          newFacts.push(fact);
-          current.knownFacts.add(fact);
-        }
-      }
-
-      // Track withheld facts as potential wrong beliefs
-      for (const withheld of ir.factsWithheld) {
-        current.wrongBeliefs.add(withheld);
-      }
-
-      // Remove wrong beliefs when facts are revealed
-      for (const fact of ir.factsRevealedToReader) {
-        current.wrongBeliefs.delete(fact);
-      }
-
-      // Accumulate suspicions from character deltas
-      for (const delta of ir.characterDeltas) {
-        if (delta.suspicionGained) {
-          current.suspicions.add(delta.suspicionGained);
-        }
-      }
-
-      // Track tensions
-      for (const tension of ir.unresolvedTensions) {
-        if (!current.unresolvedTensions.has(tension)) {
-          newTensions.push(tension);
-          current.unresolvedTensions.add(tension);
-        }
-      }
-
-      // Detect resolved tensions (were in cumulative set but not in current scene's list)
-      const currentSceneTensions = new Set(ir.unresolvedTensions);
-      for (const existing of current.unresolvedTensions) {
-        if (!currentSceneTensions.has(existing) && !newTensions.includes(existing)) {
-          // This tension was in the cumulative set but the scene's IR no longer lists it
-          // Only count as resolved if it was in the previous cumulative state
-          resolvedTensions.push(existing);
-        }
-      }
-      for (const resolved of resolvedTensions) {
-        current.unresolvedTensions.delete(resolved);
-      }
+      newFacts = accumulateFactsFromIR(ir, current);
+      accumulateSuspicionsFromIR(ir, current);
+      ({ newTensions, resolvedTensions } = accumulateTensionsFromIR(ir, current));
 
       // Track setups and payoffs
-      setupsPlanted.push(...ir.setupsPlanted);
-      payoffsExecuted.push(...ir.payoffsExecuted);
+      setupsPlanted = [...ir.setupsPlanted];
+      payoffsExecuted = [...ir.payoffsExecuted];
     }
 
     // Snapshot the current state (deep copy the Sets)
@@ -218,6 +241,52 @@ function hasOverlap(a: string, b: string): boolean {
   return wordsA.some((w) => wordsB.has(w));
 }
 
+/** Check if any character acts on knowledge explicitly withheld from the reader. */
+function checkKnowledgeAhead(
+  ir: NarrativeIR,
+  withheldFacts: Set<string>,
+  sceneId: string,
+  bible?: Bible,
+): EpistemicWarning[] {
+  const warnings: EpistemicWarning[] = [];
+
+  for (const delta of ir.characterDeltas) {
+    if (delta.learned) {
+      for (const withheld of withheldFacts) {
+        if (hasOverlap(delta.learned, withheld)) {
+          const name = resolveCharacterName(delta.characterId, bible);
+          warnings.push({
+            sceneId,
+            type: "knowledge_ahead",
+            message: `${name} acts on "${delta.learned}" — overlaps with withheld fact: "${withheld}"`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  return warnings;
+}
+
+/** Check if any payoff lacks a matching prior setup. */
+function checkPrematurePayoff(ir: NarrativeIR, allSetups: Set<string>, sceneId: string): EpistemicWarning[] {
+  const warnings: EpistemicWarning[] = [];
+
+  for (const payoff of ir.payoffsExecuted) {
+    const matchesSetup = [...allSetups].some((setup) => hasOverlap(payoff, setup));
+    if (!matchesSetup) {
+      warnings.push({
+        sceneId,
+        type: "premature_setup_ref",
+        message: `Payoff "${payoff}" has no matching prior setup`,
+      });
+    }
+  }
+
+  return warnings;
+}
+
 /**
  * Detect epistemic inconsistencies across accumulated reader states.
  * Checks for: characters acting on explicitly withheld knowledge, unmatched payoffs.
@@ -248,34 +317,8 @@ export function detectEpistemicIssues(
       withheldFacts.delete(fact);
     }
 
-    // Check: character acts on knowledge explicitly withheld from the reader
-    for (const delta of ir.characterDeltas) {
-      if (delta.learned) {
-        for (const withheld of withheldFacts) {
-          if (hasOverlap(delta.learned, withheld)) {
-            const name = resolveCharacterName(delta.characterId, bible);
-            warnings.push({
-              sceneId: scene.plan.id,
-              type: "knowledge_ahead",
-              message: `${name} acts on "${delta.learned}" — overlaps with withheld fact: "${withheld}"`,
-            });
-            break;
-          }
-        }
-      }
-    }
-
-    // Check: payoff without a matching setup (keyword overlap, not exact match)
-    for (const payoff of ir.payoffsExecuted) {
-      const matchesSetup = [...allSetups].some((setup) => hasOverlap(payoff, setup));
-      if (!matchesSetup) {
-        warnings.push({
-          sceneId: scene.plan.id,
-          type: "premature_setup_ref",
-          message: `Payoff "${payoff}" has no matching prior setup`,
-        });
-      }
-    }
+    warnings.push(...checkKnowledgeAhead(ir, withheldFacts, scene.plan.id, bible));
+    warnings.push(...checkPrematurePayoff(ir, allSetups, scene.plan.id));
 
     // Accumulate setups for future payoff checks
     for (const setup of ir.setupsPlanted) {

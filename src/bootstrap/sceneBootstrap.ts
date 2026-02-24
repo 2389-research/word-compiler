@@ -1,5 +1,6 @@
 import type { CompiledPayload, ScenePlan } from "../types/index.js";
 import { createEmptyScenePlan, generateId } from "../types/index.js";
+import { extractJsonFromText } from "./index.js";
 
 // ─── Types ─────────────────────────────────────────────
 
@@ -271,6 +272,15 @@ export const sceneBootstrapSchema: Record<string, unknown> = {
 
 // ─── Condensation Helpers ─────────────────────────────
 
+function formatReaderStateExit(exit: NonNullable<ExistingSceneSummary["readerStateExiting"]>): string | null {
+  const items: string[] = [];
+  if (exit.knows.length > 0) items.push(`knows: ${exit.knows.join("; ")}`);
+  if (exit.suspects.length > 0) items.push(`suspects: ${exit.suspects.join("; ")}`);
+  if (exit.wrongAbout.length > 0) items.push(`wrong about: ${exit.wrongAbout.join("; ")}`);
+  if (exit.activeTensions.length > 0) items.push(`tensions: ${exit.activeTensions.join("; ")}`);
+  return items.length > 0 ? items.join(" | ") : null;
+}
+
 export function condensedExistingScenes(scenes: ExistingSceneSummary[] | undefined): string {
   if (!scenes || scenes.length === 0) return "";
   return scenes
@@ -279,17 +289,29 @@ export function condensedExistingScenes(scenes: ExistingSceneSummary[] | undefin
       if (s.narrativeGoal) parts.push(`   Goal: ${s.narrativeGoal}`);
       if (s.emotionalBeat) parts.push(`   Beat: ${s.emotionalBeat}`);
       if (s.readerStateExiting) {
-        const exit = s.readerStateExiting;
-        const items: string[] = [];
-        if (exit.knows.length > 0) items.push(`knows: ${exit.knows.join("; ")}`);
-        if (exit.suspects.length > 0) items.push(`suspects: ${exit.suspects.join("; ")}`);
-        if (exit.wrongAbout.length > 0) items.push(`wrong about: ${exit.wrongAbout.join("; ")}`);
-        if (exit.activeTensions.length > 0) items.push(`tensions: ${exit.activeTensions.join("; ")}`);
-        if (items.length > 0) parts.push(`   Reader exits: ${items.join(" | ")}`);
+        const formatted = formatReaderStateExit(s.readerStateExiting);
+        if (formatted) parts.push(`   Reader exits: ${formatted}`);
       }
       return parts.join("\n");
     })
     .join("\n");
+}
+
+function formatCharVoice(voice: BootstrapCharacterDossier["voice"]): string | null {
+  const parts: string[] = [];
+  if (voice.vocabularyNotes) parts.push(voice.vocabularyNotes);
+  if (voice.verbalTics.length > 0) parts.push(`tics: ${voice.verbalTics.join(", ")}`);
+  if (voice.prohibitedLanguage.length > 0) parts.push(`never says: ${voice.prohibitedLanguage.join(", ")}`);
+  if (voice.metaphoricRegister) parts.push(`metaphor register: ${voice.metaphoricRegister}`);
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
+function formatCharBehavior(behavior: NonNullable<BootstrapCharacterDossier["behavior"]>): string | null {
+  const parts: string[] = [];
+  if (behavior.stressResponse) parts.push(`stress: ${behavior.stressResponse}`);
+  if (behavior.noticesFirst) parts.push(`notices first: ${behavior.noticesFirst}`);
+  if (behavior.emotionPhysicality) parts.push(`emotion: ${behavior.emotionPhysicality}`);
+  return parts.length > 0 ? parts.join(" | ") : null;
 }
 
 export function condensedCharacterDossiers(dossiers: BootstrapCharacterDossier[] | undefined): string {
@@ -300,19 +322,11 @@ export function condensedCharacterDossiers(dossiers: BootstrapCharacterDossier[]
       if (c.backstory) parts.push(`  Backstory: ${c.backstory}`);
       if (c.contradictions && c.contradictions.length > 0)
         parts.push(`  Contradictions: ${c.contradictions.join("; ")}`);
-      const voiceParts: string[] = [];
-      if (c.voice.vocabularyNotes) voiceParts.push(c.voice.vocabularyNotes);
-      if (c.voice.verbalTics.length > 0) voiceParts.push(`tics: ${c.voice.verbalTics.join(", ")}`);
-      if (c.voice.prohibitedLanguage.length > 0)
-        voiceParts.push(`never says: ${c.voice.prohibitedLanguage.join(", ")}`);
-      if (c.voice.metaphoricRegister) voiceParts.push(`metaphor register: ${c.voice.metaphoricRegister}`);
-      if (voiceParts.length > 0) parts.push(`  Voice: ${voiceParts.join(" | ")}`);
+      const voiceStr = formatCharVoice(c.voice);
+      if (voiceStr) parts.push(`  Voice: ${voiceStr}`);
       if (c.behavior) {
-        const bParts: string[] = [];
-        if (c.behavior.stressResponse) bParts.push(`stress: ${c.behavior.stressResponse}`);
-        if (c.behavior.noticesFirst) bParts.push(`notices first: ${c.behavior.noticesFirst}`);
-        if (c.behavior.emotionPhysicality) bParts.push(`emotion: ${c.behavior.emotionPhysicality}`);
-        if (bParts.length > 0) parts.push(`  Behavior: ${bParts.join(" | ")}`);
+        const behaviorStr = formatCharBehavior(c.behavior);
+        if (behaviorStr) parts.push(`  Behavior: ${behaviorStr}`);
       }
       return parts.join("\n");
     })
@@ -361,6 +375,39 @@ export function condensedKillListAndBans(killList: string[] | undefined, structu
   return parts.join("\n");
 }
 
+function buildContextBlocks(params: SceneBootstrapParams): string[] {
+  const blocks: string[] = [];
+
+  if (params.chapterArc) {
+    const a = params.chapterArc;
+    blocks.push(
+      `ESTABLISHED CHAPTER ARC:\nTitle: ${a.workingTitle}\nFunction: ${a.narrativeFunction}\nRegister: ${a.dominantRegister}\nPacing: ${a.pacingTarget}\nEnding: ${a.endingPosture}`,
+    );
+  }
+
+  const scenesBlock = condensedExistingScenes(params.existingScenes);
+  if (scenesBlock) {
+    blocks.push(`EXISTING SCENES (do not contradict or duplicate):\n${scenesBlock}`);
+  }
+
+  const dossiersBlock = condensedCharacterDossiers(params.characterDossiers);
+  if (dossiersBlock) {
+    blocks.push(`CHARACTER DOSSIERS:\n${dossiersBlock}`);
+  }
+
+  const locsBlock = condensedLocationDetails(params.locationDetails);
+  if (locsBlock) {
+    blocks.push(`LOCATION DETAILS:\n${locsBlock}`);
+  }
+
+  if (params.activeSetups && params.activeSetups.length > 0) {
+    const setupLines = params.activeSetups.map((s) => `- [${s.status}] ${s.description}`).join("\n");
+    blocks.push(`ACTIVE SETUPS:\n${setupLines}`);
+  }
+
+  return blocks;
+}
+
 export function buildSceneBootstrapPrompt(params: SceneBootstrapParams): CompiledPayload {
   const characterList =
     params.characters.length > 0
@@ -388,36 +435,7 @@ export function buildSceneBootstrapPrompt(params: SceneBootstrapParams): Compile
   if (bansBlock) systemParts.push("", bansBlock);
   const systemMessage = systemParts.join("\n");
 
-  // Build context blocks for user message
-  const contextBlocks: string[] = [];
-
-  if (params.chapterArc) {
-    const a = params.chapterArc;
-    contextBlocks.push(
-      `ESTABLISHED CHAPTER ARC:\nTitle: ${a.workingTitle}\nFunction: ${a.narrativeFunction}\nRegister: ${a.dominantRegister}\nPacing: ${a.pacingTarget}\nEnding: ${a.endingPosture}`,
-    );
-  }
-
-  const scenesBlock = condensedExistingScenes(params.existingScenes);
-  if (scenesBlock) {
-    contextBlocks.push(`EXISTING SCENES (do not contradict or duplicate):\n${scenesBlock}`);
-  }
-
-  const dossiersBlock = condensedCharacterDossiers(params.characterDossiers);
-  if (dossiersBlock) {
-    contextBlocks.push(`CHARACTER DOSSIERS:\n${dossiersBlock}`);
-  }
-
-  const locsBlock = condensedLocationDetails(params.locationDetails);
-  if (locsBlock) {
-    contextBlocks.push(`LOCATION DETAILS:\n${locsBlock}`);
-  }
-
-  if (params.activeSetups && params.activeSetups.length > 0) {
-    const setupLines = params.activeSetups.map((s) => `- [${s.status}] ${s.description}`).join("\n");
-    contextBlocks.push(`ACTIVE SETUPS:\n${setupLines}`);
-  }
-
+  const contextBlocks = buildContextBlocks(params);
   const contextSection = contextBlocks.length > 0 ? `\n\n${contextBlocks.join("\n\n")}\n` : "";
 
   // Continuity note when appending to existing scenes
@@ -507,40 +525,8 @@ CRITICAL: Maintain reader state continuity across scenes. Scene 2's readerStateE
 export function parseSceneBootstrapResponse(
   response: string,
 ): ParsedSceneBootstrap | { error: string; rawText: string } {
-  // Try 1: direct parse
-  try {
-    return JSON.parse(response) as ParsedSceneBootstrap;
-  } catch {
-    // continue
-  }
-
-  // Try 2: strip markdown code fences
-  const fenceMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch?.[1]) {
-    try {
-      return JSON.parse(fenceMatch[1]) as ParsedSceneBootstrap;
-    } catch {
-      // continue
-    }
-  }
-
-  // Try 3: extract first {...} block by brace-depth counting
-  const startIdx = response.indexOf("{");
-  if (startIdx !== -1) {
-    let depth = 0;
-    for (let i = startIdx; i < response.length; i++) {
-      if (response[i] === "{") depth++;
-      if (response[i] === "}") depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(response.slice(startIdx, i + 1)) as ParsedSceneBootstrap;
-        } catch {
-          break;
-        }
-      }
-    }
-  }
-
+  const result = extractJsonFromText(response);
+  if (result !== null) return result as ParsedSceneBootstrap;
   return { error: "Failed to parse scene bootstrap response as JSON", rawText: response };
 }
 
@@ -561,6 +547,116 @@ function resolveReaderState(raw?: {
   };
 }
 
+/** Resolve a character ID by trying the raw ID first, then falling back to name match. */
+function resolveCharacterId(
+  rawId: string | undefined,
+  rawName: string | undefined,
+  characters: { id: string; name: string }[],
+): string {
+  const id = rawId || "";
+  const nameLower = (rawName || "").toLowerCase();
+
+  if (id && characters.some((c) => c.id === id)) return id;
+
+  if (nameLower) {
+    const byName = characters.find((c) => c.name.toLowerCase() === nameLower);
+    if (byName) return byName.id;
+  }
+
+  return id;
+}
+
+/** Resolve a location ID by trying the raw ID first, then falling back to name match. */
+function resolveLocationId(
+  rawId: string | undefined,
+  rawName: string | undefined,
+  locations: { id: string; name: string }[],
+): string | null {
+  const id = rawId || null;
+  const nameLower = (rawName || "").toLowerCase();
+
+  if (id && locations.some((l) => l.id === id)) return id;
+
+  if (nameLower) {
+    const byName = locations.find((l) => l.name.toLowerCase() === nameLower);
+    if (byName) return byName.id;
+  }
+
+  return id;
+}
+
+/** Normalize a raw word count (array or single number) into a [min, max] tuple. */
+function normalizeWordCount(raw: [number, number] | number | undefined, base: [number, number]): [number, number] {
+  if (Array.isArray(raw) && raw.length >= 2) {
+    return [raw[0]!, raw[1]!];
+  }
+  if (typeof raw === "number") {
+    return [Math.floor(raw * 0.8), Math.ceil(raw * 1.2)];
+  }
+  return base;
+}
+
+const VALID_DENSITIES = ["sparse", "moderate", "dense"];
+const VALID_POV_DISTANCES = ["intimate", "close", "moderate", "distant"];
+
+type RawScene = ParsedSceneBootstrap["scenes"][number];
+
+/** Validate a raw enum string against an allow list, returning the fallback if invalid. */
+function validateEnum<T extends string>(raw: string | undefined, valid: string[], fallback: T): T {
+  return (valid.includes(raw || "") ? raw : fallback) as T;
+}
+
+/** Normalize raw subtext into the ScenePlan shape. */
+function normalizeSubtext(raw: RawScene["subtext"], fallback: ScenePlan["subtext"]): ScenePlan["subtext"] {
+  if (!raw) return fallback;
+  return {
+    surfaceConversation: raw.surfaceConversation || "",
+    actualConversation: raw.actualConversation || "",
+    enforcementRule: raw.enforcementRule || "",
+  };
+}
+
+/** Normalize raw anchor lines into the ScenePlan shape. */
+function normalizeAnchorLines(raw: RawScene["anchorLines"]): ScenePlan["anchorLines"] {
+  return (raw || []).map((a) => ({
+    text: a.text || "",
+    placement: a.placement || "",
+    verbatim: a.verbatim ?? true,
+  }));
+}
+
+/** Map a single raw parsed scene to a ScenePlan, resolving IDs and normalizing values. */
+function mapRawScene(
+  raw: RawScene,
+  base: ScenePlan,
+  characters: { id: string; name: string }[],
+  locations: { id: string; name: string }[],
+): ScenePlan {
+  return {
+    ...base,
+    id: generateId(),
+    title: raw.title || base.title,
+    povCharacterId: resolveCharacterId(raw.povCharacterId, raw.povCharacterName, characters),
+    povDistance: validateEnum(raw.povDistance, VALID_POV_DISTANCES, base.povDistance),
+    narrativeGoal: raw.narrativeGoal || base.narrativeGoal,
+    emotionalBeat: raw.emotionalBeat || base.emotionalBeat,
+    readerEffect: raw.readerEffect || base.readerEffect,
+    failureModeToAvoid: raw.failureModeToAvoid || base.failureModeToAvoid,
+    density: validateEnum(raw.density, VALID_DENSITIES, base.density),
+    pacing: raw.pacing || base.pacing,
+    sensoryNotes: raw.sensoryNotes || base.sensoryNotes,
+    locationId: resolveLocationId(raw.locationId, raw.locationName, locations),
+    estimatedWordCount: normalizeWordCount(raw.estimatedWordCount, base.estimatedWordCount),
+    chunkCount: raw.chunkCount || base.chunkCount,
+    chunkDescriptions: raw.chunkDescriptions || base.chunkDescriptions,
+    readerStateEntering: resolveReaderState(raw.readerStateEntering),
+    readerStateExiting: resolveReaderState(raw.readerStateExiting),
+    subtext: normalizeSubtext(raw.subtext, base.subtext),
+    sceneSpecificProhibitions: raw.sceneSpecificProhibitions || base.sceneSpecificProhibitions,
+    anchorLines: normalizeAnchorLines(raw.anchorLines),
+  };
+}
+
 export function mapSceneBootstrapToPlans(
   parsed: ParsedSceneBootstrap,
   projectId: string,
@@ -569,78 +665,6 @@ export function mapSceneBootstrapToPlans(
 ): ScenePlan[] {
   return (parsed.scenes || []).map((raw) => {
     const base = createEmptyScenePlan(projectId);
-
-    // Resolve character by name if ID not directly matched
-    let povCharacterId = raw.povCharacterId || "";
-    if (povCharacterId && !characters.some((c) => c.id === povCharacterId)) {
-      const byName = characters.find((c) => c.name.toLowerCase() === (raw.povCharacterName || "").toLowerCase());
-      if (byName) povCharacterId = byName.id;
-    }
-    if (!povCharacterId && raw.povCharacterName) {
-      const byName = characters.find((c) => c.name.toLowerCase() === raw.povCharacterName!.toLowerCase());
-      if (byName) povCharacterId = byName.id;
-    }
-
-    // Resolve location by name if ID not matched
-    let locationId = raw.locationId || null;
-    if (locationId && !locations.some((l) => l.id === locationId)) {
-      const byName = locations.find((l) => l.name.toLowerCase() === (raw.locationName || "").toLowerCase());
-      locationId = byName?.id ?? null;
-    }
-    if (!locationId && raw.locationName) {
-      const byName = locations.find((l) => l.name.toLowerCase() === raw.locationName!.toLowerCase());
-      locationId = byName?.id ?? null;
-    }
-
-    // Normalize estimated word count
-    let estimatedWordCount: [number, number] = base.estimatedWordCount;
-    if (Array.isArray(raw.estimatedWordCount) && raw.estimatedWordCount.length >= 2) {
-      estimatedWordCount = [raw.estimatedWordCount[0]!, raw.estimatedWordCount[1]!];
-    } else if (typeof raw.estimatedWordCount === "number") {
-      estimatedWordCount = [Math.floor(raw.estimatedWordCount * 0.8), Math.ceil(raw.estimatedWordCount * 1.2)];
-    }
-
-    const density = (["sparse", "moderate", "dense"].includes(raw.density || "") ? raw.density : base.density) as
-      | "sparse"
-      | "moderate"
-      | "dense";
-
-    const povDistance = (
-      ["intimate", "close", "moderate", "distant"].includes(raw.povDistance || "") ? raw.povDistance : base.povDistance
-    ) as "intimate" | "close" | "moderate" | "distant";
-
-    return {
-      ...base,
-      id: generateId(),
-      title: raw.title || base.title,
-      povCharacterId,
-      povDistance,
-      narrativeGoal: raw.narrativeGoal || base.narrativeGoal,
-      emotionalBeat: raw.emotionalBeat || base.emotionalBeat,
-      readerEffect: raw.readerEffect || base.readerEffect,
-      failureModeToAvoid: raw.failureModeToAvoid || base.failureModeToAvoid,
-      density,
-      pacing: raw.pacing || base.pacing,
-      sensoryNotes: raw.sensoryNotes || base.sensoryNotes,
-      locationId,
-      estimatedWordCount,
-      chunkCount: raw.chunkCount || base.chunkCount,
-      chunkDescriptions: raw.chunkDescriptions || base.chunkDescriptions,
-      readerStateEntering: resolveReaderState(raw.readerStateEntering),
-      readerStateExiting: resolveReaderState(raw.readerStateExiting),
-      subtext: raw.subtext
-        ? {
-            surfaceConversation: raw.subtext.surfaceConversation || "",
-            actualConversation: raw.subtext.actualConversation || "",
-            enforcementRule: raw.subtext.enforcementRule || "",
-          }
-        : base.subtext,
-      sceneSpecificProhibitions: raw.sceneSpecificProhibitions || base.sceneSpecificProhibitions,
-      anchorLines: (raw.anchorLines || []).map((a) => ({
-        text: a.text || "",
-        placement: a.placement || "",
-        verbatim: a.verbatim ?? true,
-      })),
-    };
+    return mapRawScene(raw, base, characters, locations);
   });
 }

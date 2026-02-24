@@ -71,6 +71,28 @@ export interface StreamCallbacks {
   onError: (error: string) => void;
 }
 
+type SSEEvent =
+  | { type: "delta"; text: string }
+  | { type: "done"; usage: { input_tokens: number; output_tokens: number }; stopReason: string }
+  | { type: "error"; error: string };
+
+function parseSSELine(line: string, callbacks: StreamCallbacks): void {
+  if (!line.startsWith("data: ")) return;
+  const json = line.slice(6);
+  try {
+    const event = JSON.parse(json) as SSEEvent;
+    if (event.type === "delta") {
+      callbacks.onToken(event.text);
+    } else if (event.type === "done") {
+      callbacks.onDone(event.usage, event.stopReason);
+    } else if (event.type === "error") {
+      callbacks.onError(event.error);
+    }
+  } catch {
+    // skip malformed SSE line
+  }
+}
+
 export async function generateStream(payload: CompiledPayload, callbacks: StreamCallbacks): Promise<void> {
   const response = await fetch("/api/generate/stream", {
     method: "POST",
@@ -82,7 +104,6 @@ export async function generateStream(payload: CompiledPayload, callbacks: Stream
       topP: payload.topP,
       maxTokens: payload.maxTokens,
       model: payload.model,
-      ...(payload.outputSchema && { outputSchema: payload.outputSchema }),
     }),
   });
 
@@ -103,29 +124,11 @@ export async function generateStream(payload: CompiledPayload, callbacks: Stream
 
     buffer += decoder.decode(value, { stream: true });
 
-    // Parse SSE lines
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? ""; // keep incomplete line in buffer
 
     for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6);
-      try {
-        const event = JSON.parse(json) as
-          | { type: "delta"; text: string }
-          | { type: "done"; usage: { input_tokens: number; output_tokens: number }; stopReason: string }
-          | { type: "error"; error: string };
-
-        if (event.type === "delta") {
-          callbacks.onToken(event.text);
-        } else if (event.type === "done") {
-          callbacks.onDone(event.usage, event.stopReason);
-        } else if (event.type === "error") {
-          callbacks.onError(event.error);
-        }
-      } catch {
-        // skip malformed SSE line
-      }
+      parseSSELine(line, callbacks);
     }
   }
 }

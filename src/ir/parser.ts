@@ -1,3 +1,4 @@
+import { extractJsonFromText } from "../bootstrap/index.js";
 import type { NarrativeIR } from "../types/index.js";
 
 // ─── Raw IR shape from LLM ───────────────────────────────
@@ -27,19 +28,21 @@ function coerceStringArray(v: unknown): string[] {
   });
 }
 
+function coerceArrayPositions(v: unknown[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const item of v) {
+    if (item && typeof item === "object" && "characterId" in item) {
+      const entry = item as { characterId: string; position?: string };
+      result[entry.characterId] = typeof entry.position === "string" ? entry.position : "";
+    }
+  }
+  return result;
+}
+
 function coerceCharacterPositions(v: unknown): Record<string, string> {
   if (!v || typeof v !== "object") return {};
   // New format: array of { characterId, position }
-  if (Array.isArray(v)) {
-    const result: Record<string, string> = {};
-    for (const item of v) {
-      if (item && typeof item === "object" && "characterId" in item) {
-        const entry = item as { characterId: string; position?: string };
-        result[entry.characterId] = typeof entry.position === "string" ? entry.position : "";
-      }
-    }
-    return result;
-  }
+  if (Array.isArray(v)) return coerceArrayPositions(v);
   // Legacy format: { [characterId]: position }
   const result: Record<string, string> = {};
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
@@ -92,48 +95,14 @@ function rawToNarrativeIR(raw: RawIR, sceneId: string): NarrativeIR {
   return ir;
 }
 
-// ─── 3-Tier Parser (mirrors bootstrap strategy) ──────────
+// ─── 3-Tier Parser (delegates JSON extraction to bootstrap) ──────────
 
 export function parseIRResponse(text: string, sceneId: string): NarrativeIR {
-  // Tier 1: direct JSON parse
-  try {
-    const parsed = JSON.parse(text) as RawIR;
-    return rawToNarrativeIR(parsed, sceneId);
-  } catch {
-    // continue
+  const parsed = extractJsonFromText(text);
+  if (parsed === null) {
+    throw new Error(`IR extraction returned unparseable response: ${text.slice(0, 200)}`);
   }
-
-  // Tier 2: strip markdown code fences
-  const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(fenceMatch[1]) as RawIR;
-      return rawToNarrativeIR(parsed, sceneId);
-    } catch {
-      // continue
-    }
-  }
-
-  // Tier 3: brace-depth extraction of first {...} block
-  const startIdx = text.indexOf("{");
-  if (startIdx !== -1) {
-    let depth = 0;
-    for (let i = startIdx; i < text.length; i++) {
-      if (text[i] === "{") depth++;
-      if (text[i] === "}") depth--;
-      if (depth === 0) {
-        try {
-          const parsed = JSON.parse(text.slice(startIdx, i + 1)) as RawIR;
-          return rawToNarrativeIR(parsed, sceneId);
-        } catch {
-          break;
-        }
-      }
-    }
-  }
-
-  // All parse strategies failed — throw so the UI shows an error
-  throw new Error(`IR extraction returned unparseable response: ${text.slice(0, 200)}`);
+  return rawToNarrativeIR(parsed as RawIR, sceneId);
 }
 
 // Re-export for convenience

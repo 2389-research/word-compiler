@@ -183,7 +183,10 @@ export class ProjectStore {
   removeChunk(index: number) {
     const scene = this.activeScene;
     if (!scene) return;
-    const sceneId = scene.plan.id;
+    this.removeChunkForScene(scene.plan.id, index);
+  }
+
+  removeChunkForScene(sceneId: string, index: number) {
     const chunks = (this.sceneChunks[sceneId] ?? [])
       .filter((_, i) => i !== index)
       .map((c, i) => ({ ...c, sequenceNumber: i }));

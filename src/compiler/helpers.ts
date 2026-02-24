@@ -51,32 +51,46 @@ export function formatSceneContract(plan: ScenePlan): string {
   return lines.join("\n");
 }
 
-export function formatCharacterVoice(char: CharacterDossier, sceneConstraints: string[]): string {
-  const v = char.voice;
-  const lines: string[] = [`=== ${char.name.toUpperCase()} — VOICE ===`];
-
-  if (v.sentenceLengthRange) {
-    lines.push(`Sentence length: ${v.sentenceLengthRange[0]}-${v.sentenceLengthRange[1]} words`);
+function formatVoiceDetails(voice: CharacterDossier["voice"]): string[] {
+  const lines: string[] = [];
+  if (voice.sentenceLengthRange) {
+    lines.push(`Sentence length: ${voice.sentenceLengthRange[0]}-${voice.sentenceLengthRange[1]} words`);
   }
-  if (v.vocabularyNotes) {
-    lines.push(`Vocabulary: ${v.vocabularyNotes}`);
+  if (voice.vocabularyNotes) {
+    lines.push(`Vocabulary: ${voice.vocabularyNotes}`);
   }
-  if (v.verbalTics.length > 0) {
-    lines.push(`Tics: ${v.verbalTics.join("; ")}`);
+  if (voice.verbalTics.length > 0) {
+    lines.push(`Tics: ${voice.verbalTics.join("; ")}`);
   }
-  if (v.metaphoricRegister) {
-    lines.push(`Metaphors from: ${v.metaphoricRegister}`);
+  if (voice.metaphoricRegister) {
+    lines.push(`Metaphors from: ${voice.metaphoricRegister}`);
   }
-  if (v.prohibitedLanguage.length > 0) {
-    lines.push(`Never says: ${v.prohibitedLanguage.join(", ")}`);
+  if (voice.prohibitedLanguage.length > 0) {
+    lines.push(`Never says: ${voice.prohibitedLanguage.join(", ")}`);
   }
-
-  if (v.dialogueSamples.length > 0) {
+  if (voice.dialogueSamples.length > 0) {
     lines.push(`\nVoice samples:`);
-    for (const sample of v.dialogueSamples) {
+    for (const sample of voice.dialogueSamples) {
       lines.push(`  "${sample}"`);
     }
   }
+  return lines;
+}
+
+function formatBehavior(char: CharacterDossier): string[] {
+  if (!char.behavior) return [];
+  const b = char.behavior;
+  const behaviorParts: string[] = [];
+  if (b.emotionPhysicality) behaviorParts.push(`Body shows emotion: ${b.emotionPhysicality}`);
+  if (b.stressResponse) behaviorParts.push(`Under stress: ${b.stressResponse}`);
+  if (behaviorParts.length === 0) return [];
+  return [`\n${behaviorParts.join("\n")}`];
+}
+
+export function formatCharacterVoice(char: CharacterDossier, sceneConstraints: string[]): string {
+  const lines: string[] = [`=== ${char.name.toUpperCase()} — VOICE ===`];
+
+  lines.push(...formatVoiceDetails(char.voice));
 
   if (sceneConstraints.length > 0) {
     lines.push(`\nIn this scene:`);
@@ -85,15 +99,7 @@ export function formatCharacterVoice(char: CharacterDossier, sceneConstraints: s
     }
   }
 
-  if (char.behavior) {
-    const b = char.behavior;
-    const behaviorParts: string[] = [];
-    if (b.emotionPhysicality) behaviorParts.push(`Body shows emotion: ${b.emotionPhysicality}`);
-    if (b.stressResponse) behaviorParts.push(`Under stress: ${b.stressResponse}`);
-    if (behaviorParts.length > 0) {
-      lines.push(`\n${behaviorParts.join("\n")}`);
-    }
-  }
+  lines.push(...formatBehavior(char));
 
   return lines.join("\n");
 }

@@ -20,6 +20,9 @@
         "noArrayIndexKey": "off",
         "noControlCharactersInRegex": "off"
       },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "error"
+      },
       "style": {
         "noNonNullAssertion": "off",
         "useImportType": "off"

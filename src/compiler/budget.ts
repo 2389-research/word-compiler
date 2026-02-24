@@ -2,6 +2,39 @@ import { countTokens } from "../tokens/index.js";
 import type { BudgetResult, CompilationConfig, RingSection } from "../types/index.js";
 import { assembleSections } from "./helpers.js";
 
+function buildBudgetResult(
+  r1Sections: RingSection[],
+  r2Sections: RingSection[],
+  r3Sections: RingSection[],
+  wasCompressed: boolean,
+  compressionLog: string[],
+): BudgetResult {
+  return {
+    r1: assembleSections(r1Sections),
+    r2: assembleSections(r2Sections) || undefined,
+    r3: assembleSections(r3Sections),
+    r1Sections,
+    r2Sections: r2Sections.length > 0 ? r2Sections : undefined,
+    r3Sections,
+    wasCompressed,
+    compressionLog,
+  };
+}
+
+function tryCompressRing(
+  sections: RingSection[],
+  budget: number,
+  compressionLog: string[],
+  ringLabel: string,
+): { sections: RingSection[]; compressed: boolean } {
+  const currentTokens = countTokens(assembleSections(sections));
+  if (budget > 0 && currentTokens > budget) {
+    compressionLog.push(`Compressing ${ringLabel} to fit ${budget} tokens`);
+    return { sections: compressSections(sections, budget, compressionLog, ringLabel), compressed: true };
+  }
+  return { sections, compressed: false };
+}
+
 export function enforceBudget(
   r1Sections: RingSection[],
   r3Sections: RingSection[],
@@ -30,16 +63,7 @@ export function enforceBudget(
   const total = countTokens(r1Final) + countTokens(r2Final) + countTokens(r3Final);
 
   if (total <= availableTokens) {
-    return {
-      r1: r1Final,
-      r2: r2Final || undefined,
-      r3: r3Final,
-      r1Sections: currentR1,
-      r2Sections: currentR2.length > 0 ? currentR2 : undefined,
-      r3Sections: currentR3,
-      wasCompressed,
-      compressionLog,
-    };
+    return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
   }
 
   // Step 3: Compress Ring 1 first (highest priority numbers cut first)
@@ -47,38 +71,25 @@ export function enforceBudget(
   const r3Tokens = countTokens(r3Final);
   const r1Budget = availableTokens - r2Tokens - r3Tokens;
 
-  if (r1Budget > 0 && countTokens(r1Final) > r1Budget) {
-    compressionLog.push(`Total over budget. Compressing Ring 1 to fit ${r1Budget} tokens`);
-    currentR1 = compressSections(currentR1, r1Budget, compressionLog, "R1");
-    wasCompressed = true;
-  }
+  const r1Compress = tryCompressRing(currentR1, r1Budget, compressionLog, "R1");
+  currentR1 = r1Compress.sections;
+  wasCompressed = wasCompressed || r1Compress.compressed;
 
   // Step 4: Re-check after Ring 1 compression
   const r1After = assembleSections(currentR1);
   const totalAfterR1 = countTokens(r1After) + r2Tokens + r3Tokens;
 
   if (totalAfterR1 <= availableTokens) {
-    return {
-      r1: r1After,
-      r2: r2Final || undefined,
-      r3: r3Final,
-      r1Sections: currentR1,
-      r2Sections: currentR2.length > 0 ? currentR2 : undefined,
-      r3Sections: currentR3,
-      wasCompressed,
-      compressionLog,
-    };
+    return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
   }
 
   // Step 5: Compress Ring 2 (if present)
   if (currentR2.length > 0) {
     const r1TokensNow = countTokens(r1After);
     const r2Budget = availableTokens - r1TokensNow - r3Tokens;
-    if (r2Budget > 0 && r2Tokens > r2Budget) {
-      compressionLog.push(`Ring 1 compression insufficient. Compressing Ring 2 to fit ${r2Budget} tokens`);
-      currentR2 = compressSections(currentR2, r2Budget, compressionLog, "R2");
-      wasCompressed = true;
-    }
+    const r2Compress = tryCompressRing(currentR2, r2Budget, compressionLog, "R2");
+    currentR2 = r2Compress.sections;
+    wasCompressed = wasCompressed || r2Compress.compressed;
   }
 
   // Step 6: Re-check after Ring 2 compression
@@ -86,16 +97,7 @@ export function enforceBudget(
   const totalAfterR2 = countTokens(r1After) + countTokens(r2After) + r3Tokens;
 
   if (totalAfterR2 <= availableTokens) {
-    return {
-      r1: r1After,
-      r2: r2After || undefined,
-      r3: r3Final,
-      r1Sections: currentR1,
-      r2Sections: currentR2.length > 0 ? currentR2 : undefined,
-      r3Sections: currentR3,
-      wasCompressed,
-      compressionLog,
-    };
+    return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
   }
 
   // Step 7: Compress Ring 3 if Ring 1+2 compression insufficient
@@ -109,16 +111,7 @@ export function enforceBudget(
     wasCompressed = true;
   }
 
-  return {
-    r1: assembleSections(currentR1),
-    r2: assembleSections(currentR2) || undefined,
-    r3: assembleSections(currentR3),
-    r1Sections: currentR1,
-    r2Sections: currentR2.length > 0 ? currentR2 : undefined,
-    r3Sections: currentR3,
-    wasCompressed,
-    compressionLog,
-  };
+  return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
 }
 
 /**

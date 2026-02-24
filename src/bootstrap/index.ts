@@ -121,8 +121,62 @@ Be ruthlessly specific. If the synopsis doesn't give you enough to be specific, 
     topP: 0.92,
     maxTokens: 16384,
     model: "claude-sonnet-4-6",
-    outputSchema: bootstrapSchema,
   };
+}
+
+// ─── JSON Extraction (shared by both parse functions) ───
+
+/** Try parsing the entire string as JSON. */
+function tryDirectParse(text: string): unknown | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/** Try stripping markdown code fences (closed or unclosed) and parsing. */
+function tryFenceParse(text: string): unknown | null {
+  const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (fenceMatch?.[1]) {
+    const result = tryDirectParse(fenceMatch[1]);
+    if (result !== null) return result;
+  }
+
+  // Strip opening fence even if unclosed (LLM ran out of tokens)
+  const stripped = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  if (stripped !== text) {
+    return tryDirectParse(stripped);
+  }
+
+  return null;
+}
+
+/** Extract first {...} block by brace-depth counting and parse. */
+function tryBraceDepthParse(text: string): unknown | null {
+  // Use fence-stripped text if fences were present
+  const stripped = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  const source = stripped !== text ? stripped : text;
+  const startIdx = source.indexOf("{");
+  if (startIdx === -1) return null;
+
+  let depth = 0;
+  for (let i = startIdx; i < source.length; i++) {
+    if (source[i] === "{") depth++;
+    if (source[i] === "}") depth--;
+    if (depth === 0) {
+      return tryDirectParse(source.slice(startIdx, i + 1));
+    }
+  }
+  return null;
+}
+
+/**
+ * 3-tier JSON extraction: direct parse → fence strip → brace-depth counting.
+ * Returns the parsed object or null on failure.
+ */
+export function extractJsonFromText(text: string): unknown | null {
+  return tryDirectParse(text) ?? tryFenceParse(text) ?? tryBraceDepthParse(text);
 }
 
 // ─── Parse Bootstrap Response ───────────────────────────
@@ -156,51 +210,8 @@ export interface ParsedBootstrap {
 }
 
 export function parseBootstrapResponse(response: string): ParsedBootstrap | { error: string; rawText: string } {
-  // Try 1: direct parse
-  try {
-    return JSON.parse(response) as ParsedBootstrap;
-  } catch {
-    // continue
-  }
-
-  // Try 2: strip markdown code fences (closed)
-  const fenceMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch?.[1]) {
-    try {
-      return JSON.parse(fenceMatch[1]) as ParsedBootstrap;
-    } catch {
-      // continue
-    }
-  }
-
-  // Try 2b: strip opening fence even if unclosed (LLM ran out of tokens)
-  const stripped = response.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  if (stripped !== response) {
-    try {
-      return JSON.parse(stripped) as ParsedBootstrap;
-    } catch {
-      // continue — fall through to brace-depth counting on stripped text
-    }
-  }
-
-  // Try 3: extract first {...} block by brace-depth counting
-  const text = stripped !== response ? stripped : response;
-  const startIdx = text.indexOf("{");
-  if (startIdx !== -1) {
-    let depth = 0;
-    for (let i = startIdx; i < text.length; i++) {
-      if (text[i] === "{") depth++;
-      if (text[i] === "}") depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(text.slice(startIdx, i + 1)) as ParsedBootstrap;
-        } catch {
-          break;
-        }
-      }
-    }
-  }
-
+  const result = extractJsonFromText(response);
+  if (result !== null) return result as ParsedBootstrap;
   return { error: "Failed to parse bootstrap response as JSON", rawText: response };
 }
 

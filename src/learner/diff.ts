@@ -56,6 +56,76 @@ const ABBREVIATIONS = new Set([
   "govt",
 ]);
 
+/** Check if a character is a quote character (straight or curly). */
+function isQuoteChar(ch: string): boolean {
+  return ch === '"' || ch === "\u201C" || ch === "\u201D";
+}
+
+/** Detect whether the current period is part of an ellipsis. */
+function isEllipsis(ch: string, next: string, prev: string | undefined): boolean {
+  return ch === "." && (next === "." || prev === ".");
+}
+
+/** Detect whether the current period follows a known abbreviation. */
+function isAbbreviationPeriod(ch: string, current: string): boolean {
+  if (ch !== ".") return false;
+  const wordBefore = current.slice(0, -1).split(/\s/).pop()?.toLowerCase() ?? "";
+  return ABBREVIATIONS.has(wordBefore);
+}
+
+/** Check if the character after punctuation indicates a valid sentence boundary. */
+function isBoundaryFollower(next: string): boolean {
+  return /\s/.test(next) || next === "" || next === '"' || next === "\u201C";
+}
+
+/** Check if a character is sentence-ending punctuation. */
+function isSentenceEndPunctuation(ch: string): boolean {
+  return ch === "." || ch === "!" || ch === "?";
+}
+
+/** Determine if the punctuation at position i marks a real sentence boundary. */
+function isSentenceBoundary(ch: string, next: string, prev: string | undefined, current: string): boolean {
+  if (!isSentenceEndPunctuation(ch)) return false;
+  if (isEllipsis(ch, next, prev)) return false;
+  if (isAbbreviationPeriod(ch, current)) return false;
+  return isBoundaryFollower(next);
+}
+
+/** Push trimmed text to the sentences array if non-empty. */
+function pushIfNonEmpty(sentences: string[], text: string): void {
+  const trimmed = text.trim();
+  if (trimmed) sentences.push(trimmed);
+}
+
+/** Segment a single paragraph into sentences, respecting quote boundaries. */
+function segmentParagraph(para: string): string[] {
+  const sentences: string[] = [];
+  let inQuote = false;
+  let current = "";
+
+  for (let i = 0; i < para.length; i++) {
+    const ch = para[i]!;
+
+    if (isQuoteChar(ch)) {
+      inQuote = !inQuote;
+      current += ch;
+      continue;
+    }
+
+    current += ch;
+
+    if (inQuote) continue;
+
+    if (isSentenceBoundary(ch, para[i + 1] ?? "", para[i - 1], current)) {
+      pushIfNonEmpty(sentences, current);
+      current = "";
+    }
+  }
+
+  pushIfNonEmpty(sentences, current);
+  return sentences;
+}
+
 /**
  * Split prose into sentences, respecting dialogue boundaries.
  * Quoted text is kept together even if it contains sentence-ending punctuation.
@@ -64,7 +134,6 @@ const ABBREVIATIONS = new Set([
 export function segmentSentences(text: string): string[] {
   if (!text.trim()) return [];
 
-  // Split into paragraphs first
   const paragraphs = text.split(/\n\s*\n/);
   const sentences: string[] = [];
 
@@ -74,45 +143,9 @@ export function segmentSentences(text: string): string[] {
     const para = paragraphs[p]!.trim();
     if (!para) continue;
 
-    // Process character by character to respect quotes
-    let inQuote = false;
-    let current = "";
-
-    for (let i = 0; i < para.length; i++) {
-      const ch = para[i]!;
-      const next = para[i + 1] ?? "";
-
-      // Track quote state (handle both straight and curly quotes)
-      if (ch === '"' || ch === "\u201C" || ch === "\u201D") {
-        inQuote = !inQuote;
-        current += ch;
-        continue;
-      }
-
-      current += ch;
-
-      // Only split on sentence-ending punctuation outside quotes
-      if (!inQuote && (ch === "." || ch === "!" || ch === "?")) {
-        // Check for ellipsis
-        if (ch === "." && (next === "." || para[i - 1] === ".")) continue;
-
-        // Check for abbreviation (word before period is in abbreviation list)
-        if (ch === ".") {
-          const wordBefore = current.slice(0, -1).split(/\s/).pop()?.toLowerCase() ?? "";
-          if (ABBREVIATIONS.has(wordBefore)) continue;
-        }
-
-        // Check if followed by whitespace or end of text (valid sentence boundary)
-        if (/\s/.test(next) || next === "" || next === '"' || next === "\u201C") {
-          const trimmed = current.trim();
-          if (trimmed) sentences.push(trimmed);
-          current = "";
-        }
-      }
+    for (const s of segmentParagraph(para)) {
+      sentences.push(s);
     }
-
-    const trimmed = current.trim();
-    if (trimmed) sentences.push(trimmed);
   }
 
   return sentences;
@@ -120,21 +153,15 @@ export function segmentSentences(text: string): string[] {
 
 // ─── Myers Diff (Simplified) ─────────────────────
 
-/**
- * Compute sentence-level diff between original and edited text.
- * Uses a simplified LCS-based approach for sentence matching.
- */
-export function diffSentences(originalSentences: string[], editedSentences: string[]): DiffResult[] {
-  const results: DiffResult[] = [];
-
-  // Build LCS table
-  const m = originalSentences.length;
-  const n = editedSentences.length;
+/** Build the LCS dynamic-programming table for two sentence arrays. */
+function buildLCSTable(original: string[], edited: string[]): number[][] {
+  const m = original.length;
+  const n = edited.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0) as number[]);
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      if (originalSentences[i - 1] === editedSentences[j - 1]) {
+      if (original[i - 1] === edited[j - 1]) {
         dp[i]![j] = dp[i - 1]![j - 1]! + 1;
       } else {
         dp[i]![j] = Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!);
@@ -142,28 +169,37 @@ export function diffSentences(originalSentences: string[], editedSentences: stri
     }
   }
 
-  // Backtrack to build diff
-  let i = m;
-  let j = n;
+  return dp;
+}
+
+/** Backtrack through the LCS table to produce raw diff operations (in reverse). */
+function backtrackLCS(dp: number[][], original: string[], edited: string[]): DiffResult[] {
+  let i = original.length;
+  let j = edited.length;
   const ops: DiffResult[] = [];
 
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && originalSentences[i - 1] === editedSentences[j - 1]) {
-      ops.push({ type: "match", original: originalSentences[i - 1]!, edited: editedSentences[j - 1]! });
+    if (i > 0 && j > 0 && original[i - 1] === edited[j - 1]) {
+      ops.push({ type: "match", original: original[i - 1]!, edited: edited[j - 1]! });
       i--;
       j--;
     } else if (j > 0 && (i === 0 || dp[i]![j - 1]! >= dp[i - 1]![j]!)) {
-      ops.push({ type: "insert", original: null, edited: editedSentences[j - 1]! });
+      ops.push({ type: "insert", original: null, edited: edited[j - 1]! });
       j--;
     } else {
-      ops.push({ type: "delete", original: originalSentences[i - 1]!, edited: null });
+      ops.push({ type: "delete", original: original[i - 1]!, edited: null });
       i--;
     }
   }
 
   ops.reverse();
+  return ops;
+}
 
-  // Post-process: merge adjacent delete+insert into "modify" when similar
+/** Merge adjacent delete+insert pairs into "modify" when the sentences are similar. */
+function mergeAdjacentOps(ops: DiffResult[]): DiffResult[] {
+  const results: DiffResult[] = [];
+
   for (let k = 0; k < ops.length; k++) {
     const op = ops[k]!;
     if (op.type === "delete" && k + 1 < ops.length && ops[k + 1]!.type === "insert") {
@@ -179,6 +215,16 @@ export function diffSentences(originalSentences: string[], editedSentences: stri
   }
 
   return results;
+}
+
+/**
+ * Compute sentence-level diff between original and edited text.
+ * Uses a simplified LCS-based approach for sentence matching.
+ */
+export function diffSentences(originalSentences: string[], editedSentences: string[]): DiffResult[] {
+  const dp = buildLCSTable(originalSentences, editedSentences);
+  const ops = backtrackLCS(dp, originalSentences, editedSentences);
+  return mergeAdjacentOps(ops);
 }
 
 // ─── Edit Classification ─────────────────────────
@@ -231,6 +277,29 @@ const ABSTRACT_INDICATORS = [
   /\b(realized|understood|knew) that\b/i,
 ];
 
+/** Classify an insert diff by content (sensory detail or action beat). */
+function classifyInsert(edited: string): { editType: EditCategory; subType: EditSubType } {
+  const lowerEdited = edited.toLowerCase();
+  const hasSensory = [...SENSORY_WORDS].some((w) => lowerEdited.includes(w));
+  if (hasSensory) return { editType: "ADDITION", subType: "SENSORY_ADDED" };
+
+  const isBeat = BEAT_PATTERNS.some((p) => p.test(edited));
+  if (isBeat) return { editType: "ADDITION", subType: "BEAT_ADDED" };
+
+  return { editType: "ADDITION", subType: "SENSORY_ADDED" };
+}
+
+/** Classify a modify diff by examining dialogue, show-don't-tell, or tone shift. */
+function classifyModify(original: string, edited: string): { editType: EditCategory; subType: EditSubType } {
+  const isDialogue = /[""\u201C\u201D]/.test(original) || /[""\u201C\u201D]/.test(edited);
+  if (isDialogue) return { editType: "SUBSTITUTION", subType: "DIALOGUE_VOICE" };
+
+  const originalAbstract = ABSTRACT_INDICATORS.some((p) => p.test(original));
+  if (originalAbstract) return { editType: "SUBSTITUTION", subType: "SHOW_DONT_TELL" };
+
+  return { editType: "SUBSTITUTION", subType: "TONE_SHIFT" };
+}
+
 /**
  * Classify a single edit into the taxonomy.
  * For "modify" diffs, examines the nature of the change.
@@ -244,29 +313,11 @@ export function classifyEdit(diff: DiffResult): { editType: EditCategory; subTyp
   }
 
   if (diff.type === "insert" && diff.edited) {
-    // Check for sensory detail
-    const lowerEdited = diff.edited.toLowerCase();
-    const hasSensory = [...SENSORY_WORDS].some((w) => lowerEdited.includes(w));
-    if (hasSensory) return { editType: "ADDITION", subType: "SENSORY_ADDED" };
-
-    // Check for action beat
-    const isBeat = BEAT_PATTERNS.some((p) => p.test(diff.edited!));
-    if (isBeat) return { editType: "ADDITION", subType: "BEAT_ADDED" };
-
-    return { editType: "ADDITION", subType: "SENSORY_ADDED" };
+    return classifyInsert(diff.edited);
   }
 
   if (diff.type === "modify" && diff.original && diff.edited) {
-    // Check for dialogue (either side has quotes)
-    const isDialogue = /[""\u201C\u201D]/.test(diff.original) || /[""\u201C\u201D]/.test(diff.edited);
-    if (isDialogue) return { editType: "SUBSTITUTION", subType: "DIALOGUE_VOICE" };
-
-    // Check for show-don't-tell (abstract original → concrete edited)
-    const originalAbstract = ABSTRACT_INDICATORS.some((p) => p.test(diff.original!));
-    if (originalAbstract) return { editType: "SUBSTITUTION", subType: "SHOW_DONT_TELL" };
-
-    // Default substitution: tone shift
-    return { editType: "SUBSTITUTION", subType: "TONE_SHIFT" };
+    return classifyModify(diff.original, diff.edited);
   }
 
   // Fallback
@@ -292,6 +343,18 @@ export function detectReorder(originalSentences: string[], editedSentences: stri
 }
 
 // ─── Main Pipeline ───────────────────────────────
+
+/** Build surrounding context string for a diff at the given index. */
+function buildEditContext(diffs: DiffResult[], index: number): string | null {
+  const contextParts: string[] = [];
+  if (index > 0 && diffs[index - 1]?.original) {
+    contextParts.push(diffs[index - 1]!.original!);
+  }
+  if (index + 1 < diffs.length && (diffs[index + 1]?.original || diffs[index + 1]?.edited)) {
+    contextParts.push(diffs[index + 1]!.original ?? diffs[index + 1]!.edited!);
+  }
+  return contextParts.length > 0 ? contextParts.join(" ... ") : null;
+}
 
 /**
  * Analyze edits between generated and edited text, returning classified patterns.
@@ -335,13 +398,6 @@ export function analyzeEdits(
 
     const { editType, subType } = classifyEdit(diff);
 
-    // Get surrounding context
-    const contextParts: string[] = [];
-    if (i > 0 && diffs[i - 1]?.original) contextParts.push(diffs[i - 1]!.original!);
-    if (i + 1 < diffs.length && (diffs[i + 1]?.original || diffs[i + 1]?.edited)) {
-      contextParts.push(diffs[i + 1]!.original ?? diffs[i + 1]!.edited!);
-    }
-
     patterns.push({
       id: generateId(),
       chunkId,
@@ -351,7 +407,7 @@ export function analyzeEdits(
       subType,
       originalText: diff.original ?? "",
       editedText: diff.edited ?? "",
-      context: contextParts.length > 0 ? contextParts.join(" ... ") : null,
+      context: buildEditContext(diffs, i),
       createdAt: new Date().toISOString(),
     });
   }

@@ -3,8 +3,10 @@ import { applyGenreTemplate, GENRE_TEMPLATES } from "../../bootstrap/genres.js";
 import type { Bible, CharacterDossier, Location } from "../../types/index.js";
 import { createEmptyBible, createEmptyCharacterDossier, generateId } from "../../types/index.js";
 import {
+  Button,
   CardList,
   CollapsibleSection,
+  ExamplesDrawer,
   FormField,
   Input,
   NumberRange,
@@ -14,6 +16,7 @@ import {
   TagInput,
   TextArea,
 } from "../primitives/index.js";
+import { getExamples } from "./field-examples.js";
 
 export type FormFooterState = {
   currentStep: string;
@@ -44,6 +47,7 @@ const stepDefs = [
 let currentStep = $state("foundations");
 let completedSteps = $state<string[]>([]);
 let bible = $state<Bible>(createEmptyBible(""));
+let formBodyEl: HTMLDivElement | undefined = $state();
 
 $effect(() => {
   if (open) {
@@ -88,6 +92,25 @@ export function prev() {
 
 export async function save() {
   await onSave(bible);
+}
+
+// ─── Expand / Collapse all ─────────────────────
+function setAllSections(open: boolean) {
+  formBodyEl?.querySelectorAll("details.collapsible").forEach((d) => {
+    const details = d as HTMLDetailsElement;
+    if (details.open !== open) {
+      details.open = open;
+      details.dispatchEvent(new Event("toggle"));
+    }
+  });
+}
+
+function onFormKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === "e") {
+    e.preventDefault();
+    if (e.shiftKey) setAllSections(false);
+    else setAllSections(true);
+  }
 }
 
 // ─── Character helpers ──────────────────────────
@@ -199,10 +222,18 @@ function removeVocabPref(index: number) {
 </div>
 <Stepper steps={stepDefs} {currentStep} {completedSteps} onStepClick={goToStep} />
 
-<div class="form-body">
+{#if currentStep !== "review"}
+  <div class="step-controls">
+    <Button variant="ghost" size="sm" onclick={() => setAllSections(true)}>Expand All</Button>
+    <Button variant="ghost" size="sm" onclick={() => setAllSections(false)}>Collapse All</Button>
+  </div>
+{/if}
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="form-body" bind:this={formBodyEl} onkeydown={onFormKeydown}>
   {#if currentStep === "foundations"}
     <div class="form-step">
-      <FormField label="POV Default">
+      <FormField label="POV Default" fieldId="povDefault">
         <RadioGroup name="povDefault" value={bible.narrativeRules.pov.default} options={[
           { value: "first", label: "First" },
           { value: "close-third", label: "Close Third" },
@@ -210,27 +241,32 @@ function removeVocabPref(index: number) {
           { value: "omniscient", label: "Omniscient" },
         ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, default: v as any } } }; }} />
       </FormField>
-      <FormField label="POV Distance">
-        <RadioGroup name="povDist" value={bible.narrativeRules.pov.distance} options={[
-          { value: "intimate", label: "Intimate" },
-          { value: "close", label: "Close" },
-          { value: "moderate", label: "Moderate" },
-          { value: "distant", label: "Distant" },
-        ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, distance: v as any } } }; }} />
-      </FormField>
-      <FormField label="POV Interiority">
-        <RadioGroup name="povInt" value={bible.narrativeRules.pov.interiority} options={[
-          { value: "stream", label: "Stream" },
-          { value: "filtered", label: "Filtered" },
-          { value: "behavioral-only", label: "Behavioral Only" },
-        ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, interiority: v as any } } }; }} />
-      </FormField>
-      <FormField label="POV Reliability">
-        <RadioGroup name="povRel" value={bible.narrativeRules.pov.reliability} options={[
-          { value: "reliable", label: "Reliable" },
-          { value: "unreliable", label: "Unreliable" },
-        ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, reliability: v as any } } }; }} />
-      </FormField>
+
+      <CollapsibleSection summary="POV Fine-Tuning" priority="helpful" sectionId="bible-foundations-povTuning">
+        <div class="form-step">
+          <FormField label="POV Distance" fieldId="povDistance">
+            <RadioGroup name="povDist" value={bible.narrativeRules.pov.distance} options={[
+              { value: "intimate", label: "Intimate" },
+              { value: "close", label: "Close" },
+              { value: "moderate", label: "Moderate" },
+              { value: "distant", label: "Distant" },
+            ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, distance: v as any } } }; }} />
+          </FormField>
+          <FormField label="POV Interiority" fieldId="povInteriority">
+            <RadioGroup name="povInt" value={bible.narrativeRules.pov.interiority} options={[
+              { value: "stream", label: "Stream" },
+              { value: "filtered", label: "Filtered" },
+              { value: "behavioral-only", label: "Behavioral Only" },
+            ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, interiority: v as any } } }; }} />
+          </FormField>
+          <FormField label="POV Reliability" fieldId="povReliability">
+            <RadioGroup name="povRel" value={bible.narrativeRules.pov.reliability} options={[
+              { value: "reliable", label: "Reliable" },
+              { value: "unreliable", label: "Unreliable" },
+            ]} onchange={(v) => { bible = { ...bible, narrativeRules: { ...bible.narrativeRules, pov: { ...bible.narrativeRules.pov, reliability: v as any } } }; }} />
+          </FormField>
+        </div>
+      </CollapsibleSection>
     </div>
 
   {:else if currentStep === "characters"}
@@ -243,10 +279,10 @@ function removeVocabPref(index: number) {
     >
       {#snippet renderItem(char, i)}
         <div class="char-card">
-          <FormField label="Name" required>
+          <FormField label="Name" fieldId="characterName" required>
             <Input value={char.name} oninput={(e) => updateCharacter(i, { name: (e.target as HTMLInputElement).value })} placeholder="Character name" />
           </FormField>
-          <FormField label="Role">
+          <FormField label="Role" fieldId="characterRole">
             <RadioGroup name={`charRole${i}`} value={char.role} options={[
               { value: "protagonist", label: "Protagonist" },
               { value: "antagonist", label: "Antagonist" },
@@ -254,31 +290,37 @@ function removeVocabPref(index: number) {
               { value: "minor", label: "Minor" },
             ]} onchange={(v) => updateCharacter(i, { role: v as any })} />
           </FormField>
-          <FormField label="Physical Description">
-            <TextArea value={char.physicalDescription ?? ""} variant="compact" rows={2} oninput={(e) => updateCharacter(i, { physicalDescription: (e.target as HTMLTextAreaElement).value || null })} placeholder="What does the reader SEE?" />
-          </FormField>
-          <FormField label="Backstory">
-            <TextArea value={char.backstory ?? ""} variant="compact" rows={2} oninput={(e) => updateCharacter(i, { backstory: (e.target as HTMLTextAreaElement).value || null })} placeholder="Brief but specific" />
-          </FormField>
 
-          <CollapsibleSection summary="Voice">
+          <CollapsibleSection summary="Appearance & Background" priority="helpful" sectionId={`bible-char-appearance-${char.id}`}>
             <div class="char-section">
-              <FormField label="Vocabulary Notes">
-                <TextArea value={char.voice.vocabularyNotes ?? ""} variant="compact" rows={2} oninput={(e) => updateCharacter(i, { voice: { ...char.voice, vocabularyNotes: (e.target as HTMLTextAreaElement).value || null } })} />
+              <FormField label="Physical Description" fieldId="physicalDescription">
+                <TextArea value={char.physicalDescription ?? ""} variant="compact" rows={2} oninput={(e) => updateCharacter(i, { physicalDescription: (e.target as HTMLTextAreaElement).value || null })} placeholder="What does the reader SEE?" />
               </FormField>
-              <FormField label="Verbal Tics">
+              <FormField label="Backstory" fieldId="backstory">
+                <TextArea value={char.backstory ?? ""} variant="compact" rows={2} oninput={(e) => updateCharacter(i, { backstory: (e.target as HTMLTextAreaElement).value || null })} placeholder="Brief but specific" />
+              </FormField>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection summary="Voice" priority="helpful" sectionId={`bible-char-voice-${char.id}`}>
+            <div class="char-section">
+              <FormField label="Vocabulary Notes" fieldId="vocabularyNotes">
+                <TextArea value={char.voice.vocabularyNotes ?? ""} variant="compact" rows={2} oninput={(e) => updateCharacter(i, { voice: { ...char.voice, vocabularyNotes: (e.target as HTMLTextAreaElement).value || null } })} />
+                <ExamplesDrawer fieldId="vocabularyNotes" examples={getExamples("vocabularyNotes")} onApplyTemplate={(content) => updateCharacter(i, { voice: { ...char.voice, vocabularyNotes: content } })} />
+              </FormField>
+              <FormField label="Verbal Tics" fieldId="verbalTics">
                 <TagInput tags={char.voice.verbalTics} onchange={(v) => updateCharacter(i, { voice: { ...char.voice, verbalTics: v } })} placeholder="um, you know..." />
               </FormField>
-              <FormField label="Metaphoric Register">
+              <FormField label="Metaphoric Register" fieldId="metaphoricRegister">
                 <Input value={char.voice.metaphoricRegister ?? ""} oninput={(e) => updateCharacter(i, { voice: { ...char.voice, metaphoricRegister: (e.target as HTMLInputElement).value || null } })} />
               </FormField>
-              <FormField label="Prohibited Language">
+              <FormField label="Prohibited Language" fieldId="prohibitedLanguage">
                 <TagInput tags={char.voice.prohibitedLanguage} onchange={(v) => updateCharacter(i, { voice: { ...char.voice, prohibitedLanguage: v } })} placeholder="Words this character would never use..." />
               </FormField>
-              <FormField label="Dialogue Samples">
+              <FormField label="Dialogue Samples" fieldId="dialogueSamples">
                 <TagInput tags={char.voice.dialogueSamples} onchange={(v) => updateCharacter(i, { voice: { ...char.voice, dialogueSamples: v } })} placeholder="Example dialogue lines..." />
               </FormField>
-              <FormField label="Sentence Length Range">
+              <FormField label="Sentence Length Range" fieldId="sentenceLengthRange">
                 <NumberRange
                   value={char.voice.sentenceLengthRange ?? [5, 25]}
                   onchange={(v) => updateCharacter(i, { voice: { ...char.voice, sentenceLengthRange: v } })}
@@ -288,22 +330,23 @@ function removeVocabPref(index: number) {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection summary="Behavior">
+          <CollapsibleSection summary="Behavior" priority="advanced" sectionId={`bible-char-behavior-${char.id}`}>
             <div class="char-section">
-              <FormField label="Stress Response">
+              <FormField label="Stress Response" fieldId="stressResponse">
                 <TextArea value={char.behavior?.stressResponse ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), stressResponse: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
-              <FormField label="Social Posture">
+              <FormField label="Social Posture" fieldId="socialPosture">
                 <TextArea value={char.behavior?.socialPosture ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), socialPosture: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
-              <FormField label="Notices First">
+              <FormField label="Notices First" fieldId="noticesFirst">
                 <TextArea value={char.behavior?.noticesFirst ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), noticesFirst: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
-              <FormField label="Lying Style">
+              <FormField label="Lying Style" fieldId="lyingStyle">
                 <TextArea value={char.behavior?.lyingStyle ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), lyingStyle: (e.target as HTMLTextAreaElement).value || null } })} />
               </FormField>
-              <FormField label="Emotion Physicality">
+              <FormField label="Emotion Physicality" fieldId="emotionPhysicality">
                 <TextArea value={char.behavior?.emotionPhysicality ?? ""} variant="compact" rows={1} oninput={(e) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), emotionPhysicality: (e.target as HTMLTextAreaElement).value || null } })} />
+                <ExamplesDrawer fieldId="emotionPhysicality" examples={getExamples("emotionPhysicality")} onApplyTemplate={(content) => updateCharacter(i, { behavior: { ...(char.behavior ?? {}), emotionPhysicality: content } })} />
               </FormField>
             </div>
           </CollapsibleSection>
@@ -321,31 +364,31 @@ function removeVocabPref(index: number) {
     >
       {#snippet renderItem(loc, i)}
         <div class="loc-card">
-          <FormField label="Name" required>
+          <FormField label="Name" fieldId="locationName" required>
             <Input value={loc.name} oninput={(e) => updateLocation(i, { name: (e.target as HTMLInputElement).value })} placeholder="Location name" />
           </FormField>
-          <FormField label="Description">
+          <FormField label="Description" fieldId="locationDescription">
             <TextArea value={loc.description ?? ""} variant="compact" rows={2} oninput={(e) => updateLocation(i, { description: (e.target as HTMLTextAreaElement).value || null })} />
           </FormField>
 
-          <CollapsibleSection summary="Sensory Palette">
+          <CollapsibleSection summary="Sensory Palette" priority="helpful" sectionId={`bible-loc-sensory-${loc.id}`}>
             <div class="loc-section">
-              <FormField label="Sounds">
+              <FormField label="Sounds" fieldId="sounds">
                 <TagInput tags={loc.sensoryPalette.sounds} onchange={(v) => updateLocation(i, { sensoryPalette: { ...loc.sensoryPalette, sounds: v } })} placeholder="Specific sounds..." />
               </FormField>
-              <FormField label="Smells">
+              <FormField label="Smells" fieldId="smells">
                 <TagInput tags={loc.sensoryPalette.smells} onchange={(v) => updateLocation(i, { sensoryPalette: { ...loc.sensoryPalette, smells: v } })} placeholder="Specific smells..." />
               </FormField>
-              <FormField label="Textures">
+              <FormField label="Textures" fieldId="textures">
                 <TagInput tags={loc.sensoryPalette.textures} onchange={(v) => updateLocation(i, { sensoryPalette: { ...loc.sensoryPalette, textures: v } })} placeholder="What do hands touch here..." />
               </FormField>
-              <FormField label="Light Quality">
+              <FormField label="Light Quality" fieldId="lightQuality">
                 <Input value={loc.sensoryPalette.lightQuality ?? ""} oninput={(e) => updateLocation(i, { sensoryPalette: { ...loc.sensoryPalette, lightQuality: (e.target as HTMLInputElement).value || null } })} placeholder="What does the light do?" />
               </FormField>
-              <FormField label="Atmosphere">
+              <FormField label="Atmosphere" fieldId="atmosphere">
                 <Input value={loc.sensoryPalette.atmosphere ?? ""} oninput={(e) => updateLocation(i, { sensoryPalette: { ...loc.sensoryPalette, atmosphere: (e.target as HTMLInputElement).value || null } })} />
               </FormField>
-              <FormField label="Prohibited Defaults">
+              <FormField label="Prohibited Defaults" fieldId="prohibitedDefaults">
                 <TagInput tags={loc.sensoryPalette.prohibitedDefaults} onchange={(v) => updateLocation(i, { sensoryPalette: { ...loc.sensoryPalette, prohibitedDefaults: v } })} placeholder="Generic sensory details to avoid..." />
               </FormField>
             </div>
@@ -356,22 +399,8 @@ function removeVocabPref(index: number) {
 
   {:else if currentStep === "style"}
     <div class="form-step">
-      <FormField label="Approved Metaphoric Domains">
-        <TagInput
-          tags={bible.styleGuide.metaphoricRegister?.approvedDomains ?? []}
-          onchange={(v) => { bible = { ...bible, styleGuide: { ...bible.styleGuide, metaphoricRegister: { approvedDomains: v, prohibitedDomains: bible.styleGuide.metaphoricRegister?.prohibitedDomains ?? [] } } }; }}
-          placeholder="e.g. machinery, water, decay..."
-        />
-      </FormField>
-      <FormField label="Prohibited Metaphoric Domains">
-        <TagInput
-          tags={bible.styleGuide.metaphoricRegister?.prohibitedDomains ?? []}
-          onchange={(v) => { bible = { ...bible, styleGuide: { ...bible.styleGuide, metaphoricRegister: { approvedDomains: bible.styleGuide.metaphoricRegister?.approvedDomains ?? [], prohibitedDomains: v } } }; }}
-          placeholder="e.g. flowers, sunshine..."
-        />
-      </FormField>
-
-      <CollapsibleSection summary="Avoid List">
+      <CollapsibleSection summary="Avoid List" priority="essential" sectionId="bible-style-avoidList">
+        <ExamplesDrawer fieldId="killList" examples={getExamples("killList")} />
         <CardList
           items={bible.styleGuide.killList}
           addLabel="Add Entry"
@@ -399,7 +428,27 @@ function removeVocabPref(index: number) {
         </CardList>
       </CollapsibleSection>
 
-      <CollapsibleSection summary="Vocabulary Preferences">
+      <CollapsibleSection summary="Metaphor Control" priority="helpful" sectionId="bible-style-metaphors">
+        <div class="form-step">
+          <FormField label="Approved Metaphoric Domains" fieldId="approvedMetaphoricDomains">
+            <TagInput
+              tags={bible.styleGuide.metaphoricRegister?.approvedDomains ?? []}
+              onchange={(v) => { bible = { ...bible, styleGuide: { ...bible.styleGuide, metaphoricRegister: { approvedDomains: v, prohibitedDomains: bible.styleGuide.metaphoricRegister?.prohibitedDomains ?? [] } } }; }}
+              placeholder="e.g. machinery, water, decay..."
+            />
+            <ExamplesDrawer fieldId="approvedMetaphoricDomains" examples={getExamples("approvedMetaphoricDomains")} />
+          </FormField>
+          <FormField label="Prohibited Metaphoric Domains" fieldId="prohibitedMetaphoricDomains">
+            <TagInput
+              tags={bible.styleGuide.metaphoricRegister?.prohibitedDomains ?? []}
+              onchange={(v) => { bible = { ...bible, styleGuide: { ...bible.styleGuide, metaphoricRegister: { approvedDomains: bible.styleGuide.metaphoricRegister?.approvedDomains ?? [], prohibitedDomains: v } } }; }}
+              placeholder="e.g. flowers, sunshine..."
+            />
+          </FormField>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection summary="Vocabulary Preferences" priority="advanced" sectionId="bible-style-vocabPrefs">
         <CardList
           items={bible.styleGuide.vocabularyPreferences}
           addLabel="Add Preference"
@@ -425,13 +474,17 @@ function removeVocabPref(index: number) {
         </CardList>
       </CollapsibleSection>
 
-      <FormField label="Structural Bans">
-        <TagInput
-          tags={bible.styleGuide.structuralBans}
-          onchange={(v) => { bible = { ...bible, styleGuide: { ...bible.styleGuide, structuralBans: v } }; }}
-          placeholder="e.g. rhetorical questions, em-dash fragments..."
-        />
-      </FormField>
+      <CollapsibleSection summary="Structural Bans" priority="advanced" sectionId="bible-style-structuralBans">
+        <div class="form-step">
+          <FormField label="Structural Bans" fieldId="structuralBans">
+            <TagInput
+              tags={bible.styleGuide.structuralBans}
+              onchange={(v) => { bible = { ...bible, styleGuide: { ...bible.styleGuide, structuralBans: v } }; }}
+              placeholder="e.g. rhetorical questions, em-dash fragments..."
+            />
+          </FormField>
+        </div>
+      </CollapsibleSection>
     </div>
 
   {:else if currentStep === "review"}
@@ -449,6 +502,13 @@ function removeVocabPref(index: number) {
 
 <style>
   .genre-selector { margin-bottom: 8px; }
+  .step-controls {
+    display: flex;
+    gap: 6px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 4px;
+  }
   .form-body { padding: 8px 0; }
   .form-step { display: flex; flex-direction: column; gap: 10px; }
   .char-card, .loc-card { display: flex; flex-direction: column; gap: 8px; }

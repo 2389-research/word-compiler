@@ -189,6 +189,71 @@ export const GENRE_TEMPLATES: GenreTemplate[] = [LITERARY_FICTION, THRILLER, ROM
 
 // ─── Apply ──────────────────────────────────────
 
+/** Fill-blank POV fields: only overwrites values still at their factory defaults. */
+function applyPovDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (!defaults.pov) return;
+  const pov = updated.narrativeRules.pov;
+  if (defaults.pov.default && pov.default === "close-third") pov.default = defaults.pov.default;
+  if (defaults.pov.distance && pov.distance === "close") pov.distance = defaults.pov.distance;
+  if (defaults.pov.interiority && pov.interiority === "filtered") pov.interiority = defaults.pov.interiority;
+}
+
+/** Fill-blank kill list: only if empty. */
+function applyKillListDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (defaults.killList && updated.styleGuide.killList.length === 0) {
+    updated.styleGuide.killList = [...defaults.killList];
+  }
+}
+
+/** Fill-blank metaphoric register: only if null. */
+function applyMetaphoricDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (defaults.metaphoricRegister && !updated.styleGuide.metaphoricRegister) {
+    updated.styleGuide.metaphoricRegister = {
+      approvedDomains: defaults.metaphoricRegister.approvedDomains ?? [],
+      prohibitedDomains: defaults.metaphoricRegister.prohibitedDomains ?? [],
+    };
+  }
+}
+
+/** Fill-blank sentence architecture: only if null. */
+function applySentenceDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (defaults.sentenceArchitecture && !updated.styleGuide.sentenceArchitecture) {
+    updated.styleGuide.sentenceArchitecture = {
+      targetVariance: defaults.sentenceArchitecture.targetVariance ?? null,
+      fragmentPolicy: defaults.sentenceArchitecture.fragmentPolicy ?? null,
+      notes: defaults.sentenceArchitecture.notes ?? null,
+    };
+  }
+}
+
+/** Fill-blank paragraph policy: only if null. */
+function applyParagraphDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (defaults.paragraphPolicy && !updated.styleGuide.paragraphPolicy) {
+    updated.styleGuide.paragraphPolicy = {
+      maxSentences: defaults.paragraphPolicy.maxSentences ?? null,
+      singleSentenceFrequency: defaults.paragraphPolicy.singleSentenceFrequency ?? null,
+      notes: defaults.paragraphPolicy.notes ?? null,
+    };
+  }
+}
+
+/** Fill-blank structural bans: only if empty. */
+function applyStructuralBanDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (defaults.structuralBans && updated.styleGuide.structuralBans.length === 0) {
+    updated.styleGuide.structuralBans = [...defaults.structuralBans];
+  }
+}
+
+/** Fill-blank narrative rules (subtext + exposition): only if null. */
+function applyNarrativeRuleDefaults(updated: Bible, defaults: GenreDefaults): void {
+  if (defaults.subtextPolicy && !updated.narrativeRules.subtextPolicy) {
+    updated.narrativeRules.subtextPolicy = defaults.subtextPolicy;
+  }
+  if (defaults.expositionPolicy && !updated.narrativeRules.expositionPolicy) {
+    updated.narrativeRules.expositionPolicy = defaults.expositionPolicy;
+  }
+}
+
 /**
  * Merge genre template defaults into a bible.
  * Fill-blank strategy: only populates fields that are null, empty, or at default values.
@@ -198,57 +263,13 @@ export function applyGenreTemplate(bible: Bible, template: GenreTemplate): Bible
   const updated = structuredClone(bible);
   const d = template.bible;
 
-  // POV defaults
-  if (d.pov) {
-    const pov = updated.narrativeRules.pov;
-    if (d.pov.default && pov.default === "close-third") pov.default = d.pov.default;
-    if (d.pov.distance && pov.distance === "close") pov.distance = d.pov.distance;
-    if (d.pov.interiority && pov.interiority === "filtered") pov.interiority = d.pov.interiority;
-  }
-
-  // Kill list (fill-blank: only if empty)
-  if (d.killList && updated.styleGuide.killList.length === 0) {
-    updated.styleGuide.killList = [...d.killList];
-  }
-
-  // Metaphoric register (fill-blank: only if null)
-  if (d.metaphoricRegister && !updated.styleGuide.metaphoricRegister) {
-    updated.styleGuide.metaphoricRegister = {
-      approvedDomains: d.metaphoricRegister.approvedDomains ?? [],
-      prohibitedDomains: d.metaphoricRegister.prohibitedDomains ?? [],
-    };
-  }
-
-  // Sentence architecture (fill-blank: only if null)
-  if (d.sentenceArchitecture && !updated.styleGuide.sentenceArchitecture) {
-    updated.styleGuide.sentenceArchitecture = {
-      targetVariance: d.sentenceArchitecture.targetVariance ?? null,
-      fragmentPolicy: d.sentenceArchitecture.fragmentPolicy ?? null,
-      notes: d.sentenceArchitecture.notes ?? null,
-    };
-  }
-
-  // Paragraph policy (fill-blank: only if null)
-  if (d.paragraphPolicy && !updated.styleGuide.paragraphPolicy) {
-    updated.styleGuide.paragraphPolicy = {
-      maxSentences: d.paragraphPolicy.maxSentences ?? null,
-      singleSentenceFrequency: d.paragraphPolicy.singleSentenceFrequency ?? null,
-      notes: d.paragraphPolicy.notes ?? null,
-    };
-  }
-
-  // Structural bans (fill-blank: only if empty)
-  if (d.structuralBans && updated.styleGuide.structuralBans.length === 0) {
-    updated.styleGuide.structuralBans = [...d.structuralBans];
-  }
-
-  // Narrative rules (fill-blank: only if null)
-  if (d.subtextPolicy && !updated.narrativeRules.subtextPolicy) {
-    updated.narrativeRules.subtextPolicy = d.subtextPolicy;
-  }
-  if (d.expositionPolicy && !updated.narrativeRules.expositionPolicy) {
-    updated.narrativeRules.expositionPolicy = d.expositionPolicy;
-  }
+  applyPovDefaults(updated, d);
+  applyKillListDefaults(updated, d);
+  applyMetaphoricDefaults(updated, d);
+  applySentenceDefaults(updated, d);
+  applyParagraphDefaults(updated, d);
+  applyStructuralBanDefaults(updated, d);
+  applyNarrativeRuleDefaults(updated, d);
 
   return updated;
 }

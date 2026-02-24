@@ -4,6 +4,7 @@ export { default as CardList } from "./CardList.svelte";
 export { default as CollapsibleSection } from "./CollapsibleSection.svelte";
 export { default as DiagnosticItem } from "./DiagnosticItem.svelte";
 export { default as ErrorBanner } from "./ErrorBanner.svelte";
+export { default as ExamplesDrawer } from "./ExamplesDrawer.svelte";
 export { default as FormField } from "./FormField.svelte";
 export { default as Input } from "./Input.svelte";
 export { default as MetricCard } from "./MetricCard.svelte";

@@ -120,9 +120,7 @@ describe("POST /api/generate", () => {
 });
 
 describe("POST /api/generate/stream", () => {
-  it("sends output_config when outputSchema is present", async () => {
-    const schema = { type: "object", properties: { items: { type: "array" } } };
-
+  it("ignores outputSchema (streaming does not support structured output)", async () => {
     const mockStreamInstance = {
       on: vi.fn().mockReturnThis(),
       abort: vi.fn(),
@@ -142,7 +140,7 @@ describe("POST /api/generate/stream", () => {
         temperature: 0.5,
         maxTokens: 100,
         model: "claude-sonnet-4-6",
-        outputSchema: schema,
+        outputSchema: { type: "object" },
       }),
     });
 
@@ -150,9 +148,7 @@ describe("POST /api/generate/stream", () => {
     expect(mockStream).toHaveBeenCalledOnce();
 
     const callArgs = mockStream.mock.calls[0]![0];
-    expect(callArgs.output_config).toEqual({
-      format: { type: "json_schema", schema },
-    });
+    expect(callArgs.output_config).toBeUndefined();
   });
 
   it("omits output_config when outputSchema is absent", async () => {

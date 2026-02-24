@@ -18,67 +18,76 @@ export function createBibleVersion(current: Bible): Bible {
 }
 
 /**
+ * Diff two collections of items by id, producing added/removed/modified diffs.
+ */
+function diffCollection<T>(
+  olderItems: T[],
+  newerItems: T[],
+  getId: (item: T) => string,
+  getLabel: (item: T) => string,
+  area: BibleDiff["area"],
+): BibleDiff[] {
+  const diffs: BibleDiff[] = [];
+  const oldIds = new Set(olderItems.map(getId));
+  const newIds = new Set(newerItems.map(getId));
+
+  for (const item of newerItems) {
+    if (!oldIds.has(getId(item))) {
+      diffs.push({ type: "added", area, description: `${getLabel(item)} added` });
+    }
+  }
+  for (const item of olderItems) {
+    if (!newIds.has(getId(item))) {
+      diffs.push({ type: "removed", area, description: `${getLabel(item)} removed` });
+    }
+  }
+  for (const newItem of newerItems) {
+    const oldItem = olderItems.find((o) => getId(o) === getId(newItem));
+    if (oldItem && JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
+      diffs.push({ type: "modified", area, description: `${getLabel(newItem)} modified` });
+    }
+  }
+  return diffs;
+}
+
+/**
  * Compute a diff between two bible versions.
  */
 export function diffBibles(older: Bible, newer: Bible): BibleDiff[] {
   const diffs: BibleDiff[] = [];
 
   // --- Characters ---
-  const oldCharIds = new Set(older.characters.map((c) => c.id));
-  const newCharIds = new Set(newer.characters.map((c) => c.id));
-
-  for (const char of newer.characters) {
-    if (!oldCharIds.has(char.id)) {
-      diffs.push({ type: "added", area: "character", description: `Character "${char.name}" added` });
-    }
-  }
-  for (const char of older.characters) {
-    if (!newCharIds.has(char.id)) {
-      diffs.push({ type: "removed", area: "character", description: `Character "${char.name}" removed` });
-    }
-  }
-  for (const newChar of newer.characters) {
-    const oldChar = older.characters.find((c) => c.id === newChar.id);
-    if (oldChar && JSON.stringify(oldChar) !== JSON.stringify(newChar)) {
-      diffs.push({ type: "modified", area: "character", description: `Character "${newChar.name}" modified` });
-    }
-  }
+  diffs.push(
+    ...diffCollection(
+      older.characters,
+      newer.characters,
+      (c) => c.id,
+      (c) => `Character "${c.name}"`,
+      "character",
+    ),
+  );
 
   // --- Locations ---
-  const oldLocIds = new Set(older.locations.map((l) => l.id));
-  const newLocIds = new Set(newer.locations.map((l) => l.id));
-
-  for (const loc of newer.locations) {
-    if (!oldLocIds.has(loc.id)) {
-      diffs.push({ type: "added", area: "location", description: `Location "${loc.name}" added` });
-    }
-  }
-  for (const loc of older.locations) {
-    if (!newLocIds.has(loc.id)) {
-      diffs.push({ type: "removed", area: "location", description: `Location "${loc.name}" removed` });
-    }
-  }
-  for (const newLoc of newer.locations) {
-    const oldLoc = older.locations.find((l) => l.id === newLoc.id);
-    if (oldLoc && JSON.stringify(oldLoc) !== JSON.stringify(newLoc)) {
-      diffs.push({ type: "modified", area: "location", description: `Location "${newLoc.name}" modified` });
-    }
-  }
+  diffs.push(
+    ...diffCollection(
+      older.locations,
+      newer.locations,
+      (l) => l.id,
+      (l) => `Location "${l.name}"`,
+      "location",
+    ),
+  );
 
   // --- Kill List ---
-  const oldKillPatterns = new Set(older.styleGuide.killList.map((k) => `${k.type}:${k.pattern}`));
-  const newKillPatterns = new Set(newer.styleGuide.killList.map((k) => `${k.type}:${k.pattern}`));
-
-  for (const k of newer.styleGuide.killList) {
-    if (!oldKillPatterns.has(`${k.type}:${k.pattern}`)) {
-      diffs.push({ type: "added", area: "kill_list", description: `Avoid list entry "${k.pattern}" added` });
-    }
-  }
-  for (const k of older.styleGuide.killList) {
-    if (!newKillPatterns.has(`${k.type}:${k.pattern}`)) {
-      diffs.push({ type: "removed", area: "kill_list", description: `Avoid list entry "${k.pattern}" removed` });
-    }
-  }
+  diffs.push(
+    ...diffCollection(
+      older.styleGuide.killList,
+      newer.styleGuide.killList,
+      (k) => `${k.type}:${k.pattern}`,
+      (k) => `Avoid list entry "${k.pattern}"`,
+      "kill_list",
+    ),
+  );
 
   // --- Style Guide (coarse-grained) ---
   const oldStyle = { ...older.styleGuide, killList: undefined };

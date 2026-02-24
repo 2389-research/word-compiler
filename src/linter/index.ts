@@ -9,51 +9,47 @@ import type {
   ScenePlan,
 } from "../types/index.js";
 
-export function lintPayload(
-  ring1: Ring1Result,
-  ring3: Ring3Result,
-  plan: ScenePlan,
-  bible: Bible,
-  config: CompilationConfig,
-  ring2TokenCount: number = 0,
-): LintResult {
-  const issues: LintIssue[] = [];
-
-  // R1_OVER_CAP
+function checkR1OverCap(ring1: Ring1Result, config: CompilationConfig): LintIssue | null {
   if (ring1.tokenCount > config.ring1HardCap) {
-    issues.push({
+    return {
       code: "R1_OVER_CAP",
       severity: "error",
       message: `Ring 1 at ${ring1.tokenCount} tokens (cap: ${config.ring1HardCap}). Remove exemplars or vocabulary preferences.`,
-    });
+    };
   }
+  return null;
+}
 
-  // R2_OVER_CAP — Ring 2 should not exceed its budget fraction
+function checkR2OverCap(ring2TokenCount: number, config: CompilationConfig): LintIssue | null {
   if (ring2TokenCount > 0) {
     const available = config.modelContextWindow - config.reservedForOutput;
     const r2Cap = Math.floor(available * config.ring2MaxFraction);
     if (ring2TokenCount > r2Cap) {
-      issues.push({
+      return {
         code: "R2_OVER_CAP",
         severity: "warning",
         message: `Ring 2 at ${ring2TokenCount} tokens (cap: ${r2Cap}). Chapter context may be too verbose.`,
-      });
+      };
     }
   }
+  return null;
+}
 
-  // R3_STARVED — check Ring 3's share of actually-used tokens, not the full window
-  const available = config.modelContextWindow - config.reservedForOutput;
+function checkR3Starved(ring1: Ring1Result, ring3: Ring3Result, ring2TokenCount: number): LintIssue | null {
   const totalUsed = ring1.tokenCount + ring2TokenCount + ring3.tokenCount;
   const r3Fraction = totalUsed > 0 ? ring3.tokenCount / totalUsed : 1;
   if (r3Fraction < 0.4) {
-    issues.push({
+    return {
       code: "R3_STARVED",
       severity: "warning",
       message: `Ring 3 only ${(r3Fraction * 100).toFixed(0)}% of used context (${ring3.tokenCount}/${totalUsed} tokens). Ring 1 may be too large.`,
-    });
+    };
   }
+  return null;
+}
 
-  // NEG_EXEMPLAR_LONG
+function checkNegExemplarLong(bible: Bible, config: CompilationConfig): LintIssue[] {
+  const issues: LintIssue[] = [];
   for (const exemplar of bible.styleGuide.negativeExemplars) {
     if (countTokens(exemplar.text) > config.maxNegativeExemplarTokens) {
       issues.push({
@@ -63,9 +59,11 @@ export function lintPayload(
       });
     }
   }
+  return issues;
+}
 
-  // MISSING_VOICE_SAMPLES
-  const speakingCharIds = Object.keys(plan.dialogueConstraints);
+function checkMissingVoiceSamples(speakingCharIds: string[], bible: Bible): LintIssue[] {
+  const issues: LintIssue[] = [];
   for (const charId of speakingCharIds) {
     const char = bible.characters.find((c) => c.id === charId);
     if (!char || char.voice.dialogueSamples.length === 0) {
@@ -76,74 +74,121 @@ export function lintPayload(
       });
     }
   }
+  return issues;
+}
 
-  // MISSING_SUBTEXT
+function checkMissingSubtext(speakingCharIds: string[], plan: ScenePlan): LintIssue | null {
   if (speakingCharIds.length >= 2 && !plan.subtext) {
-    issues.push({
+    return {
       code: "MISSING_SUBTEXT",
       severity: "warning",
       message: `Multi-character dialogue scene has no subtext contract. High ablation risk.`,
-    });
+    };
   }
+  return null;
+}
 
-  // NO_FAILURE_MODE
+function checkNoFailureMode(plan: ScenePlan): LintIssue | null {
   if (!plan.failureModeToAvoid) {
-    issues.push({
+    return {
       code: "NO_FAILURE_MODE",
       severity: "warning",
       message: `No failure mode specified. The compiler can't protect against unknown risks.`,
-    });
+    };
   }
+  return null;
+}
 
-  // POV_CHAR_MISSING
+function checkPovCharMissing(plan: ScenePlan, bible: Bible): LintIssue | null {
   const povChar = bible.characters.find((c) => c.id === plan.povCharacterId);
   if (!povChar) {
-    issues.push({
+    return {
       code: "POV_CHAR_MISSING",
       severity: "error",
       message: `POV character "${plan.povCharacterId}" not found in bible.`,
-    });
+    };
   }
+  return null;
+}
 
-  // EMPTY_KILL_LIST
+function checkEmptyKillList(bible: Bible): LintIssue | null {
   if (bible.styleGuide.killList.length === 0) {
-    issues.push({
+    return {
       code: "EMPTY_KILL_LIST",
       severity: "info",
       message: `No avoid list entries. Consider adding banned phrases for voice consistency.`,
-    });
+    };
   }
+  return null;
+}
 
-  // NO_ANCHOR_LINES
+function checkNoAnchorLines(plan: ScenePlan): LintIssue | null {
   if (plan.anchorLines.length === 0) {
-    issues.push({
+    return {
       code: "NO_ANCHOR_LINES",
       severity: "info",
       message: `No anchor lines. Human-authored lines are the strongest voice signal.`,
-    });
+    };
   }
+  return null;
+}
 
-  // MISSING_LOCATION
+function checkMissingLocation(plan: ScenePlan, bible: Bible): LintIssue | null {
   if (plan.locationId) {
     const loc = bible.locations.find((l) => l.id === plan.locationId);
     if (!loc) {
-      issues.push({
+      return {
         code: "MISSING_LOCATION",
         severity: "info",
         message: `Location "${plan.locationId}" not found in bible. Sensory palette will be absent.`,
-      });
+      };
     }
   }
+  return null;
+}
 
-  // TOTAL_OVER_BUDGET
+function checkTotalOverBudget(
+  ring1: Ring1Result,
+  ring3: Ring3Result,
+  config: CompilationConfig,
+  ring2TokenCount: number,
+): LintIssue | null {
+  const available = config.modelContextWindow - config.reservedForOutput;
   const totalTokens = ring1.tokenCount + ring2TokenCount + ring3.tokenCount;
   if (totalTokens > available) {
-    issues.push({
+    return {
       code: "TOTAL_OVER_BUDGET",
       severity: "error",
       message: `Total tokens ${totalTokens} exceeds available budget ${available}.`,
-    });
+    };
   }
+  return null;
+}
+
+export function lintPayload(
+  ring1: Ring1Result,
+  ring3: Ring3Result,
+  plan: ScenePlan,
+  bible: Bible,
+  config: CompilationConfig,
+  ring2TokenCount: number = 0,
+): LintResult {
+  const speakingCharIds = Object.keys(plan.dialogueConstraints);
+
+  const issues: LintIssue[] = [
+    checkR1OverCap(ring1, config),
+    checkR2OverCap(ring2TokenCount, config),
+    checkR3Starved(ring1, ring3, ring2TokenCount),
+    ...checkNegExemplarLong(bible, config),
+    ...checkMissingVoiceSamples(speakingCharIds, bible),
+    checkMissingSubtext(speakingCharIds, plan),
+    checkNoFailureMode(plan),
+    checkPovCharMissing(plan, bible),
+    checkEmptyKillList(bible),
+    checkNoAnchorLines(plan),
+    checkMissingLocation(plan, bible),
+    checkTotalOverBudget(ring1, ring3, config, ring2TokenCount),
+  ].filter((issue): issue is LintIssue => issue !== null);
 
   return { issues };
 }

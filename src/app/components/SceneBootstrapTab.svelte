@@ -85,6 +85,129 @@ function toggleLocation(id: string) {
   }
 }
 
+/** Normalize a partial reader state to a full reader state with array defaults */
+function normalizeReaderState(raw?: {
+  knows?: string[];
+  suspects?: string[];
+  wrongAbout?: string[];
+  activeTensions?: string[];
+}) {
+  return {
+    knows: raw?.knows ?? [],
+    suspects: raw?.suspects ?? [],
+    wrongAbout: raw?.wrongAbout ?? [],
+    activeTensions: raw?.activeTensions ?? [],
+  };
+}
+
+/** Build a ChapterArc from parsed bootstrap response, or return null */
+function buildChapterArcFromParsed(parsed: ReturnType<typeof parseSceneBootstrapResponse>): ChapterArc | null {
+  if ("error" in parsed || !parsed.chapterArc) return null;
+  const arcBase = createEmptyChapterArc(store.project?.id ?? "");
+  return {
+    ...arcBase,
+    workingTitle: parsed.chapterArc.workingTitle || "",
+    narrativeFunction: parsed.chapterArc.narrativeFunction || "",
+    dominantRegister: parsed.chapterArc.dominantRegister || "",
+    pacingTarget: parsed.chapterArc.pacingTarget || "",
+    endingPosture: parsed.chapterArc.endingPosture || "",
+    readerStateEntering: normalizeReaderState(parsed.chapterArc.readerStateEntering),
+    readerStateExiting: normalizeReaderState(parsed.chapterArc.readerStateExiting),
+  };
+}
+
+function gatherBootstrapContext() {
+  const chars = bibleCharacters
+    .filter((c) => selectedCharIds.includes(c.id))
+    .map((c) => ({ id: c.id, name: c.name, role: c.role }));
+  const locs = bibleLocations.filter((l) => selectedLocIds.includes(l.id)).map((l) => ({ id: l.id, name: l.name }));
+
+  const existingScenes = store.scenes.map((s) => ({
+    title: s.plan.title,
+    povCharacterName: bibleCharacters.find((c) => c.id === s.plan.povCharacterId)?.name ?? "",
+    povDistance: s.plan.povDistance,
+    narrativeGoal: s.plan.narrativeGoal,
+    emotionalBeat: s.plan.emotionalBeat,
+    readerStateExiting: s.plan.readerStateExiting,
+  }));
+
+  const chapterArc = store.chapterArc
+    ? {
+        workingTitle: store.chapterArc.workingTitle,
+        narrativeFunction: store.chapterArc.narrativeFunction,
+        dominantRegister: store.chapterArc.dominantRegister,
+        pacingTarget: store.chapterArc.pacingTarget,
+        endingPosture: store.chapterArc.endingPosture,
+      }
+    : undefined;
+
+  const narrativeRules = store.bible?.narrativeRules
+    ? {
+        pov: store.bible.narrativeRules.pov,
+        subtextPolicy: store.bible.narrativeRules.subtextPolicy,
+        expositionPolicy: store.bible.narrativeRules.expositionPolicy,
+        sceneEndingPolicy: store.bible.narrativeRules.sceneEndingPolicy,
+      }
+    : undefined;
+
+  const activeSetups: BootstrapActiveSetup[] = (store.bible?.narrativeRules?.setups ?? [])
+    .filter((s) => s.status === "planned" || s.status === "planted")
+    .map((s) => ({ description: s.description, status: s.status }));
+
+  const characterDossiers: BootstrapCharacterDossier[] = bibleCharacters
+    .filter((c) => selectedCharIds.includes(c.id))
+    .map((c) => ({
+      name: c.name,
+      role: c.role,
+      backstory: c.backstory,
+      contradictions: c.contradictions,
+      voice: {
+        vocabularyNotes: c.voice.vocabularyNotes,
+        verbalTics: c.voice.verbalTics,
+        prohibitedLanguage: c.voice.prohibitedLanguage,
+        metaphoricRegister: c.voice.metaphoricRegister,
+      },
+      behavior: c.behavior
+        ? {
+            stressResponse: c.behavior.stressResponse,
+            noticesFirst: c.behavior.noticesFirst,
+            emotionPhysicality: c.behavior.emotionPhysicality,
+          }
+        : null,
+    }));
+
+  const locationDetails: BootstrapLocationDetail[] = bibleLocations
+    .filter((l) => selectedLocIds.includes(l.id))
+    .map((l) => ({
+      name: l.name,
+      description: l.description,
+      atmosphere: l.sensoryPalette?.atmosphere ?? null,
+      sounds: l.sensoryPalette?.sounds ?? [],
+      smells: l.sensoryPalette?.smells ?? [],
+      prohibitedDefaults: l.sensoryPalette?.prohibitedDefaults ?? [],
+    }));
+
+  const killList = (store.bible?.styleGuide?.killList ?? []).map((k) => k.pattern);
+  const structuralBans = store.bible?.styleGuide?.structuralBans ?? [];
+
+  return buildSceneBootstrapPrompt({
+    direction: direction.trim(),
+    sceneCount,
+    characters: chars,
+    locations: locs,
+    constraints: constraints.trim() || undefined,
+    includeChapterArc,
+    existingScenes: existingScenes.length > 0 ? existingScenes : undefined,
+    chapterArc,
+    narrativeRules,
+    activeSetups: activeSetups.length > 0 ? activeSetups : undefined,
+    characterDossiers: characterDossiers.length > 0 ? characterDossiers : undefined,
+    locationDetails: locationDetails.length > 0 ? locationDetails : undefined,
+    killList: killList.length > 0 ? killList : undefined,
+    structuralBans: structuralBans.length > 0 ? structuralBans : undefined,
+  });
+}
+
 async function handleGenerate() {
   if (!direction.trim()) return;
 
@@ -103,96 +226,7 @@ async function handleGenerate() {
 
   try {
     status = "Building prompt...";
-    const chars = bibleCharacters
-      .filter((c) => selectedCharIds.includes(c.id))
-      .map((c) => ({ id: c.id, name: c.name, role: c.role }));
-    const locs = bibleLocations.filter((l) => selectedLocIds.includes(l.id)).map((l) => ({ id: l.id, name: l.name }));
-
-    // Gather rich context from store
-    const existingScenes = store.scenes.map((s) => ({
-      title: s.plan.title,
-      povCharacterName: bibleCharacters.find((c) => c.id === s.plan.povCharacterId)?.name ?? "",
-      povDistance: s.plan.povDistance,
-      narrativeGoal: s.plan.narrativeGoal,
-      emotionalBeat: s.plan.emotionalBeat,
-      readerStateExiting: s.plan.readerStateExiting,
-    }));
-
-    const chapterArc = store.chapterArc
-      ? {
-          workingTitle: store.chapterArc.workingTitle,
-          narrativeFunction: store.chapterArc.narrativeFunction,
-          dominantRegister: store.chapterArc.dominantRegister,
-          pacingTarget: store.chapterArc.pacingTarget,
-          endingPosture: store.chapterArc.endingPosture,
-        }
-      : undefined;
-
-    const narrativeRules = store.bible?.narrativeRules
-      ? {
-          pov: store.bible.narrativeRules.pov,
-          subtextPolicy: store.bible.narrativeRules.subtextPolicy,
-          expositionPolicy: store.bible.narrativeRules.expositionPolicy,
-          sceneEndingPolicy: store.bible.narrativeRules.sceneEndingPolicy,
-        }
-      : undefined;
-
-    const activeSetups: BootstrapActiveSetup[] = (store.bible?.narrativeRules?.setups ?? [])
-      .filter((s) => s.status === "planned" || s.status === "planted")
-      .map((s) => ({ description: s.description, status: s.status }));
-
-    const characterDossiers: BootstrapCharacterDossier[] = bibleCharacters
-      .filter((c) => selectedCharIds.includes(c.id))
-      .map((c) => ({
-        name: c.name,
-        role: c.role,
-        backstory: c.backstory,
-        contradictions: c.contradictions,
-        voice: {
-          vocabularyNotes: c.voice.vocabularyNotes,
-          verbalTics: c.voice.verbalTics,
-          prohibitedLanguage: c.voice.prohibitedLanguage,
-          metaphoricRegister: c.voice.metaphoricRegister,
-        },
-        behavior: c.behavior
-          ? {
-              stressResponse: c.behavior.stressResponse,
-              noticesFirst: c.behavior.noticesFirst,
-              emotionPhysicality: c.behavior.emotionPhysicality,
-            }
-          : null,
-      }));
-
-    const locationDetails: BootstrapLocationDetail[] = bibleLocations
-      .filter((l) => selectedLocIds.includes(l.id))
-      .map((l) => ({
-        name: l.name,
-        description: l.description,
-        atmosphere: l.sensoryPalette?.atmosphere ?? null,
-        sounds: l.sensoryPalette?.sounds ?? [],
-        smells: l.sensoryPalette?.smells ?? [],
-        prohibitedDefaults: l.sensoryPalette?.prohibitedDefaults ?? [],
-      }));
-
-    const killList = (store.bible?.styleGuide?.killList ?? []).map((k) => k.pattern);
-    const structuralBans = store.bible?.styleGuide?.structuralBans ?? [];
-
-    const payload = buildSceneBootstrapPrompt({
-      direction: direction.trim(),
-      sceneCount,
-      characters: chars,
-      locations: locs,
-      constraints: constraints.trim() || undefined,
-      includeChapterArc,
-      existingScenes: existingScenes.length > 0 ? existingScenes : undefined,
-      chapterArc,
-      narrativeRules,
-      activeSetups: activeSetups.length > 0 ? activeSetups : undefined,
-      characterDossiers: characterDossiers.length > 0 ? characterDossiers : undefined,
-      locationDetails: locationDetails.length > 0 ? locationDetails : undefined,
-      killList: killList.length > 0 ? killList : undefined,
-      structuralBans: structuralBans.length > 0 ? structuralBans : undefined,
-    });
+    const payload = gatherBootstrapContext();
 
     status = "Streaming from LLM...";
     let fullText = "";
@@ -226,30 +260,7 @@ async function handleGenerate() {
     );
 
     generatedPlans = plans;
-
-    if (parsed.chapterArc) {
-      const arcBase = createEmptyChapterArc(store.project?.id ?? "");
-      generatedArc = {
-        ...arcBase,
-        workingTitle: parsed.chapterArc.workingTitle || "",
-        narrativeFunction: parsed.chapterArc.narrativeFunction || "",
-        dominantRegister: parsed.chapterArc.dominantRegister || "",
-        pacingTarget: parsed.chapterArc.pacingTarget || "",
-        endingPosture: parsed.chapterArc.endingPosture || "",
-        readerStateEntering: {
-          knows: parsed.chapterArc.readerStateEntering?.knows ?? [],
-          suspects: parsed.chapterArc.readerStateEntering?.suspects ?? [],
-          wrongAbout: parsed.chapterArc.readerStateEntering?.wrongAbout ?? [],
-          activeTensions: parsed.chapterArc.readerStateEntering?.activeTensions ?? [],
-        },
-        readerStateExiting: {
-          knows: parsed.chapterArc.readerStateExiting?.knows ?? [],
-          suspects: parsed.chapterArc.readerStateExiting?.suspects ?? [],
-          wrongAbout: parsed.chapterArc.readerStateExiting?.wrongAbout ?? [],
-          activeTensions: parsed.chapterArc.readerStateExiting?.activeTensions ?? [],
-        },
-      };
-    }
+    generatedArc = buildChapterArcFromParsed(parsed);
 
     status = "Done!";
     loading = false;

@@ -18,6 +18,7 @@ import CompilerView from "./components/CompilerView.svelte";
 import DraftingDesk from "./components/DraftingDesk.svelte";
 import ExportModal from "./components/ExportModal.svelte";
 import ForwardSimulator from "./components/ForwardSimulator.svelte";
+import GlossaryPanel from "./components/GlossaryPanel.svelte";
 import IRInspector from "./components/IRInspector.svelte";
 import LearnerPanel from "./components/LearnerPanel.svelte";
 import ProjectList from "./components/ProjectList.svelte";
@@ -626,6 +627,7 @@ function exportState() {
   <BibleAuthoringModal {store} {commands} />
   <SceneAuthoringModal {store} {commands} />
   <ExportModal open={exportModalOpen} onClose={() => { exportModalOpen = false; }} {store} />
+  <GlossaryPanel />
 
   {#if showArcEditor && store.chapterArc}
     <ChapterArcEditor arc={store.chapterArc} {store} {commands} onClose={() => { showArcEditor = false; }} />

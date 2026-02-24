@@ -85,6 +85,52 @@ export function generateProposals(promotedGroups: PatternGroup[], projectId: str
 
 // ─── Proposal Application ────────────────────────
 
+function applyKillListProposal(bible: Bible, proposal: BibleProposal): void {
+  const entry = { pattern: proposal.action.value, type: "exact" as const };
+  if (!bible.styleGuide.killList.some((k) => k.pattern === entry.pattern)) {
+    bible.styleGuide.killList.push(entry);
+  }
+}
+
+function applyStyleGuideProposal(bible: Bible, proposal: BibleProposal): void {
+  if (proposal.action.target === "suggestedTone.exemplars") {
+    bible.styleGuide.negativeExemplars.push({
+      text: proposal.action.value,
+      annotation: `Auto-learned: avoid this pattern (${proposal.patternType})`,
+    });
+  } else if (proposal.action.target === "suggestedTone.metaphoricDomains") {
+    if (!bible.styleGuide.metaphoricRegister) {
+      bible.styleGuide.metaphoricRegister = { approvedDomains: [], prohibitedDomains: [] };
+    }
+    const domains = bible.styleGuide.metaphoricRegister.prohibitedDomains;
+    if (!domains.includes(proposal.action.value)) {
+      domains.push(proposal.action.value);
+    }
+  }
+}
+
+function applyCharacterProposal(bible: Bible, proposal: BibleProposal): void {
+  if (bible.characters.length > 0) {
+    const char = bible.characters[0]!;
+    if (!char.voice.vocabularyNotes) {
+      char.voice.vocabularyNotes = proposal.action.value;
+    } else {
+      char.voice.vocabularyNotes += `; ${proposal.action.value}`;
+    }
+  }
+}
+
+function applyLocationProposal(bible: Bible, proposal: BibleProposal): void {
+  if (bible.locations.length > 0) {
+    const loc = bible.locations[0]!;
+    if (!loc.sensoryPalette.atmosphere) {
+      loc.sensoryPalette.atmosphere = proposal.action.value;
+    } else {
+      loc.sensoryPalette.atmosphere += `; ${proposal.action.value}`;
+    }
+  }
+}
+
 /**
  * Apply an accepted proposal to a bible, returning the modified bible.
  * Does not mutate the original.
@@ -93,58 +139,18 @@ export function applyProposal(bible: Bible, proposal: BibleProposal): Bible {
   const updated = structuredClone(bible);
 
   switch (proposal.action.section) {
-    case "killList": {
-      const entry = { pattern: proposal.action.value, type: "exact" as const };
-      if (!updated.styleGuide.killList.some((k) => k.pattern === entry.pattern)) {
-        updated.styleGuide.killList.push(entry);
-      }
+    case "killList":
+      applyKillListProposal(updated, proposal);
       break;
-    }
-
-    case "styleGuide": {
-      if (proposal.action.target === "suggestedTone.exemplars") {
-        updated.styleGuide.negativeExemplars.push({
-          text: proposal.action.value,
-          annotation: `Auto-learned: avoid this pattern (${proposal.patternType})`,
-        });
-      } else if (proposal.action.target === "suggestedTone.metaphoricDomains") {
-        if (!updated.styleGuide.metaphoricRegister) {
-          updated.styleGuide.metaphoricRegister = { approvedDomains: [], prohibitedDomains: [] };
-        }
-        const domains = updated.styleGuide.metaphoricRegister.prohibitedDomains;
-        if (!domains.includes(proposal.action.value)) {
-          domains.push(proposal.action.value);
-        }
-      }
+    case "styleGuide":
+      applyStyleGuideProposal(updated, proposal);
       break;
-    }
-
-    case "characters": {
-      // For character-level proposals, annotate the first character's voice
-      if (updated.characters.length > 0) {
-        const char = updated.characters[0]!;
-        if (!char.voice.vocabularyNotes) {
-          char.voice.vocabularyNotes = proposal.action.value;
-        } else {
-          char.voice.vocabularyNotes += `; ${proposal.action.value}`;
-        }
-      }
+    case "characters":
+      applyCharacterProposal(updated, proposal);
       break;
-    }
-
-    case "locations": {
-      // For location sensory proposals, add to first location if available
-      if (updated.locations.length > 0) {
-        const loc = updated.locations[0]!;
-        if (!loc.sensoryPalette.atmosphere) {
-          loc.sensoryPalette.atmosphere = proposal.action.value;
-        } else {
-          loc.sensoryPalette.atmosphere += `; ${proposal.action.value}`;
-        }
-      }
+    case "locations":
+      applyLocationProposal(updated, proposal);
       break;
-    }
-
     case "compilationNotes":
     case "narrativeRules":
       // These are informational — no direct bible modification

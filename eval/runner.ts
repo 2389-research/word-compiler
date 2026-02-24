@@ -3,6 +3,7 @@ import { computeMetrics } from "../src/auditor/index.js";
 import {
   type Bible,
   type ChapterArc,
+  type CompilationConfig,
   createDefaultCompilationConfig,
   createEmptyBible,
   createEmptyChapterArc,
@@ -26,9 +27,10 @@ import {
   evaluateToneWhiplash,
   evaluateVoice,
 } from "./checks/judge.js";
+import type { DriverResult } from "./driver.js";
 import { type GenerateFn, runChapterWorkflow } from "./driver.js";
 import { generateReport } from "./report.js";
-import type { CheckResult, EvalRunArtifact, JudgeScore, RunnerOptions } from "./types.js";
+import type { CheckResult, EvalRunArtifact, EvalSceneResult, JudgeScore, RunnerOptions } from "./types.js";
 
 // ─── Default Fixtures ───────────────────────────────────
 
@@ -343,6 +345,144 @@ function createRealGenerateFn(client: Anthropic, model: string): GenerateFn {
   };
 }
 
+// ─── Extracted Helpers ──────────────────────────────────
+
+function runDeterministicChecks(
+  driverResult: DriverResult,
+  plans: ScenePlan[],
+  bible: Bible,
+  config: CompilationConfig,
+  mock: boolean,
+): CheckResult[] {
+  const allDetChecks: CheckResult[] = [];
+
+  for (let i = 0; i < driverResult.scenes.length; i++) {
+    const scene = driverResult.scenes[i]!;
+    const plan = plans[i]!;
+    const sceneProse = scene.chunks.map((c) => c.generatedText).join("\n\n");
+    const character = bible.characters.find((c) => c.id === plan.povCharacterId);
+    const metrics = computeMetrics(sceneProse);
+
+    const inputs: DeterministicCheckInputs = {
+      prose: sceneProse,
+      sceneId: scene.sceneId,
+      bible,
+      plan,
+      character,
+      log: scene.compilationLog,
+      lintResult: scene.lintResult,
+      config,
+      metrics,
+    };
+
+    allDetChecks.push(...runAllDeterministicChecks(inputs));
+  }
+
+  // Run IR-level checks using mock fixtures (simulates post-extraction state)
+  const mockIRs = mock ? defaultMockIRs() : [];
+  const irMap = new Map<string, NarrativeIR>(mockIRs.map((ir) => [ir.sceneId, ir]));
+  const completedSceneIds = driverResult.scenes.map((s) => s.sceneId);
+  allDetChecks.push(checkIRCompleteness(completedSceneIds, irMap));
+  allDetChecks.push(checkSetupPayoffClosure(mockIRs, bible, completedSceneIds[completedSceneIds.length - 1] ?? ""));
+
+  return allDetChecks;
+}
+
+async function runJudgeEvaluations(
+  driverResult: DriverResult,
+  plans: ScenePlan[],
+  bible: Bible,
+  client: Anthropic,
+  judgeModel: string,
+): Promise<JudgeScore[]> {
+  const judgeScores: JudgeScore[] = [];
+
+  for (let i = 0; i < driverResult.scenes.length; i++) {
+    const scene = driverResult.scenes[i]!;
+    const plan = plans[i]!;
+    const sceneProse = scene.chunks.map((c) => c.generatedText).join("\n\n");
+    const character = bible.characters.find((c) => c.id === plan.povCharacterId);
+
+    if (character) {
+      const voice = await evaluateVoice(sceneProse, character, client, judgeModel);
+      judgeScores.push(voice);
+    }
+
+    const goal = await evaluateSceneGoal(sceneProse, plan, client, judgeModel);
+    judgeScores.push(goal);
+
+    const subtext = await evaluateSubtext(sceneProse, plan, client, judgeModel);
+    if (subtext) judgeScores.push(subtext);
+
+    const metaphor = await evaluateMetaphoricRegister(sceneProse, bible, client, judgeModel);
+    if (metaphor) judgeScores.push(metaphor);
+
+    if (i > 0) {
+      const prevScene = driverResult.scenes[i - 1]!;
+      const prevEnd = prevScene.chunks[prevScene.chunks.length - 1]!.generatedText;
+      const currStart = scene.chunks[0]!.generatedText;
+
+      const tone = await evaluateToneWhiplash(prevEnd, currStart, client, judgeModel);
+      judgeScores.push(tone);
+
+      const cont = await evaluateContinuity(prevEnd, currStart, client, judgeModel);
+      judgeScores.push(cont);
+    }
+  }
+
+  return judgeScores;
+}
+
+function computeAggregates(
+  judgeScores: JudgeScore[],
+  detChecks: CheckResult[],
+): { voiceAvg: number; contAvg: number; overallPass: boolean } {
+  const voiceScores = judgeScores.filter((s) => s.dimension === "voice_consistency");
+  const voiceAvg = voiceScores.length > 0 ? voiceScores.reduce((sum, s) => sum + s.score, 0) / voiceScores.length : 0;
+
+  const contScores = judgeScores.filter((s) => s.dimension === "continuity");
+  const contAvg = contScores.length > 0 ? contScores.reduce((sum, s) => sum + s.score, 0) / contScores.length : 0;
+
+  const detAllPass = detChecks.every((c) => c.passed);
+  const judgeAllPass = judgeScores.length === 0 || judgeScores.every((s) => s.passed);
+  const overallPass = detAllPass && judgeAllPass;
+
+  return { voiceAvg, contAvg, overallPass };
+}
+
+function buildAndSaveArtifact(
+  scenes: EvalSceneResult[],
+  detChecks: CheckResult[],
+  judgeScores: JudgeScore[],
+  aggregates: { voiceAvg: number; contAvg: number; overallPass: boolean },
+  bible: Bible,
+  plans: ScenePlan[],
+  arc: ChapterArc,
+  config: CompilationConfig,
+  options: RunnerOptions,
+): { artifact: EvalRunArtifact; artifactPath: string } {
+  const artifact: EvalRunArtifact = {
+    runId: generateId(),
+    timestamp: new Date().toISOString(),
+    bibleVersion: bible.version,
+    scenePlanIds: plans.map((p) => p.id),
+    chapterArcId: arc.id,
+    generatorModel: options.generatorModel,
+    judgeModel: options.judgeModel,
+    config,
+    scenes,
+    deterministicChecks: detChecks,
+    judgeScores,
+    overallPass: aggregates.overallPass,
+    voiceConsistencyScore: aggregates.voiceAvg,
+    continuityScore: aggregates.contAvg,
+    cost: { generatorInputTokens: 0, generatorOutputTokens: 0, judgeInputTokens: 0, judgeOutputTokens: 0 },
+  };
+
+  const artifactPath = saveArtifact(artifact, options.artifactDir);
+  return { artifact, artifactPath };
+}
+
 // ─── Main Runner ────────────────────────────────────────
 
 async function runEval(options: RunnerOptions): Promise<void> {
@@ -366,7 +506,6 @@ async function runEval(options: RunnerOptions): Promise<void> {
 
     const generateFn = options.mock ? createMockGenerateFn() : createRealGenerateFn(client!, options.generatorModel);
 
-    // Run the chapter workflow
     const driverResult = await runChapterWorkflow(bible, arc, plans, {
       generateFn,
       config,
@@ -375,113 +514,27 @@ async function runEval(options: RunnerOptions): Promise<void> {
       },
     });
 
-    // Run deterministic checks per scene
-    const allDetChecks: CheckResult[] = [];
-    for (let i = 0; i < driverResult.scenes.length; i++) {
-      const scene = driverResult.scenes[i]!;
-      const plan = plans[i]!;
-      const sceneProse = scene.chunks.map((c) => c.generatedText).join("\n\n");
-      const character = bible.characters.find((c) => c.id === plan.povCharacterId);
-      const metrics = computeMetrics(sceneProse);
+    const allDetChecks = runDeterministicChecks(driverResult, plans, bible, config, options.mock);
 
-      const inputs: DeterministicCheckInputs = {
-        prose: sceneProse,
-        sceneId: scene.sceneId,
-        bible,
-        plan,
-        character,
-        log: scene.compilationLog,
-        lintResult: scene.lintResult,
-        config,
-        metrics,
-      };
-
-      allDetChecks.push(...runAllDeterministicChecks(inputs));
-    }
-
-    // Run IR-level checks using mock fixtures (simulates post-extraction state)
-    const mockIRs = options.mock ? defaultMockIRs() : [];
-    const irMap = new Map<string, NarrativeIR>(mockIRs.map((ir) => [ir.sceneId, ir]));
-    const completedSceneIds = driverResult.scenes.map((s) => s.sceneId);
-    allDetChecks.push(checkIRCompleteness(completedSceneIds, irMap));
-    allDetChecks.push(checkSetupPayoffClosure(mockIRs, bible, completedSceneIds[completedSceneIds.length - 1] ?? ""));
-
-    // Run judge evaluations (skip in mock mode)
     const judgeScores: JudgeScore[] = [];
     if (!options.mock && client) {
       console.log("  Running judge evaluations...");
-
-      for (let i = 0; i < driverResult.scenes.length; i++) {
-        const scene = driverResult.scenes[i]!;
-        const plan = plans[i]!;
-        const sceneProse = scene.chunks.map((c) => c.generatedText).join("\n\n");
-        const character = bible.characters.find((c) => c.id === plan.povCharacterId);
-
-        // Voice consistency
-        if (character) {
-          const voice = await evaluateVoice(sceneProse, character, client, options.judgeModel);
-          judgeScores.push(voice);
-        }
-
-        // Scene goal
-        const goal = await evaluateSceneGoal(sceneProse, plan, client, options.judgeModel);
-        judgeScores.push(goal);
-
-        // Subtext
-        const subtext = await evaluateSubtext(sceneProse, plan, client, options.judgeModel);
-        if (subtext) judgeScores.push(subtext);
-
-        // Metaphoric register
-        const metaphor = await evaluateMetaphoricRegister(sceneProse, bible, client, options.judgeModel);
-        if (metaphor) judgeScores.push(metaphor);
-
-        // Cross-scene checks (tone whiplash + continuity)
-        if (i > 0) {
-          const prevScene = driverResult.scenes[i - 1]!;
-          const prevEnd = prevScene.chunks[prevScene.chunks.length - 1]!.generatedText;
-          const currStart = scene.chunks[0]!.generatedText;
-
-          const tone = await evaluateToneWhiplash(prevEnd, currStart, client, options.judgeModel);
-          judgeScores.push(tone);
-
-          const cont = await evaluateContinuity(prevEnd, currStart, client, options.judgeModel);
-          judgeScores.push(cont);
-        }
-      }
+      judgeScores.push(...(await runJudgeEvaluations(driverResult, plans, bible, client, options.judgeModel)));
     }
 
-    // Compute aggregates
-    const voiceScores = judgeScores.filter((s) => s.dimension === "voice_consistency");
-    const voiceAvg = voiceScores.length > 0 ? voiceScores.reduce((sum, s) => sum + s.score, 0) / voiceScores.length : 0;
-
-    const contScores = judgeScores.filter((s) => s.dimension === "continuity");
-    const contAvg = contScores.length > 0 ? contScores.reduce((sum, s) => sum + s.score, 0) / contScores.length : 0;
-
-    const detAllPass = allDetChecks.every((c) => c.passed);
-    const judgeAllPass = judgeScores.length === 0 || judgeScores.every((s) => s.passed);
-    const overallPass = detAllPass && judgeAllPass;
-
-    // Build artifact
-    const artifact: EvalRunArtifact = {
-      runId: generateId(),
-      timestamp: new Date().toISOString(),
-      bibleVersion: bible.version,
-      scenePlanIds: plans.map((p) => p.id),
-      chapterArcId: arc.id,
-      generatorModel: options.generatorModel,
-      judgeModel: options.judgeModel,
-      config,
-      scenes: driverResult.scenes,
-      deterministicChecks: allDetChecks,
+    const aggregates = computeAggregates(judgeScores, allDetChecks);
+    const { artifact, artifactPath } = buildAndSaveArtifact(
+      driverResult.scenes,
+      allDetChecks,
       judgeScores,
-      overallPass,
-      voiceConsistencyScore: voiceAvg,
-      continuityScore: contAvg,
-      cost: { generatorInputTokens: 0, generatorOutputTokens: 0, judgeInputTokens: 0, judgeOutputTokens: 0 },
-    };
+      aggregates,
+      bible,
+      plans,
+      arc,
+      config,
+      options,
+    );
 
-    // Save and report
-    const artifactPath = saveArtifact(artifact, options.artifactDir);
     const report = generateReport(artifact);
 
     console.log(`\n${report.summary}`);

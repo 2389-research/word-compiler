@@ -17,6 +17,89 @@ import {
   formatSensoryPalette,
 } from "./helpers.js";
 
+function buildVoiceFingerprints(speakingCharIds: string[], bible: Bible, plan: ScenePlan): RingSection[] {
+  const sections: RingSection[] = [];
+  for (const charId of speakingCharIds) {
+    const char = bible.characters.find((c) => c.id === charId);
+    if (!char) continue; // Silently skip — linter catches missing chars
+
+    const constraints = plan.dialogueConstraints[charId] ?? [];
+    sections.push({
+      name: `VOICE_${char.name.toUpperCase()}`,
+      text: formatCharacterVoice(char, constraints),
+      priority: 0,
+      immune: true,
+    });
+  }
+  return sections;
+}
+
+function buildContinuityBridge(previousChunks: Chunk[], config: CompilationConfig): RingSection | null {
+  if (previousChunks.length === 0) return null;
+  const lastChunk = previousChunks[previousChunks.length - 1]!;
+  const canonText = getCanonicalText(lastChunk);
+  const verbatim = lastNTokens(canonText, config.bridgeVerbatimTokens);
+  return {
+    name: "CONTINUITY_BRIDGE",
+    text: `=== PRECEDING TEXT (continue directly from this point — do not repeat any of it) ===\n${verbatim}`,
+    priority: 3,
+    immune: false,
+  };
+}
+
+function buildCrossSceneBridge(
+  previousSceneLastChunk: Chunk,
+  previousSceneIR: NarrativeIR | undefined,
+  config: CompilationConfig,
+): RingSection[] {
+  const sections: RingSection[] = [];
+
+  const canonText = getCanonicalText(previousSceneLastChunk);
+  const verbatim = lastNTokens(canonText, config.bridgeVerbatimTokens);
+  sections.push({
+    name: "CONTINUITY_BRIDGE",
+    text: `=== PRECEDING TEXT (previous scene — match rhythm and continuity) ===\n${verbatim}`,
+    priority: 3,
+    immune: false,
+  });
+
+  // Part B: IR state bullets (when verified IR is available for the previous scene)
+  if (previousSceneIR?.verified && config.bridgeIncludeStateBullets) {
+    const stateParts: string[] = [];
+    if (previousSceneIR.unresolvedTensions.length > 0) {
+      stateParts.push(`Unresolved tensions:\n${previousSceneIR.unresolvedTensions.map((t) => `  - ${t}`).join("\n")}`);
+    }
+    const positionEntries = Object.entries(previousSceneIR.characterPositions);
+    if (positionEntries.length > 0) {
+      stateParts.push(
+        `Character positions:\n${positionEntries.map(([name, pos]) => `  - ${name}: ${pos}`).join("\n")}`,
+      );
+    }
+    if (stateParts.length > 0) {
+      sections.push({
+        name: "CONTINUITY_BRIDGE_STATE",
+        text: `=== STATE AT SCENE ENTRY ===\n${stateParts.join("\n")}`,
+        priority: 3,
+        immune: false,
+      });
+    }
+  }
+
+  return sections;
+}
+
+function buildMicroDirective(previousChunks: Chunk[]): RingSection | null {
+  if (previousChunks.length === 0) return null;
+  const lastChunk = previousChunks[previousChunks.length - 1]!;
+  if (!lastChunk.humanNotes) return null;
+  return {
+    name: "MICRO_DIRECTIVE",
+    text: `=== DIRECTION FOR THIS SECTION ===\n${lastChunk.humanNotes}`,
+    priority: 0,
+    immune: true,
+  };
+}
+
 export function buildRing3(
   plan: ScenePlan,
   bible: Bible,
@@ -42,19 +125,7 @@ export function buildRing3(
   if (!speakingCharIds.includes(plan.povCharacterId)) {
     speakingCharIds.unshift(plan.povCharacterId);
   }
-
-  for (const charId of speakingCharIds) {
-    const char = bible.characters.find((c) => c.id === charId);
-    if (!char) continue; // Silently skip — linter catches missing chars
-
-    const constraints = plan.dialogueConstraints[charId] ?? [];
-    sections.push({
-      name: `VOICE_${char.name.toUpperCase()}`,
-      text: formatCharacterVoice(char, constraints),
-      priority: 0,
-      immune: true,
-    });
-  }
+  sections.push(...buildVoiceFingerprints(speakingCharIds, bible, plan));
 
   // --- Sensory Palette (compressible) ---
   if (plan.locationId) {
@@ -90,51 +161,11 @@ export function buildRing3(
   }
 
   // --- Continuity Bridge (compressible) ---
-  if (previousChunks.length > 0) {
-    const lastChunk = previousChunks[previousChunks.length - 1]!;
-    const canonText = getCanonicalText(lastChunk);
-
-    const verbatim = lastNTokens(canonText, config.bridgeVerbatimTokens);
-    sections.push({
-      name: "CONTINUITY_BRIDGE",
-      text: `=== PRECEDING TEXT (continue directly from this point — do not repeat any of it) ===\n${verbatim}`,
-      priority: 3,
-      immune: false,
-    });
+  const withinSceneBridge = buildContinuityBridge(previousChunks, config);
+  if (withinSceneBridge) {
+    sections.push(withinSceneBridge);
   } else if (previousSceneLastChunk) {
-    // Cross-scene bridge: first chunk of new scene carries text from last chunk of previous scene
-    const canonText = getCanonicalText(previousSceneLastChunk);
-    const verbatim = lastNTokens(canonText, config.bridgeVerbatimTokens);
-    sections.push({
-      name: "CONTINUITY_BRIDGE",
-      text: `=== PRECEDING TEXT (previous scene — match rhythm and continuity) ===\n${verbatim}`,
-      priority: 3,
-      immune: false,
-    });
-
-    // Part B: IR state bullets (when verified IR is available for the previous scene)
-    if (previousSceneIR?.verified && config.bridgeIncludeStateBullets) {
-      const stateParts: string[] = [];
-      if (previousSceneIR.unresolvedTensions.length > 0) {
-        stateParts.push(
-          `Unresolved tensions:\n${previousSceneIR.unresolvedTensions.map((t) => `  - ${t}`).join("\n")}`,
-        );
-      }
-      const positionEntries = Object.entries(previousSceneIR.characterPositions);
-      if (positionEntries.length > 0) {
-        stateParts.push(
-          `Character positions:\n${positionEntries.map(([name, pos]) => `  - ${name}: ${pos}`).join("\n")}`,
-        );
-      }
-      if (stateParts.length > 0) {
-        sections.push({
-          name: "CONTINUITY_BRIDGE_STATE",
-          text: `=== STATE AT SCENE ENTRY ===\n${stateParts.join("\n")}`,
-          priority: 3,
-          immune: false,
-        });
-      }
-    }
+    sections.push(...buildCrossSceneBridge(previousSceneLastChunk, previousSceneIR, config));
   }
 
   // --- Anti-Ablation (immune) ---
@@ -146,17 +177,8 @@ export function buildRing3(
   });
 
   // --- Micro-Directive from previous chunk human notes ---
-  if (previousChunks.length > 0) {
-    const lastChunk = previousChunks[previousChunks.length - 1]!;
-    if (lastChunk.humanNotes) {
-      sections.push({
-        name: "MICRO_DIRECTIVE",
-        text: `=== DIRECTION FOR THIS SECTION ===\n${lastChunk.humanNotes}`,
-        priority: 0,
-        immune: true,
-      });
-    }
-  }
+  const directive = buildMicroDirective(previousChunks);
+  if (directive) sections.push(directive);
 
   const text = assembleSections(sections);
 

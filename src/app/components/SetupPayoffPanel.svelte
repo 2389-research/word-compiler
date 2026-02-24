@@ -18,34 +18,43 @@ interface SetupEntry {
   paidOffInScene: string | null;
 }
 
-let entries = $derived.by((): SetupEntry[] => {
-  const setups: SetupEntry[] = [];
-  // Map payoff text → sceneId (only keep earliest payoff per text)
+/** Build a map from lowercased payoff text to the earliest scene that executes it */
+function buildPayoffMap(irs: Record<string, NarrativeIR>, orders: Record<string, number>): Map<string, string> {
   const payoffSet = new Map<string, string>();
-
-  for (const [sceneId, ir] of Object.entries(sceneIRs)) {
+  for (const [sceneId, ir] of Object.entries(irs)) {
     if (!ir.verified) continue;
     for (const payoff of ir.payoffsExecuted) {
       const key = payoff.toLowerCase();
       const existing = payoffSet.get(key);
-      if (!existing || (sceneOrders[sceneId] ?? 0) < (sceneOrders[existing] ?? 0)) {
+      if (!existing || (orders[sceneId] ?? 0) < (orders[existing] ?? 0)) {
         payoffSet.set(key, sceneId);
       }
     }
   }
+  return payoffSet;
+}
 
-  // Match setups to payoffs, respecting chronological order
-  for (const [sceneId, ir] of Object.entries(sceneIRs)) {
+/** Match setups to their payoffs, respecting chronological order */
+function matchSetupsToPayoffs(
+  irs: Record<string, NarrativeIR>,
+  orders: Record<string, number>,
+  payoffMap: Map<string, string>,
+): SetupEntry[] {
+  const setups: SetupEntry[] = [];
+  for (const [sceneId, ir] of Object.entries(irs)) {
     if (!ir.verified) continue;
     for (const setup of ir.setupsPlanted) {
-      const payoffSceneId = payoffSet.get(setup.toLowerCase()) ?? null;
-      // Only count as resolved if payoff comes after the setup
-      const resolved = payoffSceneId !== null && (sceneOrders[payoffSceneId] ?? 0) > (sceneOrders[sceneId] ?? 0);
+      const payoffSceneId = payoffMap.get(setup.toLowerCase()) ?? null;
+      const resolved = payoffSceneId !== null && (orders[payoffSceneId] ?? 0) > (orders[sceneId] ?? 0);
       setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: resolved ? payoffSceneId : null });
     }
   }
-
   return setups;
+}
+
+let entries = $derived.by((): SetupEntry[] => {
+  const payoffMap = buildPayoffMap(sceneIRs, sceneOrders);
+  return matchSetupsToPayoffs(sceneIRs, sceneOrders, payoffMap);
 });
 
 let resolved = $derived(entries.filter((e) => e.paidOffInScene !== null));

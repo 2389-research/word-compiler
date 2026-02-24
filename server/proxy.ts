@@ -3,10 +3,12 @@ import cors from "cors";
 import express from "express";
 import { createApiRouter } from "./api/routes.js";
 import { getDatabase } from "./db/connection.js";
+import { errorHandler, requestLogger } from "./middleware.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 
 // Initialize database and mount REST API
 const db = getDatabase();
@@ -20,9 +22,11 @@ let modelsCache: Array<{ id: string; displayName: string; contextWindow: number;
 app.get("/api/models", async (_req, res) => {
   try {
     if (modelsCache) {
+      console.debug(`[models] Serving ${modelsCache.length} models from cache`);
       res.json({ models: modelsCache });
       return;
     }
+    console.log("[models] Fetching models from Anthropic API");
 
     const response = await client.models.list({ limit: 100 });
     const models = response.data
@@ -36,10 +40,12 @@ app.get("/api/models", async (_req, res) => {
       .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
 
     modelsCache = models;
+    console.log(`[models] Cached ${models.length} models`);
     res.json({ models });
   } catch (err: unknown) {
     const status = (err as { status?: number }).status || 500;
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[models] Error: ${message}`);
     res.status(status).json({ error: message });
   }
 });
@@ -48,14 +54,18 @@ app.post("/api/generate", async (req, res) => {
   try {
     const { systemMessage, userMessage, temperature, topP, maxTokens, model, outputSchema } = req.body;
 
+    const effectiveModel = model || "claude-sonnet-4-6";
+    const effectiveMaxTokens = maxTokens || 2000;
+    console.log(`[generate] Starting: model=${effectiveModel}, max_tokens=${effectiveMaxTokens}`);
+
     // Anthropic API forbids sending both temperature and top_p together.
     // Prefer temperature; only use top_p when temperature is absent.
     const samplingParams: { temperature?: number; top_p?: number } =
       temperature != null ? { temperature } : topP != null ? { top_p: topP } : { temperature: 0.8 };
 
     const response = await client.messages.create({
-      model: model || "claude-sonnet-4-6",
-      max_tokens: maxTokens || 2000,
+      model: effectiveModel,
+      max_tokens: effectiveMaxTokens,
       ...samplingParams,
       system: systemMessage,
       messages: [{ role: "user", content: userMessage }],
@@ -64,8 +74,17 @@ app.post("/api/generate", async (req, res) => {
       }),
     });
 
+    const contentTypes = response.content.map((b: { type: string }) => b.type);
+    console.log(
+      `[generate] Complete: stop_reason=${response.stop_reason}, ` +
+        `content_types=[${contentTypes.join(",")}], usage=${JSON.stringify(response.usage)}`,
+    );
+
     const textBlock = response.content.find((b: { type: string }) => b.type === "text");
     if (!textBlock) {
+      console.warn(
+        `[generate] WARNING: No text block in response. content=${JSON.stringify(response.content).slice(0, 500)}`,
+      );
       res.status(502).json({ error: "LLM response contained no text content" });
       return;
     }
@@ -77,13 +96,14 @@ app.post("/api/generate", async (req, res) => {
   } catch (err: unknown) {
     const status = (err as { status?: number }).status || 500;
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[generate] Error: ${message}`);
     res.status(status).json({ error: message });
   }
 });
 
-// Streaming endpoint — SSE
+// Streaming endpoint — SSE (does not support outputSchema; use /api/generate for structured output)
 app.post("/api/generate/stream", async (req, res) => {
-  const { systemMessage, userMessage, temperature, topP, maxTokens, model, outputSchema } = req.body;
+  const { systemMessage, userMessage, temperature, topP, maxTokens, model } = req.body;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -100,33 +120,56 @@ app.post("/api/generate/stream", async (req, res) => {
   }
 
   try {
+    const effectiveModel = model || "claude-sonnet-4-6";
+    const effectiveMaxTokens = maxTokens || 2000;
+    console.log(`[stream] Starting generation: model=${effectiveModel}, max_tokens=${effectiveMaxTokens}`);
+
     const stream = client.messages.stream({
-      model: model || "claude-sonnet-4-6",
-      max_tokens: maxTokens || 2000,
+      model: effectiveModel,
+      max_tokens: effectiveMaxTokens,
       ...samplingParams,
       system: systemMessage,
       messages: [{ role: "user", content: userMessage }],
-      ...(outputSchema && {
-        output_config: { format: { type: "json_schema" as const, schema: outputSchema } },
-      }),
     });
 
-    // Abort the upstream Anthropic stream when the client disconnects
-    // to prevent wasting API tokens on responses nobody is reading
-    req.on("close", () => {
-      stream.abort();
+    // Abort the upstream Anthropic stream when the client disconnects.
+    // Use res "close" (not req "close") — req emits close when the request
+    // body is consumed, which for POST happens immediately. res emits close
+    // when the SSE connection is actually torn down by the client.
+    res.on("close", () => {
+      if (!res.writableEnded) {
+        console.warn(`[stream] Client disconnected, aborting upstream stream (${textLength} chars sent so far)`);
+        stream.abort();
+      }
     });
 
+    let textLength = 0;
     stream.on("text", (text: string) => {
+      textLength += text.length;
       safeWrite(`data: ${JSON.stringify({ type: "delta", text })}\n\n`);
     });
 
     stream.on("error", (err: Error) => {
+      console.error(`[stream] Stream error: ${err.message}`);
       safeWrite(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
       safeEnd();
     });
 
     const finalMessage = await stream.finalMessage();
+    const contentTypes = finalMessage.content.map((b: { type: string }) => b.type);
+    console.log(
+      `[stream] Complete: stop_reason=${finalMessage.stop_reason}, ` +
+        `text_chars=${textLength}, content_types=[${contentTypes.join(",")}], ` +
+        `usage=${JSON.stringify(finalMessage.usage)}`,
+    );
+
+    if (textLength === 0) {
+      console.warn(
+        `[stream] WARNING: Zero text received from API. ` +
+          `stop_reason=${finalMessage.stop_reason}, content=${JSON.stringify(finalMessage.content).slice(0, 500)}`,
+      );
+    }
+
     safeWrite(
       `data: ${JSON.stringify({
         type: "done",
@@ -137,10 +180,14 @@ app.post("/api/generate/stream", async (req, res) => {
     safeEnd();
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[stream] Unhandled error: ${message}`);
     safeWrite(`data: ${JSON.stringify({ type: "error", error: message })}\n\n`);
     safeEnd();
   }
 });
+
+// Error handler must be registered after all routes
+app.use(errorHandler);
 
 export { app };
 

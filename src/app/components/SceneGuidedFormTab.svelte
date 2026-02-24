@@ -4,6 +4,7 @@ import { createEmptyScenePlan } from "../../types/index.js";
 import {
   CardList,
   CollapsibleSection,
+  ExamplesDrawer,
   FormField,
   Input,
   NumberRange,
@@ -11,6 +12,7 @@ import {
   TagInput,
   TextArea,
 } from "../primitives/index.js";
+import { getExamples } from "./field-examples.js";
 
 export type FormFooterState = {
   formStep: string;
@@ -127,17 +129,20 @@ export function save() {
           { value: "distant", label: "Distant" },
         ]} onchange={(v) => updatePlan({ povDistance: v as "intimate" | "close" | "moderate" | "distant" })} />
       </FormField>
-      <FormField label="Narrative Goal" required hint="What must this scene accomplish?">
+      <FormField label="Narrative Goal" fieldId="narrativeGoal" required hint="What must this scene accomplish?">
         <TextArea value={formPlan.narrativeGoal} variant="compact" rows={2} oninput={(e) => updatePlan({ narrativeGoal: (e.target as HTMLTextAreaElement).value })} />
+        <ExamplesDrawer fieldId="narrativeGoal" examples={getExamples("narrativeGoal")} onApplyTemplate={(content) => updatePlan({ narrativeGoal: content })} />
       </FormField>
-      <FormField label="Emotional Beat" hint="What should the reader feel?">
+      <FormField label="Emotional Beat" fieldId="emotionalBeat" hint="What should the reader feel?">
         <TextArea value={formPlan.emotionalBeat} variant="compact" rows={2} oninput={(e) => updatePlan({ emotionalBeat: (e.target as HTMLTextAreaElement).value })} />
+        <ExamplesDrawer fieldId="emotionalBeat" examples={getExamples("emotionalBeat")} onApplyTemplate={(content) => updatePlan({ emotionalBeat: content })} />
       </FormField>
-      <FormField label="Reader Effect" hint="What shifts in the reader's understanding?">
+      <FormField label="Reader Effect" fieldId="readerEffect" hint="What shifts in the reader's understanding?">
         <TextArea value={formPlan.readerEffect} variant="compact" rows={2} oninput={(e) => updatePlan({ readerEffect: (e.target as HTMLTextAreaElement).value })} />
       </FormField>
-      <FormField label="Failure Mode to Avoid">
+      <FormField label="Failure Mode to Avoid" fieldId="failureModeToAvoid">
         <TextArea value={formPlan.failureModeToAvoid} variant="compact" rows={2} oninput={(e) => updatePlan({ failureModeToAvoid: (e.target as HTMLTextAreaElement).value })} />
+        <ExamplesDrawer fieldId="failureModeToAvoid" examples={getExamples("failureModeToAvoid")} onApplyTemplate={(content) => updatePlan({ failureModeToAvoid: content })} />
       </FormField>
     </div>
 
@@ -151,8 +156,9 @@ export function save() {
         <FormField label="Suspects">
           <TagInput tags={formPlan.readerStateEntering?.suspects ?? []} onchange={(v) => updatePlan({ readerStateEntering: { ...formPlan.readerStateEntering ?? { knows: [], suspects: [], wrongAbout: [], activeTensions: [] }, suspects: v } })} />
         </FormField>
-        <FormField label="Wrong About">
+        <FormField label="Wrong About" fieldId="readerStateWrongAbout">
           <TagInput tags={formPlan.readerStateEntering?.wrongAbout ?? []} onchange={(v) => updatePlan({ readerStateEntering: { ...formPlan.readerStateEntering ?? { knows: [], suspects: [], wrongAbout: [], activeTensions: [] }, wrongAbout: v } })} />
+          <ExamplesDrawer fieldId="readerStateWrongAbout" examples={getExamples("readerStateWrongAbout")} />
         </FormField>
         <FormField label="Active Tensions">
           <TagInput tags={formPlan.readerStateEntering?.activeTensions ?? []} onchange={(v) => updatePlan({ readerStateEntering: { ...formPlan.readerStateEntering ?? { knows: [], suspects: [], wrongAbout: [], activeTensions: [] }, activeTensions: v } })} />
@@ -177,8 +183,9 @@ export function save() {
 
   {:else if formStep === "texture"}
     <div class="form-step">
-      <FormField label="Pacing">
+      <FormField label="Pacing" fieldId="pacing">
         <Input value={formPlan.pacing ?? ""} oninput={(e) => updatePlan({ pacing: (e.target as HTMLInputElement).value || null })} placeholder="Slow build to explosive confrontation" />
+        <ExamplesDrawer fieldId="pacing" examples={getExamples("pacing")} onApplyTemplate={(content) => updatePlan({ pacing: content })} />
       </FormField>
       <FormField label="Density">
         <RadioGroup name="formDensity" value={formPlan.density} options={[
@@ -208,14 +215,17 @@ export function save() {
 
       <CollapsibleSection summary="Subtext">
         <div class="form-step">
-          <FormField label="Surface Conversation">
+          <FormField label="Surface Conversation" fieldId="subtextSurface">
             <TextArea value={formPlan.subtext?.surfaceConversation ?? ""} variant="compact" rows={2} oninput={(e) => updatePlan({ subtext: { surfaceConversation: (e.target as HTMLTextAreaElement).value, actualConversation: formPlan.subtext?.actualConversation ?? "", enforcementRule: formPlan.subtext?.enforcementRule ?? "" } })} />
+            <ExamplesDrawer fieldId="subtextSurface" examples={getExamples("subtextSurface")} onApplyTemplate={(content) => updatePlan({ subtext: { surfaceConversation: content, actualConversation: formPlan.subtext?.actualConversation ?? "", enforcementRule: formPlan.subtext?.enforcementRule ?? "" } })} />
           </FormField>
-          <FormField label="Actual Conversation">
+          <FormField label="Actual Conversation" fieldId="subtextActual">
             <TextArea value={formPlan.subtext?.actualConversation ?? ""} variant="compact" rows={2} oninput={(e) => updatePlan({ subtext: { surfaceConversation: formPlan.subtext?.surfaceConversation ?? "", actualConversation: (e.target as HTMLTextAreaElement).value, enforcementRule: formPlan.subtext?.enforcementRule ?? "" } })} />
+            <ExamplesDrawer fieldId="subtextActual" examples={getExamples("subtextActual")} onApplyTemplate={(content) => updatePlan({ subtext: { surfaceConversation: formPlan.subtext?.surfaceConversation ?? "", actualConversation: content, enforcementRule: formPlan.subtext?.enforcementRule ?? "" } })} />
           </FormField>
-          <FormField label="Enforcement Rule">
+          <FormField label="Enforcement Rule" fieldId="subtextEnforcement">
             <TextArea value={formPlan.subtext?.enforcementRule ?? ""} variant="compact" rows={2} oninput={(e) => updatePlan({ subtext: { surfaceConversation: formPlan.subtext?.surfaceConversation ?? "", actualConversation: formPlan.subtext?.actualConversation ?? "", enforcementRule: (e.target as HTMLTextAreaElement).value } })} />
+            <ExamplesDrawer fieldId="subtextEnforcement" examples={getExamples("subtextEnforcement")} onApplyTemplate={(content) => updatePlan({ subtext: { surfaceConversation: formPlan.subtext?.surfaceConversation ?? "", actualConversation: formPlan.subtext?.actualConversation ?? "", enforcementRule: content } })} />
           </FormField>
         </div>
       </CollapsibleSection>
