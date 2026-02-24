@@ -35,7 +35,11 @@ function buildPayoffMap(irs: Record<string, NarrativeIR>, orders: Record<string,
 }
 
 /** Match setups to their payoffs, respecting chronological order */
-function matchSetupsToPayoffs(irs: Record<string, NarrativeIR>, orders: Record<string, number>, payoffMap: Map<string, string>): SetupEntry[] {
+function matchSetupsToPayoffs(
+  irs: Record<string, NarrativeIR>,
+  orders: Record<string, number>,
+  payoffMap: Map<string, string>,
+): SetupEntry[] {
   const setups: SetupEntry[] = [];
   for (const [sceneId, ir] of Object.entries(irs)) {
     if (!ir.verified) continue;

@@ -86,7 +86,12 @@ function toggleLocation(id: string) {
 }
 
 /** Normalize a partial reader state to a full reader state with array defaults */
-function normalizeReaderState(raw?: { knows?: string[]; suspects?: string[]; wrongAbout?: string[]; activeTensions?: string[] }) {
+function normalizeReaderState(raw?: {
+  knows?: string[];
+  suspects?: string[];
+  wrongAbout?: string[];
+  activeTensions?: string[];
+}) {
   return {
     knows: raw?.knows ?? [],
     suspects: raw?.suspects ?? [],

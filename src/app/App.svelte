@@ -18,6 +18,7 @@ import CompilerView from "./components/CompilerView.svelte";
 import DraftingDesk from "./components/DraftingDesk.svelte";
 import ExportModal from "./components/ExportModal.svelte";
 import ForwardSimulator from "./components/ForwardSimulator.svelte";
+import GlossaryPanel from "./components/GlossaryPanel.svelte";
 import IRInspector from "./components/IRInspector.svelte";
 import LearnerPanel from "./components/LearnerPanel.svelte";
 import ProjectList from "./components/ProjectList.svelte";
@@ -25,7 +26,6 @@ import SceneAuthoringModal from "./components/SceneAuthoringModal.svelte";
 import SceneSequencer from "./components/SceneSequencer.svelte";
 import SetupPayoffPanel from "./components/SetupPayoffPanel.svelte";
 import StyleDriftPanel from "./components/StyleDriftPanel.svelte";
-import GlossaryPanel from "./components/GlossaryPanel.svelte";
 import VoiceSeparabilityView from "./components/VoiceSeparabilityView.svelte";
 import { Button, ErrorBanner, Input, Select, Tabs } from "./primitives/index.js";
 import {

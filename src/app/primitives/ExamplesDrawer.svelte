@@ -1,6 +1,6 @@
 <script lang="ts">
-import type { FieldExample } from "../components/field-examples.js";
 import { trackExampleApply, trackExampleView, trackGenreFilter } from "../analytics.js";
+import type { FieldExample } from "../components/field-examples.js";
 
 let {
   fieldId,
