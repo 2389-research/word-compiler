@@ -19,11 +19,12 @@ let {
 } = $props();
 
 let glossary = $derived(fieldId ? FIELD_GLOSSARY[fieldId as keyof typeof FIELD_GLOSSARY] : undefined);
-let displayLabel = $derived(label ?? glossary?.technical ?? "");
+let displayLabel = $derived(label ?? glossary?.technical ?? fieldId ?? "");
 let plainLabel = $derived(glossary?.plain);
 let tooltip = $derived(glossary?.tooltip);
 
 let showTooltip = $state(false);
+let tooltipId = $derived(fieldId ? `tooltip-${fieldId}` : undefined);
 </script>
 
 <div class="form-field" class:form-field-error={!!error}>
@@ -37,13 +38,14 @@ let showTooltip = $state(false);
         type="button"
         class="form-field-tooltip-trigger"
         aria-label="More information about {displayLabel}"
+        aria-describedby={showTooltip && tooltipId ? tooltipId : undefined}
         onmouseenter={() => { showTooltip = true; }}
         onmouseleave={() => { showTooltip = false; }}
         onfocus={() => { showTooltip = true; }}
         onblur={() => { showTooltip = false; }}
       >?</button>
       {#if showTooltip}
-        <span class="form-field-tooltip" role="tooltip">{tooltip}</span>
+        <span class="form-field-tooltip" role="tooltip" id={tooltipId}>{tooltip}</span>
       {/if}
     {/if}
   </label>

@@ -95,23 +95,21 @@ export async function save() {
 }
 
 // ─── Expand / Collapse all ─────────────────────
-function expandAllSections() {
+function setAllSections(open: boolean) {
   formBodyEl?.querySelectorAll("details.collapsible").forEach((d) => {
-    (d as HTMLDetailsElement).open = true;
-  });
-}
-
-function collapseAllSections() {
-  formBodyEl?.querySelectorAll("details.collapsible").forEach((d) => {
-    (d as HTMLDetailsElement).open = false;
+    const details = d as HTMLDetailsElement;
+    if (details.open !== open) {
+      details.open = open;
+      details.dispatchEvent(new Event("toggle"));
+    }
   });
 }
 
 function onFormKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key === "e") {
     e.preventDefault();
-    if (e.shiftKey) collapseAllSections();
-    else expandAllSections();
+    if (e.shiftKey) setAllSections(false);
+    else setAllSections(true);
   }
 }
 
@@ -226,8 +224,8 @@ function removeVocabPref(index: number) {
 
 {#if currentStep !== "review"}
   <div class="step-controls">
-    <Button variant="ghost" size="sm" onclick={expandAllSections}>Expand All</Button>
-    <Button variant="ghost" size="sm" onclick={collapseAllSections}>Collapse All</Button>
+    <Button variant="ghost" size="sm" onclick={() => setAllSections(true)}>Expand All</Button>
+    <Button variant="ghost" size="sm" onclick={() => setAllSections(false)}>Collapse All</Button>
   </div>
 {/if}
 

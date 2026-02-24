@@ -56,16 +56,19 @@ $effect(() => {
   isOpen = resolveInitialOpen();
 });
 
+function updateOpen(value: boolean) {
+  isOpen = value;
+  persistState(isOpen);
+}
+
 function onToggle(e: Event) {
   const details = e.currentTarget as HTMLDetailsElement;
-  isOpen = details.open;
-  persistState(isOpen);
+  updateOpen(details.open);
 }
 
 /** Programmatic control for expand-all / collapse-all */
 export function setOpen(value: boolean) {
-  isOpen = value;
-  persistState(isOpen);
+  updateOpen(value);
 }
 </script>
 
