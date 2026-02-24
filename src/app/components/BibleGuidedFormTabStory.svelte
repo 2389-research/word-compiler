@@ -28,7 +28,7 @@ function buildInitialBible(): Bible {
         physicalDescription: "Weathered face, silver-threaded temples",
         backstory: "Ex-homicide detective turned bar owner",
         voice: {
-          sentenceLengthRange: "8-20",
+          sentenceLengthRange: [8, 20],
           vocabularyNotes: "Clipped, concrete. Avoids abstractions.",
           verbalTics: ["look", "listen"],
           metaphoricRegister: "machinery, weather",

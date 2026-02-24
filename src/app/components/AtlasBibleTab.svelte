@@ -91,6 +91,10 @@ function updateCharDraft(changes: Partial<CharacterDossier>) {
   if (charDraft) charDraft = { ...charDraft, ...changes };
 }
 
+function updateLocDraft(changes: Partial<Location>) {
+  if (locDraft) locDraft = { ...locDraft, ...changes };
+}
+
 function startEditLoc(loc: Location) {
   editingLocId = loc.id;
   locDraft = JSON.parse(JSON.stringify(loc));
@@ -239,7 +243,7 @@ function hasNarrativeData(): boolean {
       {#each filteredLocs as loc (loc.id)}
         {#if editingLocId === loc.id && locDraft}
           <div class="edit-card">
-            <LocationFormFields location={locDraft} onUpdate={(changes) => { if (locDraft) locDraft = { ...locDraft, ...changes }; }} />
+            <LocationFormFields location={locDraft} onUpdate={updateLocDraft} />
             <div class="edit-actions">
               <Button size="sm" onclick={saveEditLoc} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
               <Button size="sm" variant="ghost" onclick={cancelEditLoc} disabled={saving}>Cancel</Button>

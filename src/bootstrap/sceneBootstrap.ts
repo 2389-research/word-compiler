@@ -585,7 +585,7 @@ function fuzzyMatchId(raw: string, entities: { id: string; name: string }[], thr
 }
 
 /** Resolve a character ID by trying exact ID, exact name, then fuzzy name match.
- *  Returns empty string if the character cannot be resolved against the known list. */
+ *  Returns the raw name/ID as-is when resolution fails, so the UI can surface it as unresolved. */
 export function resolveCharacterId(
   rawId: string | undefined,
   rawName: string | undefined,
@@ -605,13 +605,18 @@ export function resolveCharacterId(
 
   // 3. Fuzzy token match — try name first, fall back to ID as slug
   const rawForFuzzy = rawName || rawId || "";
-  if (rawForFuzzy && characters.length > 0) return fuzzyMatchId(rawForFuzzy, characters);
+  if (rawForFuzzy && characters.length > 0) {
+    const matched = fuzzyMatchId(rawForFuzzy, characters);
+    if (matched) return matched;
+  }
 
-  return "";
+  // 4. Preserve raw reference so resolution UI can surface it
+  return rawName || rawId || "";
 }
 
 /** Resolve a location ID by trying exact ID, exact name, then fuzzy name match.
- *  Returns null if the location cannot be resolved against the known list. */
+ *  Returns the raw name/ID as-is when resolution fails, so the UI can surface it as unresolved.
+ *  Returns null only when no location was specified at all. */
 export function resolveLocationId(
   rawId: string | undefined,
   rawName: string | undefined,
@@ -636,7 +641,8 @@ export function resolveLocationId(
     if (matched) return matched;
   }
 
-  return null;
+  // 4. Preserve raw reference so resolution UI can surface it
+  return rawName || rawId || null;
 }
 
 /** Normalize a raw word count (array or single number) into a [min, max] tuple. */

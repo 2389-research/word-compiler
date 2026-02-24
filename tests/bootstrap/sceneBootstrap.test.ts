@@ -266,20 +266,20 @@ describe("mapSceneBootstrapToPlans", () => {
     expect(plans[0]!.locationId).toBe("l1");
   });
 
-  it("returns empty string for unresolvable character", () => {
+  it("preserves raw name for unresolvable character (so resolution UI surfaces it)", () => {
     const parsed = {
       scenes: [{ title: "Test", povCharacterId: "made-up-id", povCharacterName: "Imaginary Person" }],
     };
     const plans = mapSceneBootstrapToPlans(parsed, "proj-1", characters, locations);
-    expect(plans[0]!.povCharacterId).toBe("");
+    expect(plans[0]!.povCharacterId).toBe("Imaginary Person");
   });
 
-  it("returns null for unresolvable location", () => {
+  it("preserves raw name for unresolvable location (so resolution UI surfaces it)", () => {
     const parsed = {
       scenes: [{ title: "Test", locationId: "made-up-id", locationName: "Narnia" }],
     };
     const plans = mapSceneBootstrapToPlans(parsed, "proj-1", characters, locations);
-    expect(plans[0]!.locationId).toBeNull();
+    expect(plans[0]!.locationId).toBe("Narnia");
   });
 
   it("validates enum values and falls back to defaults", () => {
