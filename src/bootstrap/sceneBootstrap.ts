@@ -124,6 +124,7 @@ export interface ParsedSceneBootstrap {
       actualConversation?: string;
       enforcementRule?: string;
     };
+    presentCharacterIds?: string[];
     sceneSpecificProhibitions?: string[];
     anchorLines?: Array<{
       text?: string;
@@ -204,6 +205,7 @@ export const sceneBootstrapSchema: Record<string, unknown> = {
             },
             required: ["surfaceConversation", "actualConversation", "enforcementRule"],
           },
+          presentCharacterIds: { type: "array", items: { type: "string" } },
           sceneSpecificProhibitions: { type: "array", items: { type: "string" } },
           anchorLines: {
             type: "array",
@@ -239,6 +241,7 @@ export const sceneBootstrapSchema: Record<string, unknown> = {
           "readerStateEntering",
           "readerStateExiting",
           "subtext",
+          "presentCharacterIds",
           "sceneSpecificProhibitions",
           "anchorLines",
         ],
@@ -492,6 +495,7 @@ Return JSON:
         "actualConversation": "What's really being communicated",
         "enforcementRule": "How to maintain the gap"
       },
+      "presentCharacterIds": ["character IDs from the list above who are physically present in this scene"],
       "sceneSpecificProhibitions": ["things to avoid in this specific scene"],
       "anchorLines": [
         { "text": "A line that must appear", "placement": "where in the scene", "verbatim": true }
@@ -712,6 +716,7 @@ function mapRawScene(
     readerStateEntering: resolveReaderState(raw.readerStateEntering),
     readerStateExiting: resolveReaderState(raw.readerStateExiting),
     subtext: normalizeSubtext(raw.subtext, base.subtext),
+    presentCharacterIds: raw.presentCharacterIds || base.presentCharacterIds,
     sceneSpecificProhibitions: raw.sceneSpecificProhibitions || base.sceneSpecificProhibitions,
     anchorLines: normalizeAnchorLines(raw.anchorLines),
   };

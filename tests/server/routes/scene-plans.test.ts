@@ -132,6 +132,20 @@ describe("PUT /api/scenes/:id", () => {
     expect(res.body.title).toBe("Revised Scene Title");
     expect(res.body.narrativeGoal).toBe("Build tension");
   });
+
+  it("round-trips presentCharacterIds through JSON storage", async () => {
+    const { project, chapter } = seedProjectAndChapter();
+    const plan = {
+      ...createEmptyScenePlan(project.id),
+      chapterId: chapter.id,
+      presentCharacterIds: ["char-1", "char-2", "char-3"],
+    };
+    scenePlans.createScenePlan(db, plan, 0);
+
+    const res = await request(app).get(`/api/scenes/${plan.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.plan.presentCharacterIds).toEqual(["char-1", "char-2", "char-3"]);
+  });
 });
 
 describe("PATCH /api/scenes/:id/status", () => {
