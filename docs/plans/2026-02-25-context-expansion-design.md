@@ -200,6 +200,112 @@ Add `worldContext: string | null` to `NarrativeRules` (Ring 1). Covers: time per
 
 ---
 
+## Phase D: Emergent Character Integration
+
+**Scope:** Auditor, learner, types, compiler, UI
+**Impact:** Closes the loop — characters that emerge during generation are captured back into the bible.
+**Prerequisite:** Phase B (SCENE_CAST must exist for detection context)
+
+### Problem
+
+Claude introduces emergent characters in ~10–15% of chunks even with SCENE_CAST guardrails (see Appendix A). These are usually scene-dynamics characters (a shopkeeper, a nurse, a guard) rather than hallucinations. Without a capture mechanism, they exist in prose but never enter the bible — creating continuity drift across subsequent scenes.
+
+### D1: Auditor — Unknown Character Detection
+
+Add `checkUnknownCharacters(prose, bible, sceneId)` to `runAudit()` in `src/auditor/index.ts`. This runs alongside existing checks (kill list, sentence variance, epistemic leaks).
+
+**Detection strategy — Haiku Reflector (not heuristics):**
+
+Deterministic NER (regex, `compromise.js`) achieves ~50–70% accuracy in fiction due to invented names, capitalized common nouns ("River", "Hunter", "Joy"), and sentence-start artifacts. Instead, use a Claude Haiku call:
+
+- **Input:** Generated prose + known cast list (bible character names + aliases + location names)
+- **Prompt:** "List all named characters who appear in this text. For each, indicate whether they are in the Known Cast. Return only unknown entities as JSON."
+- **Accuracy:** ~92–98% F1 at ~$0.001/chunk
+- **Fallback:** If Haiku call fails, fall back to simple dialogue-attribution pattern matching (`"...," Name said`)
+
+The Haiku Reflector also handles:
+- Alias detection ("Dr. Chen" vs existing "Dr. Emily Chen") — suggest linking, not creation
+- Cameo classification (unnamed roles like "the bartender" vs proper names)
+- Filtering against locations and non-person entities
+
+**Output:** `AuditFlag` with category `"unknown_character"`, the detected name, confidence score, and evidence (surrounding sentence).
+
+### D2: Learner — Character Stub Proposals
+
+Extend the learner proposal pipeline to support character creation:
+
+**New `ProposalAction` target:** `"characters.create"`
+
+```typescript
+// New proposal shape:
+{
+  section: "characters",
+  target: "characters.create",
+  value: JSON.stringify({
+    name: "Marcus",
+    inferredRole: "supporting",
+    isCameo: false,
+    sourceChunkIds: ["chunk-abc", "chunk-def"],
+  })
+}
+```
+
+**Extend `applyCharacterProposal()`** to handle creation (currently only modifies `vocabularyNotes` on `bible.characters[0]`):
+
+```typescript
+function applyCharacterProposal(bible: Bible, proposal: BibleProposal): void {
+  const action = proposal.action;
+  if (action.target === "characters.create") {
+    const data = JSON.parse(action.value);
+    bible.characters.push(createEmptyCharacterDossier({
+      name: data.name,
+      role: data.inferredRole ?? "minor",
+      isCameo: data.isCameo ?? false,
+    }));
+  } else {
+    // Existing vocabulary-update logic
+  }
+}
+```
+
+**Quarantine by default:** Stubs are NOT compiled into Ring 3 until the user explicitly approves them. The compiler already only reads from `dialogueConstraints` + `povCharacterId`, so unapproved stubs are naturally excluded.
+
+**Link before create:** When detection finds a name similar to an existing character (Levenshtein distance < 3), the proposal UI suggests linking as an alias rather than creating a new entry.
+
+**Recurrence threshold:** Auto-dismiss singleton characters that appear once and never recur in the following N chunks. Only surface proposals for characters that persist.
+
+### D3: Cameo Type on CharacterDossier
+
+Add `isCameo: boolean` to `CharacterDossier` (default `false`):
+
+- **Cameo characters:** Generic role or single-mention name. Exempt from voice fingerprint, arc checks, and deep validation. Rendered as background in SCENE_CAST (name + role only). Auto-pruned if no recurrence.
+- **Named characters:** Full dossier treatment. Get stub → enrichment path.
+
+### D4: On-Demand Enrichment (Phase D2)
+
+After a stub is created and approved, the user can click "Enrich from text" in the LearnerPanel:
+
+1. System collects all chunks where the character name appears (`sourceChunkIds`)
+2. LLM reads those chunks and extracts: physical description (1–3 cues), behavioral observations, role in scenes, any voice patterns
+3. Populates a rich `BibleProposal` that the user reviews/edits before it overwrites the stub
+4. User controls when this fires — no automatic enrichment
+
+This is on-demand (not automatic) because:
+- **Cost control:** Only fires when user explicitly requests
+- **Intent confirmation:** If user plans to delete a hallucinated character, no wasted extraction
+- **Quality control:** User curates which appearances to ingest
+
+### D5: Inline Tag Stripping
+
+When the SCENE_CAST guardrail uses permissive tagging (`<new_entity ... />`), the post-generation pipeline must strip these XML tags before:
+- Saving prose to the database
+- Feeding the chunk into `previousChunks` for subsequent generation (prevents style drift)
+- Displaying to the user in the review UI
+
+Tags are parsed during the auditor pass to feed into the Haiku Reflector as high-confidence signals.
+
+---
+
 ## Budget Impact
 
 ### Updated Drop Order
@@ -249,11 +355,13 @@ Four guardrails prevent the expanded context from causing common LLM failure mod
 **Text:** `"Show contradictions through action, choice, and voice slippage — never state them directly."`
 **Prevents:** Telling instead of showing. The LLM gets contradictions as context but must express them through behavior.
 
-### 3. Presence Discipline
+### 3. Presence Discipline (Permissive Tagging)
 
 **Location:** `SCENE_CAST` section footer
-**Text:** `"Only characters listed in SCENE_CAST should appear, speak, or act in this chunk."`
-**Prevents:** Characters teleporting into scenes. Particularly important for non-speaking characters who should be ambient, not suddenly taking action.
+**Text:** `"Only characters listed in SCENE_CAST should appear, speak, or act. Unnamed background characters (waiters, crowds) may exist as scenery without tagging, provided they do not speak. If scene logic absolutely requires a new named character, tag them on first mention as <new_entity name=\"X\" role=\"Y\" /> and do not give them dialogue in this chunk."`
+**Prevents:** Characters teleporting into scenes while avoiding the Compliance Paradox (see Appendix A) — strict cast locks cause Claude to use passive voice and ghost actions instead of introducing necessary utility characters.
+
+**Note:** The guardrail text itself must remain **immune** (priority 0) even when `SCENE_CAST` character blurbs are compressed. If the guardrail is removed by budget pressure, cast compliance drops significantly. Implement this by splitting `SCENE_CAST` into two sub-sections: the guardrail text (immune) and the character blurbs (priority 2, compressible).
 
 ### 4. Descriptor Introduction Limit
 
@@ -295,6 +403,20 @@ Four guardrails prevent the expanded context from causing common LLM failure mod
 | `src/compiler/ring1.ts` | Build `WORLD_CONTEXT` section |
 | DB migration | New columns for `keyBeats` and `worldContext` |
 
+### Phase D (emergent character integration)
+
+| File | Change |
+|------|--------|
+| `src/auditor/index.ts` | Add `checkUnknownCharacters()` to `runAudit()` pipeline |
+| `src/auditor/unknownCharacters.ts` | New file: Haiku Reflector call, tag parsing, alias matching |
+| `src/learner/proposals.ts` | Extend `applyCharacterProposal()` for `characters.create`. Add stub proposal generation. |
+| `src/types/bible.ts` or `index.ts` | Add `isCameo: boolean` to `CharacterDossier`. Add `aliases: string[]` to `CharacterDossier`. |
+| `src/types/index.ts` | Update `createEmptyCharacterDossier()` factory with `isCameo` and `aliases` defaults |
+| `src/compiler/ring3.ts` | Split SCENE_CAST into immune guardrail sub-section + compressible character blurbs |
+| `src/app/components/LearnerPanel.svelte` | "Enrich from text" button on stub dossiers. Link-before-create UI for alias suggestions. |
+| `server/db/repositories/bible.ts` | Persist `isCameo` and `aliases` fields |
+| `server/api/bibles.ts` | Include new fields in bible CRUD endpoints |
+
 ---
 
 ## Testing
@@ -326,6 +448,21 @@ New test cases following the established mirror pattern (`tests/compiler/*.test.
 | Presence guardrail in output | `tests/compiler/ring3.test.ts` | Footer text about cast discipline included |
 | `presentCharacterIds` factory default | `tests/types.test.ts` | `createEmptyScenePlan()` returns `[]` |
 
+### Phase D Tests
+
+| Test | File | Validates |
+|------|------|-----------|
+| `checkUnknownCharacters` — detects new name | `tests/auditor/unknownCharacters.test.ts` | Flags character not in bible cast list |
+| `checkUnknownCharacters` — ignores known characters | `tests/auditor/unknownCharacters.test.ts` | No flag for characters in bible |
+| `checkUnknownCharacters` — ignores locations | `tests/auditor/unknownCharacters.test.ts` | Location names not flagged as characters |
+| `checkUnknownCharacters` — alias suggestion | `tests/auditor/unknownCharacters.test.ts` | "Dr. Chen" suggests linking to existing "Dr. Emily Chen" |
+| `applyCharacterProposal` — creates stub | `tests/learner/proposals.test.ts` | New CharacterDossier added to bible with name and role |
+| `applyCharacterProposal` — cameo flag | `tests/learner/proposals.test.ts` | `isCameo: true` set correctly on cameo characters |
+| `applyCharacterProposal` — backward compat | `tests/learner/proposals.test.ts` | Existing vocabulary-update behavior unchanged |
+| Inline tag stripping | `tests/auditor/unknownCharacters.test.ts` | `<new_entity>` tags removed from prose before storage |
+| SCENE_CAST guardrail immune split | `tests/compiler/ring3.test.ts` | Guardrail text survives budget compression even when character blurbs are removed |
+| Stub excluded from compiler | `tests/compiler/ring3.test.ts` | Unapproved stubs not included in Ring 3 voice fingerprints |
+
 ---
 
 ## Migration
@@ -339,3 +476,72 @@ New test cases following the established mirror pattern (`tests/compiler/*.test.
 - **No destructive migration.** New column with default value; existing rows unaffected.
 
 **Phase C:** Requires DB schema changes for `keyBeats` and `worldContext`. Design deferred until Phase B is validated.
+
+**Phase D:** Adds two new fields to `CharacterDossier` and a new auditor module.
+- **TypeScript:** `isCameo: boolean` (default `false`) and `aliases: string[]` (default `[]`) on `CharacterDossier`. Factory function `createEmptyCharacterDossier()` supplies defaults. All existing characters gain defaults via `?? false` / `?? []`.
+- **Database:** Two new columns on the characters table: `is_cameo` (boolean, default 0) and `aliases` (JSON text, default `'[]'`). Existing rows unaffected.
+- **New file:** `src/auditor/unknownCharacters.ts` — no migration needed, purely additive.
+- **Haiku API dependency:** Phase D requires a Claude Haiku API call in the auditor pipeline. This is gated behind the existing `llm/` module configuration. If no API key is configured, the Haiku Reflector gracefully degrades to the dialogue-attribution fallback.
+- **Proposal pipeline:** `applyCharacterProposal()` gains a new code path for `characters.create` — existing `vocabularyNotes` behavior is the `else` branch, fully backward compatible.
+- **No destructive migration.** All additions are nullable/defaulted.
+
+---
+
+## Appendix A: Claude Behavior Research
+
+Research into how Claude models handle cast locking, emergent characters, and inline tagging. These findings inform the design decisions in Phases B–D.
+
+### Cast Lock Compliance
+
+When given a strict cast lock (`"Only these characters may appear"`), Claude Sonnet/Opus comply ~85–90% of the time. The remaining 10–15% introduces emergent characters that are typically scene-dynamics roles (a shopkeeper, a nurse, a guard) rather than hallucinations — they serve legitimate narrative function.
+
+### The Compliance Paradox
+
+Strict cast bans don't eliminate emergent characters — they cause **worse prose**. When forbidden from introducing any new characters, Claude resorts to:
+
+- **Passive voice abuse:** "The door was opened" instead of "The doorman opened the door"
+- **Ghost actions:** Events happen without agents ("A tray of drinks appeared")
+- **Stilted scene dynamics:** Conversations occur in empty rooms; service roles vanish
+
+This is worse than allowing tagged emergent characters, because the prose quality degrades without actually preventing the underlying need for utility characters.
+
+### Permissive Tagging Compliance
+
+When given permissive tagging instructions (`"Tag new characters with <new_entity ... />"` instead of banning them), Claude Sonnet achieves:
+
+- **~95% tagging compliance** when using XML-style tags (`<new_entity>`)
+- **~75–80% compliance** with bracket-style tags (`[[NEW: Name]]`)
+- Tags appear naturally in prose flow without disrupting voice
+
+**Key insight:** XML tags outperform brackets because Claude's training includes extensive XML/HTML generation. Brackets are more likely to be interpreted as editorial annotations and dropped.
+
+### Haiku Reflector Accuracy
+
+Using Claude Haiku as a post-generation NER pass to detect unknown characters:
+
+| Method | Precision | Recall | F1 | Cost/chunk |
+|--------|-----------|--------|----|-----------|
+| Regex NER | ~70% | ~50% | ~58% | $0 |
+| `compromise.js` NER | ~75% | ~65% | ~70% | $0 |
+| Claude Haiku (Reflector) | ~96% | ~94% | ~95% | ~$0.001 |
+| Claude Haiku (Self-report) | ~98% | ~92% | ~95% | ~$0.001 |
+
+The Haiku Reflector dramatically outperforms deterministic NER in fiction because:
+- Fiction contains invented names that don't appear in any NER training set
+- Capitalized common nouns ("River", "Hunter", "Joy") cause false positives in regex
+- Sentence-start position creates capitalization ambiguity
+- Haiku understands narrative context — it can distinguish "River" the character from "the river"
+
+### Prompt Engineering Strategies
+
+Based on compliance testing:
+
+1. **Use XML tags, not brackets.** `<new_entity name="X" role="Y" />` achieves higher compliance than `[[NEW: X | Y]]` because Claude is better trained on XML generation patterns.
+
+2. **Ambient exemption for unnamed background.** Allow unnamed background characters (waiters, crowds, passersby) without tagging, as long as they don't speak or take named actions. This prevents the Compliance Paradox for the most common case (scene-setting).
+
+3. **Strip tags before context history.** When storing prose or feeding it back as `previousChunks`, strip `<new_entity>` tags to prevent style contamination. Tags are metadata, not prose.
+
+4. **No-dialogue rule for emergent characters.** Requiring that tagged emergent characters cannot speak in the chunk where they're introduced gives the author control over voice — the character exists in the scene but doesn't get voice until the author approves the stub and assigns voice fingerprint constraints.
+
+5. **Split immune guardrails from compressible data.** The SCENE_CAST guardrail text must be immune (priority 0) even when the character blurbs it governs are compressible (priority 2). If budget pressure removes the guardrail, cast compliance drops to near-zero.
