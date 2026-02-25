@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   assembleSections,
   formatAntiAblation,
+  formatBackgroundCharacter,
   formatCharacterVoice,
+  formatForegroundCharacter,
+  formatPovInteriority,
   formatSceneContract,
   formatSensoryPalette,
 } from "../../src/compiler/helpers.js";
 import type { CharacterDossier, Location, RingSection, ScenePlan } from "../../src/types/index.js";
-import { createEmptyCharacterDossier, createEmptyScenePlan } from "../../src/types/index.js";
+import { createEmptyCharacterDossier, createEmptyLocation, createEmptyScenePlan } from "../../src/types/index.js";
 
 function makePlan(overrides: Partial<ScenePlan> = {}): ScenePlan {
   return {
@@ -170,6 +173,200 @@ describe("formatAntiAblation", () => {
     expect(text).toContain("Scene-specific bans:");
     expect(text).toContain("- No flashbacks");
     expect(text).toContain("- No internal monologue");
+  });
+});
+
+describe("formatCharacterVoice — behavior fields", () => {
+  it("includes all 5 behavior fields when populated", () => {
+    const char = createEmptyCharacterDossier("Elena");
+    char.behavior = {
+      emotionPhysicality: "Jaw tension, hand-to-collarbone",
+      stressResponse: "Goes still, voice drops",
+      socialPosture: "Deflects with humor",
+      noticesFirst: "Exits and sharp objects",
+      lyingStyle: "Partial truths wrapped in real emotion",
+    };
+    const result = formatCharacterVoice(char, []);
+    expect(result).toContain("Body shows emotion: Jaw tension");
+    expect(result).toContain("Under stress: Goes still");
+    expect(result).toContain("Social posture: Deflects with humor");
+    expect(result).toContain("Notices first: Exits and sharp objects");
+    expect(result).toContain("Lying style: Partial truths");
+  });
+
+  it("omits null behavior fields gracefully", () => {
+    const char = createEmptyCharacterDossier("Bob");
+    char.behavior = {
+      emotionPhysicality: "Clenches fists",
+      stressResponse: null,
+      socialPosture: null,
+      noticesFirst: "Windows",
+      lyingStyle: null,
+    };
+    const result = formatCharacterVoice(char, []);
+    expect(result).toContain("Body shows emotion: Clenches fists");
+    expect(result).toContain("Notices first: Windows");
+    expect(result).not.toContain("Under stress");
+    expect(result).not.toContain("Social posture");
+    expect(result).not.toContain("Lying style");
+  });
+
+  it("still works when behavior is null", () => {
+    const char = createEmptyCharacterDossier("Ghost");
+    char.behavior = null;
+    const result = formatCharacterVoice(char, []);
+    expect(result).toContain("GHOST — VOICE");
+    expect(result).not.toContain("Body shows emotion");
+  });
+});
+
+describe("formatSensoryPalette — description", () => {
+  it("includes location description when present", () => {
+    const location = createEmptyLocation("Diner");
+    location.description =
+      "A cramped diner with cracked vinyl booths and a counter sticky with decades of spilled coffee.";
+    const result = formatSensoryPalette(location);
+    expect(result).toContain("cramped diner");
+    const headerIndex = result.indexOf("=== LOCATION:");
+    const descIndex = result.indexOf("cramped diner");
+    expect(descIndex).toBeGreaterThan(headerIndex);
+  });
+
+  it("omits description line when null", () => {
+    const location = createEmptyLocation("Park");
+    location.description = null;
+    const result = formatSensoryPalette(location);
+    expect(result).toContain("=== LOCATION:");
+    expect(result).not.toContain("null");
+  });
+
+  it("truncates very long descriptions", () => {
+    const location = createEmptyLocation("Castle");
+    location.description = "Word ".repeat(200);
+    const result = formatSensoryPalette(location);
+    expect(result).toContain("Word");
+    const descLine = result.split("\n").find((l) => l.includes("Word"));
+    expect(descLine!.length).toBeLessThan(location.description.length);
+  });
+});
+
+describe("formatPovInteriority", () => {
+  function makeFullChar(): CharacterDossier {
+    return {
+      ...createEmptyCharacterDossier("Elena"),
+      backstory: "Grew up in coastal Oregon logging town\nLeft for college at 17",
+      selfNarrative: "Believes she is someone who makes hard choices cleanly",
+      contradictions: [
+        "Sees herself as decisive, but avoids confrontation",
+        "Claims independence, but checks her mother's approval",
+      ],
+      behavior: {
+        emotionPhysicality: "Jaw tension, hand-to-collarbone gesture",
+        stressResponse: "Goes still, voice drops",
+        socialPosture: "Deflects with humor, controls seating position",
+        noticesFirst: "Exits and sharp objects",
+        lyingStyle: "Partial truths wrapped in real emotion",
+      },
+    };
+  }
+
+  it("intimate distance includes all fields", () => {
+    const result = formatPovInteriority(makeFullChar(), "intimate");
+    expect(result).toContain("=== POV INTERIORITY: ELENA ===");
+    expect(result).toContain("Backstory:");
+    expect(result).toContain("coastal Oregon");
+    expect(result).toContain("Self-narrative:");
+    expect(result).toContain("hard choices cleanly");
+    expect(result).toContain("Contradictions");
+    expect(result).toContain("avoids confrontation");
+    expect(result).toContain("Behavior:");
+    expect(result).toContain("Notices first:");
+    expect(result).toContain("Social posture:");
+    expect(result).toContain("Lying style:");
+    expect(result).toContain("Under stress:");
+    expect(result).toContain("Body shows emotion:");
+  });
+
+  it("close distance includes all fields (same as intimate)", () => {
+    const result = formatPovInteriority(makeFullChar(), "close");
+    expect(result).toContain("Backstory:");
+    expect(result).toContain("Self-narrative:");
+    expect(result).toContain("Contradictions");
+  });
+
+  it("moderate distance excludes backstory and self-narrative", () => {
+    const result = formatPovInteriority(makeFullChar(), "moderate");
+    expect(result).not.toContain("Backstory:");
+    expect(result).not.toContain("Self-narrative:");
+    expect(result).toContain("Contradictions");
+    expect(result).toContain("Behavior:");
+  });
+
+  it("distant distance includes only behavior", () => {
+    const result = formatPovInteriority(makeFullChar(), "distant");
+    expect(result).not.toContain("Backstory:");
+    expect(result).not.toContain("Self-narrative:");
+    expect(result).not.toContain("Contradictions");
+    expect(result).toContain("Behavior:");
+  });
+
+  it("handles null fields gracefully", () => {
+    const char = createEmptyCharacterDossier("Test");
+    const result = formatPovInteriority(char, "intimate");
+    expect(result).toContain("=== POV INTERIORITY: TEST ===");
+    expect(result).not.toContain("null");
+  });
+
+  it("appends guardrail text", () => {
+    const result = formatPovInteriority(makeFullChar(), "intimate");
+    expect(result).toContain("Show contradictions through action");
+    expect(result).toContain("Do not invent backstory");
+  });
+});
+
+describe("formatForegroundCharacter", () => {
+  it("includes physical description and role but NOT behavior", () => {
+    const char = createEmptyCharacterDossier("Elena");
+    char.role = "protagonist";
+    char.physicalDescription = "Tall, dark hair cut short, perpetual coffee stain on left sleeve";
+    char.behavior = {
+      emotionPhysicality: "Jaw tension",
+      stressResponse: "Goes still",
+      socialPosture: "Deflects with humor",
+      noticesFirst: "Exits",
+      lyingStyle: null,
+    };
+    const result = formatForegroundCharacter(char);
+    expect(result).toContain("Elena");
+    expect(result).toContain("protagonist");
+    expect(result).toContain("dark hair cut short");
+    expect(result).not.toContain("Jaw tension");
+    expect(result).not.toContain("Goes still");
+  });
+
+  it("gracefully handles null physicalDescription", () => {
+    const char = createEmptyCharacterDossier("Bob");
+    const result = formatForegroundCharacter(char);
+    expect(result).toContain("Bob");
+    expect(result).not.toContain("null");
+  });
+});
+
+describe("formatBackgroundCharacter", () => {
+  it("includes only name and role with defining cue", () => {
+    const char = createEmptyCharacterDossier("Marcus");
+    char.role = "supporting";
+    char.physicalDescription = "Broad shoulders, always wearing a leather jacket";
+    const result = formatBackgroundCharacter(char);
+    expect(result).toContain("Marcus");
+    expect(result).toContain("supporting");
+    expect(result.length).toBeLessThan(200);
+  });
+
+  it("works with minimal character data", () => {
+    const char = createEmptyCharacterDossier("Extra");
+    const result = formatBackgroundCharacter(char);
+    expect(result).toContain("Extra");
   });
 });
 

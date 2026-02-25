@@ -1,3 +1,4 @@
+import { truncateToTokens } from "../tokens/index.js";
 import type { CharacterDossier, Location, RingSection, ScenePlan } from "../types/index.js";
 
 export function formatSceneContract(plan: ScenePlan): string {
@@ -83,6 +84,9 @@ function formatBehavior(char: CharacterDossier): string[] {
   const behaviorParts: string[] = [];
   if (b.emotionPhysicality) behaviorParts.push(`Body shows emotion: ${b.emotionPhysicality}`);
   if (b.stressResponse) behaviorParts.push(`Under stress: ${b.stressResponse}`);
+  if (b.socialPosture) behaviorParts.push(`Social posture: ${b.socialPosture}`);
+  if (b.noticesFirst) behaviorParts.push(`Notices first: ${b.noticesFirst}`);
+  if (b.lyingStyle) behaviorParts.push(`Lying style: ${b.lyingStyle}`);
   if (behaviorParts.length === 0) return [];
   return [`\n${behaviorParts.join("\n")}`];
 }
@@ -108,6 +112,10 @@ export function formatSensoryPalette(location: Location): string {
   const sp = location.sensoryPalette;
   const lines: string[] = [`=== LOCATION: ${location.name} ===`];
 
+  if (location.description) {
+    lines.push(truncateToTokens(location.description, 70));
+  }
+
   if (sp.sounds.length > 0) lines.push(`Sounds: ${sp.sounds.join(", ")}`);
   if (sp.smells.length > 0) lines.push(`Smells: ${sp.smells.join(", ")}`);
   if (sp.textures.length > 0) lines.push(`Textures: ${sp.textures.join(", ")}`);
@@ -118,6 +126,78 @@ export function formatSensoryPalette(location: Location): string {
   }
 
   return lines.join("\n");
+}
+
+function formatBackstorySection(char: CharacterDossier): string[] {
+  if (!char.backstory) return [];
+  const lines = ["Backstory:"];
+  for (const line of char.backstory.split("\n").filter(Boolean)) {
+    lines.push(`- ${line.trim()}`);
+  }
+  lines.push("");
+  return lines;
+}
+
+function formatContradictionsSection(contradictions: string[] | null): string[] {
+  if (!Array.isArray(contradictions) || contradictions.length === 0) return [];
+  const lines = ["Contradictions (show through action, never state directly):"];
+  for (const c of contradictions) {
+    lines.push(`- ${c}`);
+  }
+  lines.push("");
+  return lines;
+}
+
+function formatBehaviorSection(behavior: CharacterDossier["behavior"]): string[] {
+  if (!behavior) return [];
+  const lines = ["Behavior:"];
+  if (behavior.noticesFirst) lines.push(`- Notices first: ${behavior.noticesFirst}`);
+  if (behavior.socialPosture) lines.push(`- Social posture: ${behavior.socialPosture}`);
+  if (behavior.lyingStyle) lines.push(`- Lying style: ${behavior.lyingStyle}`);
+  if (behavior.stressResponse) lines.push(`- Under stress: ${behavior.stressResponse}`);
+  if (behavior.emotionPhysicality) lines.push(`- Body shows emotion: ${behavior.emotionPhysicality}`);
+  lines.push("");
+  return lines;
+}
+
+const POV_INTERIORITY_GUARDRAIL =
+  "Show contradictions through action, choice, and voice slippage — never state them directly. Do not invent backstory or appearance beyond what is provided in context.";
+
+export function formatPovInteriority(char: CharacterDossier, povDistance: string): string {
+  const lines: string[] = [`=== POV INTERIORITY: ${char.name.toUpperCase()} ===`];
+  const includeDeep = povDistance === "intimate" || povDistance === "close";
+  const includeContradictions = includeDeep || povDistance === "moderate";
+
+  if (includeDeep) {
+    lines.push(...formatBackstorySection(char));
+    if (char.selfNarrative) {
+      lines.push(`Self-narrative: ${char.selfNarrative}`, "");
+    }
+  }
+
+  if (includeContradictions) {
+    lines.push(...formatContradictionsSection(char.contradictions));
+  }
+
+  lines.push(...formatBehaviorSection(char.behavior));
+  lines.push(POV_INTERIORITY_GUARDRAIL);
+
+  return truncateToTokens(lines.join("\n"), 220);
+}
+
+export function formatForegroundCharacter(char: CharacterDossier): string {
+  const lines: string[] = [`${char.name} (${char.role})`];
+  if (char.physicalDescription) lines.push(`Physical: ${char.physicalDescription}`);
+  return lines.join("\n");
+}
+
+export function formatBackgroundCharacter(char: CharacterDossier): string {
+  const parts: string[] = [`- ${char.name} (${char.role})`];
+  if (char.physicalDescription) {
+    const cue = char.physicalDescription.split(/[.,;]/)[0]?.trim();
+    if (cue) parts.push(`— ${cue}`);
+  }
+  return parts.join(" ");
 }
 
 export function formatAntiAblation(plan: ScenePlan): string {
