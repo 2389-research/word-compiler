@@ -40,6 +40,7 @@ export interface ScenePlan {
   chunkDescriptions: string[];
   failureModeToAvoid: string;
   locationId: string | null;
+  presentCharacterIds: string[];
 }
 
 export interface AnchorLine {
@@ -97,6 +98,7 @@ export function createEmptyScenePlan(projectId: string): ScenePlan {
     chunkDescriptions: [],
     failureModeToAvoid: "",
     locationId: null,
+    presentCharacterIds: [],
   };
 }
 

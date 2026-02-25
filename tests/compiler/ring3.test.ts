@@ -286,6 +286,83 @@ describe("buildRing3", () => {
     expect(names).not.toContain("POV_INTERIORITY");
   });
 
+  // --- Scene cast tests ---
+
+  it("SCENE_CAST_GUARDRAIL emitted when presentCharacterIds is non-empty", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus"), makeChar("bob", "Bob")]);
+    const plan = makePlan({
+      dialogueConstraints: {},
+      presentCharacterIds: ["marcus", "bob"],
+    });
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const guardrail = result.sections.find((s) => s.name === "SCENE_CAST_GUARDRAIL");
+
+    expect(guardrail).toBeDefined();
+    expect(guardrail!.text).toContain("Only characters listed as present");
+    expect(guardrail!.immune).toBe(true);
+    expect(guardrail!.priority).toBe(0);
+  });
+
+  it("SCENE_CAST lists non-speaking present characters", () => {
+    const bob = makeChar("bob", "Bob");
+    bob.physicalDescription = "Tall, angular face";
+    const bible = makeBible([makeChar("marcus", "Marcus"), bob]);
+    const plan = makePlan({
+      dialogueConstraints: {},
+      presentCharacterIds: ["marcus", "bob"],
+    });
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const cast = result.sections.find((s) => s.name === "SCENE_CAST");
+
+    expect(cast).toBeDefined();
+    expect(cast!.text).toContain("ALSO PRESENT");
+    expect(cast!.text).toContain("Bob");
+    expect(cast!.text).toContain("Tall, angular face");
+    expect(cast!.immune).toBe(false);
+    expect(cast!.priority).toBe(2);
+  });
+
+  it("SCENE_CAST excludes speaking characters (already have VOICE_* sections)", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus"), makeChar("elena", "Elena")]);
+    const plan = makePlan({
+      dialogueConstraints: { elena: ["Guarded"] },
+      presentCharacterIds: ["marcus", "elena"],
+    });
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const cast = result.sections.find((s) => s.name === "SCENE_CAST");
+
+    // Both marcus (POV) and elena (speaking) are already covered — no SCENE_CAST needed
+    expect(cast).toBeUndefined();
+  });
+
+  it("no SCENE_CAST when presentCharacterIds is empty", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {}, presentCharacterIds: [] });
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const names = result.sections.map((s) => s.name);
+
+    expect(names).not.toContain("SCENE_CAST_GUARDRAIL");
+    expect(names).not.toContain("SCENE_CAST");
+  });
+
+  it("SCENE_CAST handles missing presentCharacterIds gracefully (backward compat)", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    // Simulate old data without presentCharacterIds by creating plan without it
+    const plan = makePlan({ dialogueConstraints: {} });
+    // biome-ignore lint: simulate pre-migration data missing the field
+    (plan as unknown as Record<string, unknown>).presentCharacterIds = undefined;
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const names = result.sections.map((s) => s.name);
+
+    expect(names).not.toContain("SCENE_CAST_GUARDRAIL");
+    expect(names).not.toContain("SCENE_CAST");
+  });
+
   // --- Cross-scene bridge tests ---
 
   it("cross-scene bridge uses previousSceneLastChunk when no previous chunks", () => {

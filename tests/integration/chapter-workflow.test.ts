@@ -151,6 +151,7 @@ function makeScenePlans(): ScenePlan[] {
     chunkCount: 3,
     chunkDescriptions: [],
     locationId: "loc-school",
+    presentCharacterIds: [],
   };
 
   return [

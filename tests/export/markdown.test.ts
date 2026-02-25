@@ -47,6 +47,7 @@ function makeScene(id: string, title: string, order: number): SceneEntry {
       chunkDescriptions: [],
       failureModeToAvoid: "",
       locationId: null,
+      presentCharacterIds: [],
     },
     status: "complete",
     sceneOrder: order,
