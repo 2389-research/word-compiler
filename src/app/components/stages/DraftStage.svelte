@@ -3,8 +3,11 @@ import { checkChunkReviewGate, checkCompileGate, checkScenePlanGate } from "../.
 import { analyzeEdits } from "../../../learner/diff.js";
 import { applyProposal, type BibleProposal } from "../../../learner/proposals.js";
 import { generateTuningProposals, type TuningProposal } from "../../../learner/tuning.js";
+import { callLLM } from "../../../llm/client.js";
 import { computeStyleDriftFromProse } from "../../../metrics/styleDrift.js";
 import { measureVoiceSeparability } from "../../../metrics/voiceSeparability.js";
+import { createReviewOrchestrator, REVIEW_OUTPUT_SCHEMA } from "../../../review/index.js";
+import type { ChunkView, EditorialAnnotation, LLMReviewClient, ReviewOrchestrator } from "../../../review/index.js";
 import type { Chunk, NarrativeIR, StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
 import { getCanonicalText } from "../../../types/index.js";
 import { Tabs } from "../../primitives/index.js";
@@ -36,6 +39,106 @@ let {
   onAutopilot: () => void;
   onExtractIR: (sceneId?: string) => void;
 } = $props();
+
+// ─── Editorial Review ───────────────────────────
+const REVIEW_MODEL = "claude-sonnet-4-6";
+const REVIEW_MAX_TOKENS = 2048;
+
+const llmReviewClient: LLMReviewClient = {
+  review(systemPrompt: string, userPrompt: string, signal: AbortSignal): Promise<string> {
+    const promise = callLLM(systemPrompt, userPrompt, REVIEW_MODEL, REVIEW_MAX_TOKENS, REVIEW_OUTPUT_SCHEMA as Record<string, unknown>);
+    return new Promise((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      promise.then(resolve, reject);
+    });
+  },
+};
+
+// Dismissed fingerprints (persisted per-project in localStorage)
+function loadDismissed(): Set<string> {
+  try {
+    const key = `review-dismissed:${store.project?.id ?? "default"}`;
+    const raw = localStorage.getItem(key);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissed(dismissed: Set<string>) {
+  const key = `review-dismissed:${store.project?.id ?? "default"}`;
+  localStorage.setItem(key, JSON.stringify([...dismissed]));
+}
+
+let dismissed = $state(loadDismissed());
+let chunkAnnotations = $state(new Map<number, EditorialAnnotation[]>());
+let orchestrator = $state<ReviewOrchestrator | null>(null);
+
+// Recreate orchestrator when bible or scene changes
+$effect(() => {
+  orchestrator?.cancelAll();
+  chunkAnnotations = new Map();
+
+  if (!store.bible || !store.activeScenePlan) {
+    orchestrator = null;
+    return;
+  }
+
+  orchestrator = createReviewOrchestrator(
+    store.bible,
+    store.activeScenePlan,
+    dismissed,
+    llmReviewClient,
+    (chunkIndex, anns) => {
+      chunkAnnotations = new Map(chunkAnnotations).set(chunkIndex, anns);
+    },
+  );
+});
+
+// Trigger review when chunks change
+let reviewDebounce: ReturnType<typeof setTimeout> | undefined;
+$effect(() => {
+  const chunks = store.activeSceneChunks;
+  const sceneId = store.activeScenePlan?.id;
+  if (!orchestrator || !sceneId || chunks.length === 0) return;
+
+  clearTimeout(reviewDebounce);
+  reviewDebounce = setTimeout(() => {
+    const views: ChunkView[] = chunks.map((c, i) => ({
+      index: i,
+      text: getCanonicalText(c),
+      sceneId: sceneId,
+    }));
+    orchestrator?.requestReview(views);
+  }, 1000);
+});
+
+function handleAcceptSuggestion(annotationId: string) {
+  // The AnnotatedEditor handles text replacement; we just need to trigger re-review
+  // which will happen automatically through chunk text change → $effect above
+}
+
+function handleDismissAnnotation(annotationId: string) {
+  // Find the annotation's fingerprint and add to dismissed set
+  for (const [, anns] of chunkAnnotations) {
+    const ann = anns.find((a) => a.id === annotationId);
+    if (ann) {
+      dismissed = new Set(dismissed).add(ann.fingerprint);
+      saveDismissed(dismissed);
+      // Remove from current annotations immediately
+      const updated = new Map(chunkAnnotations);
+      for (const [idx, chunkAnns] of updated) {
+        updated.set(idx, chunkAnns.filter((a) => a.fingerprint !== ann.fingerprint));
+      }
+      chunkAnnotations = updated;
+      break;
+    }
+  }
+}
 
 // ─── Local UI state ─────────────────────────────
 let activeTab = $state<"compiler" | "drift" | "voice" | "setups" | "ir">("compiler");
@@ -174,6 +277,7 @@ async function handleUpdateIR(ir: NarrativeIR) {
         auditFlags={store.auditFlags}
         sceneIR={store.activeSceneIR}
         isExtractingIR={store.isExtractingIR}
+        {chunkAnnotations}
         onGenerate={onGenerate}
         onUpdateChunk={handleUpdateChunk}
         onRemoveChunk={handleRemoveChunk}
@@ -184,6 +288,8 @@ async function handleUpdateIR(ir: NarrativeIR) {
         onCancelAutopilot={() => store.cancelAutopilot()}
         onOpenIRInspector={() => { activeTab = "ir"; }}
         onExtractIR={() => onExtractIR()}
+        onAcceptSuggestion={handleAcceptSuggestion}
+        onDismissAnnotation={handleDismissAnnotation}
       />
     </div>
 
