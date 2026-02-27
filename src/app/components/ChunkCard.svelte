@@ -1,19 +1,27 @@
 <script lang="ts">
+import type { EditorialAnnotation } from "../../review/types.js";
 import type { Chunk } from "../../types/index.js";
 import { Badge, Button, TextArea } from "../primitives/index.js";
+import AnnotatedEditor from "./AnnotatedEditor.svelte";
 
 let {
   chunk,
   index,
   isLast,
+  annotations = [],
   onUpdate,
   onRemove,
+  onAcceptSuggestion,
+  onDismissAnnotation,
 }: {
   chunk: Chunk;
   index: number;
   isLast: boolean;
+  annotations?: EditorialAnnotation[];
   onUpdate: (index: number, changes: Partial<Chunk>) => void;
   onRemove: (index: number) => void;
+  onAcceptSuggestion?: (annotationId: string) => void;
+  onDismissAnnotation?: (annotationId: string) => void;
 } = $props();
 
 let editing = $state(false);
@@ -61,7 +69,13 @@ function handleReject() {
     {#if editing}
       <TextArea bind:value={editText} autosize />
     {:else}
-      {chunk.editedText ?? chunk.generatedText}
+      <AnnotatedEditor
+        text={chunk.editedText ?? chunk.generatedText}
+        {annotations}
+        readonly={true}
+        onAcceptSuggestion={onAcceptSuggestion}
+        onDismissAnnotation={onDismissAnnotation}
+      />
     {/if}
   </div>
   <div class="chunk-card-actions">

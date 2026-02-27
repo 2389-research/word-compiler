@@ -1,5 +1,6 @@
 <script lang="ts">
 import { checkAuditResolutionGate, checkSceneCompletionGate } from "../../gates/index.js";
+import type { EditorialAnnotation } from "../../review/types.js";
 import type { AuditFlag, Chunk, NarrativeIR, ScenePlan, SceneStatus } from "../../types/index.js";
 import { Badge, Button, DiagnosticItem, Pane, Spinner } from "../primitives/index.js";
 import ChunkCard from "./ChunkCard.svelte";
@@ -14,6 +15,7 @@ let {
   auditFlags,
   sceneIR,
   isExtractingIR,
+  chunkAnnotations = new Map(),
   onGenerate,
   onUpdateChunk,
   onRemoveChunk,
@@ -24,6 +26,8 @@ let {
   onCancelAutopilot,
   onOpenIRInspector,
   onExtractIR,
+  onAcceptSuggestion,
+  onDismissAnnotation,
   isAutopilot = false,
 }: {
   chunks: Chunk[];
@@ -36,6 +40,7 @@ let {
   auditFlags: AuditFlag[];
   sceneIR: NarrativeIR | null;
   isExtractingIR: boolean;
+  chunkAnnotations?: Map<number, EditorialAnnotation[]>;
   onGenerate: () => void;
   onUpdateChunk: (index: number, changes: Partial<Chunk>) => void;
   onRemoveChunk: (index: number) => void;
@@ -46,6 +51,8 @@ let {
   onCancelAutopilot: () => void;
   onOpenIRInspector: () => void;
   onExtractIR: () => void;
+  onAcceptSuggestion?: (annotationId: string) => void;
+  onDismissAnnotation?: (annotationId: string) => void;
 } = $props();
 
 let maxChunks = $derived(scenePlan?.chunkCount ?? Infinity);
@@ -136,8 +143,11 @@ $effect(() => {
         {chunk}
         index={i}
         isLast={i === chunks.length - 1}
+        annotations={chunkAnnotations.get(i) ?? []}
         onUpdate={onUpdateChunk}
         onRemove={onRemoveChunk}
+        {onAcceptSuggestion}
+        {onDismissAnnotation}
       />
     {/each}
 
