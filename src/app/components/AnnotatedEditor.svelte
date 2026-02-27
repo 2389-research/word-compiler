@@ -5,6 +5,7 @@ import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { untrack } from "svelte";
 import type { EditorialAnnotation } from "../../review/types.js";
 import AnnotationTooltip from "./AnnotationTooltip.svelte";
 
@@ -25,7 +26,9 @@ let {
 } = $props();
 
 let editorElement: HTMLDivElement;
-let editor: Editor | null = $state(null);
+// Plain variable — NOT reactive. TipTap's Editor is a complex external object
+// that must not participate in Svelte's dependency tracking.
+let editor: Editor | null = null;
 let applyingExternal = false;
 let activeAnnotation = $state<EditorialAnnotation | null>(null);
 let tooltipPosition = $state({ top: 0, left: 0 });
@@ -120,10 +123,11 @@ function createEditorialPlugin(): Plugin {
 }
 
 // ─── Editor Lifecycle ───────────────────────────
+// Only depends on editorElement (bound once on mount). Editor is NOT reactive.
 $effect(() => {
-  if (editor || !editorElement) return;
+  if (!editorElement) return;
 
-  editor = new Editor({
+  const ed = new Editor({
     element: editorElement,
     extensions: [Document, Paragraph, Text],
     content: textToDoc(text),
@@ -133,47 +137,54 @@ $effect(() => {
         class: "annotated-editor-content",
       },
     },
-    onUpdate({ editor: ed }) {
-      if (applyingExternal) return;
-      const newText = ed.getText({ blockSeparator: "\n\n" });
+    onUpdate({ editor: updatedEd }) {
+      if (applyingExternal || readonly) return;
+      const newText = updatedEd.getText({ blockSeparator: "\n\n" });
       onTextChange?.(newText);
     },
   });
 
-  // Register the editorial plugin after creation
-  editor.registerPlugin(createEditorialPlugin());
+  ed.registerPlugin(createEditorialPlugin());
+  editor = ed;
 
   return () => {
-    editor?.destroy();
+    ed.destroy();
     editor = null;
   };
 });
 
 // ─── Sync External Text ─────────────────────────
+// Reacts to `text` prop changes. Reads `editor` without tracking.
 $effect(() => {
-  if (!editor) return;
-  const currentText = editor.getText({ blockSeparator: "\n\n" });
-  if (text !== currentText) {
+  const newText = text;
+  const ed = untrack(() => editor);
+  if (!ed) return;
+  const currentText = ed.getText({ blockSeparator: "\n\n" });
+  if (newText !== currentText) {
     applyingExternal = true;
-    editor.commands.setContent(textToDoc(text));
+    ed.commands.setContent(textToDoc(newText));
     applyingExternal = false;
   }
 });
 
 // ─── Sync Annotations ───────────────────────────
+// Reacts to `annotations` prop changes. Reads `editor` without tracking.
 $effect(() => {
-  if (!editor) return;
-  // Access annotations to track the dependency
   const anns = annotations;
-  const decoSet = makeDecorations(editor, anns);
-  const tr = editor.state.tr.setMeta(editorialKey, { decoSet });
-  editor.view.dispatch(tr);
+  const ed = untrack(() => editor);
+  if (!ed) return;
+  const decoSet = makeDecorations(ed, anns);
+  const tr = ed.state.tr.setMeta(editorialKey, { decoSet });
+  ed.view.dispatch(tr);
 });
 
 // ─── Sync Readonly ──────────────────────────────
+// Reacts to `readonly` prop changes. Reads `editor` without tracking.
 $effect(() => {
-  if (!editor) return;
-  editor.setEditable(!readonly);
+  const isReadonly = readonly;
+  const ed = untrack(() => editor);
+  if (!ed) return;
+  ed.setEditable(!isReadonly);
 });
 
 // ─── Hover Handling ─────────────────────────────

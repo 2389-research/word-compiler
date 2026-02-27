@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from "svelte";
 import { checkChunkReviewGate, checkCompileGate, checkScenePlanGate } from "../../../gates/index.js";
 import { analyzeEdits } from "../../../learner/diff.js";
 import { applyProposal, type BibleProposal } from "../../../learner/proposals.js";
@@ -86,17 +87,24 @@ let orchestrator = $state<ReviewOrchestrator | null>(null);
 
 // Recreate orchestrator when bible or scene changes
 $effect(() => {
-  orchestrator?.cancelAll();
-  chunkAnnotations = new Map();
+  // Read dependencies explicitly
+  const bible = store.bible;
+  const scenePlan = store.activeScenePlan;
 
-  if (!store.bible || !store.activeScenePlan) {
+  // Cleanup previous orchestrator — untrack to avoid read→write loop
+  untrack(() => {
+    orchestrator?.cancelAll();
+    chunkAnnotations = new Map();
+  });
+
+  if (!bible || !scenePlan) {
     orchestrator = null;
     return;
   }
 
   orchestrator = createReviewOrchestrator(
-    store.bible,
-    store.activeScenePlan,
+    bible,
+    scenePlan,
     () => dismissed,
     llmReviewClient,
     (chunkIndex, anns) => {
@@ -111,14 +119,17 @@ $effect(() => {
   const chunks = store.activeSceneChunks;
   const sceneId = store.activeScenePlan?.id;
   clearTimeout(reviewDebounce);
-  if (!orchestrator || !sceneId || chunks.length === 0) return;
+  if (!sceneId || chunks.length === 0) return;
+  // Read orchestrator inside untrack — we only want to react to chunk changes
+  const orch = untrack(() => orchestrator);
+  if (!orch) return;
   reviewDebounce = setTimeout(() => {
     const views: ChunkView[] = chunks.map((c, i) => ({
       index: i,
       text: getCanonicalText(c),
       sceneId: sceneId,
     }));
-    orchestrator?.requestReview(views);
+    orch.requestReview(views);
   }, 1000);
 });
 
