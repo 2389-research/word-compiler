@@ -77,13 +77,23 @@ function loadDismissed(): Set<string> {
 }
 
 function saveDismissed(dismissed: Set<string>) {
-  const key = `review-dismissed:${store.project?.id ?? "default"}`;
-  localStorage.setItem(key, JSON.stringify([...dismissed]));
+  try {
+    const key = `review-dismissed:${store.project?.id ?? "default"}`;
+    localStorage.setItem(key, JSON.stringify([...dismissed]));
+  } catch {
+    // Ignore storage failures; dismissed state just won't persist.
+  }
 }
 
 let dismissed = $state(loadDismissed());
 let chunkAnnotations = $state(new Map<number, EditorialAnnotation[]>());
 let orchestrator = $state<ReviewOrchestrator | null>(null);
+
+// Reload dismissed set when project changes
+$effect(() => {
+  const _projectId = store.project?.id;
+  dismissed = loadDismissed();
+});
 
 // Recreate orchestrator when bible or scene changes
 $effect(() => {

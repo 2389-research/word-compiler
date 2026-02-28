@@ -205,8 +205,11 @@ function handleMouseOver(e: MouseEvent) {
 
   const squiggle = target.closest?.("[data-annotation-id]");
   if (!squiggle) {
-    // Not on a squiggle and not on the tooltip — don't immediately clear,
-    // let mouseleave handle it with its grace period.
+    // Not on a squiggle and not on the tooltip — schedule hide with grace period
+    clearTimeout(leaveTimeout);
+    leaveTimeout = setTimeout(() => {
+      activeAnnotation = null;
+    }, 150);
     return;
   }
 
@@ -240,9 +243,11 @@ function handleAccept(id: string) {
 
   const from = offsetToPos(editor, ann.charRange.start);
   const to = offsetToPos(editor, ann.charRange.end);
-  // Insert suggestion as plain text node, not HTML
+  // Suppress onUpdate during suggestion application — we fire onTextChange once below
+  applyingExternal = true;
   const tr = editor.state.tr.replaceWith(from, to, editor.state.schema.text(ann.suggestion));
   editor.view.dispatch(tr);
+  applyingExternal = false;
   // Propagate the updated text to the parent
   const newText = editor.getText({ blockSeparator: "\n\n" });
   onTextChange?.(newText);

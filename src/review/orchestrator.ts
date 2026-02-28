@@ -106,12 +106,23 @@ interface RawAnnotation {
 function isValidRawAnnotation(a: unknown): a is RawAnnotation {
   if (!a || typeof a !== "object") return false;
   const r = a as Record<string, unknown>;
+  if (
+    typeof r.category !== "string" ||
+    !VALID_LLM_CATEGORIES.has(r.category as LLMReviewCategory) ||
+    typeof r.message !== "string" ||
+    typeof r.severity !== "string" ||
+    typeof r.scope !== "string"
+  )
+    return false;
+  // Validate suggestion is string | null | undefined
+  if (r.suggestion !== null && r.suggestion !== undefined && typeof r.suggestion !== "string") return false;
+  // Validate anchor shape
+  const anchor = r.anchor as Record<string, unknown> | undefined;
   return (
-    typeof r.category === "string" &&
-    VALID_LLM_CATEGORIES.has(r.category as LLMReviewCategory) &&
-    typeof r.message === "string" &&
-    !!r.anchor &&
-    typeof (r.anchor as Record<string, unknown>).focus === "string"
+    !!anchor &&
+    typeof anchor.focus === "string" &&
+    typeof anchor.prefix === "string" &&
+    typeof anchor.suffix === "string"
   );
 }
 
