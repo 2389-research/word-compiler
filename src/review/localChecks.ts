@@ -35,6 +35,17 @@ export function runLocalChecks(text: string, bible: Bible, sceneId: string): Edi
   return annotations;
 }
 
+function buildAnchor(text: string, start: number, end: number): EditorialAnnotation["anchor"] {
+  const focusText = start < end ? text.slice(start, Math.min(end, start + 60)) : "";
+  const prefixStart = Math.max(0, start - 20);
+  const suffixEnd = Math.min(text.length, end + 20);
+  return {
+    prefix: text.slice(prefixStart, start),
+    focus: focusText,
+    suffix: text.slice(end, suffixEnd),
+  };
+}
+
 function flagToAnnotation(
   severity: Severity,
   category: LocalReviewCategory,
@@ -43,10 +54,7 @@ function flagToAnnotation(
   start: number,
   end: number,
 ): EditorialAnnotation {
-  const focusText = start < end ? text.slice(start, Math.min(end, start + 60)) : "";
-  const prefixStart = Math.max(0, start - 20);
-  const suffixEnd = Math.min(text.length, end + 20);
-
+  const anchor = buildAnchor(text, start, end);
   return {
     id: generateId(),
     category,
@@ -54,13 +62,9 @@ function flagToAnnotation(
     scope: "both",
     message,
     suggestion: null,
-    anchor: {
-      prefix: text.slice(prefixStart, start),
-      focus: focusText,
-      suffix: text.slice(end, suffixEnd),
-    },
+    anchor,
     charRange: { start, end },
-    fingerprint: hashFingerprint(category, focusText),
+    fingerprint: hashFingerprint(category, anchor.focus),
   };
 }
 

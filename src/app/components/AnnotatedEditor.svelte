@@ -127,11 +127,15 @@ function createEditorialPlugin(): Plugin {
 $effect(() => {
   if (!editorElement) return;
 
+  // Read text/readonly without tracking — dedicated sync effects handle updates.
+  const initialText = untrack(() => text);
+  const initialReadonly = untrack(() => readonly);
+
   const ed = new Editor({
     element: editorElement,
     extensions: [Document, Paragraph, Text],
-    content: textToDoc(text),
-    editable: !readonly,
+    content: textToDoc(initialText),
+    editable: !initialReadonly,
     editorProps: {
       attributes: {
         class: "annotated-editor-content",
@@ -188,17 +192,32 @@ $effect(() => {
 });
 
 // ─── Hover Handling ─────────────────────────────
+let leaveTimeout: ReturnType<typeof setTimeout> | undefined;
+
 function handleMouseOver(e: MouseEvent) {
-  const target = (e.target as HTMLElement).closest?.("[data-annotation-id]");
-  if (!target) {
-    activeAnnotation = null;
+  const target = e.target as HTMLElement;
+
+  // Ignore events from inside the tooltip — let the tooltip stay visible
+  if (target.closest?.(".annotation-tooltip")) {
+    clearTimeout(leaveTimeout);
     return;
   }
-  const annId = (target as HTMLElement).dataset.annotationId;
+
+  const squiggle = target.closest?.("[data-annotation-id]");
+  if (!squiggle) {
+    // Not on a squiggle and not on the tooltip — don't immediately clear,
+    // let mouseleave handle it with its grace period.
+    return;
+  }
+
+  // Cancel any pending leave timeout — user re-entered a squiggle
+  clearTimeout(leaveTimeout);
+
+  const annId = (squiggle as HTMLElement).dataset.annotationId;
   const ann = annotations.find((a) => a.id === annId);
   if (!ann) return;
 
-  const rect = (target as HTMLElement).getBoundingClientRect();
+  const rect = (squiggle as HTMLElement).getBoundingClientRect();
   const wrapperRect = editorElement.getBoundingClientRect();
   tooltipPosition = {
     top: rect.bottom - wrapperRect.top + 4,
@@ -208,8 +227,9 @@ function handleMouseOver(e: MouseEvent) {
 }
 
 function handleMouseLeave() {
-  // Delay to allow clicking tooltip buttons
-  setTimeout(() => {
+  // Delay to allow crossing the gap between squiggle and tooltip
+  clearTimeout(leaveTimeout);
+  leaveTimeout = setTimeout(() => {
     activeAnnotation = null;
   }, 200);
 }

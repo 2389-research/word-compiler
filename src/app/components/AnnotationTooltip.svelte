@@ -1,4 +1,5 @@
 <script lang="ts">
+import { SEVERITY_CSS_COLORS } from "../../review/constants.js";
 import type { EditorialAnnotation } from "../../review/types.js";
 import { Button } from "../primitives/index.js";
 
@@ -14,13 +15,7 @@ let {
   onDismiss: (id: string) => void;
 } = $props();
 
-const severityColors: Record<string, string> = {
-  critical: "var(--color-error, #ef4444)",
-  warning: "var(--color-warning, #f59e0b)",
-  info: "var(--color-info, #3b82f6)",
-};
-
-let color = $derived(severityColors[annotation.severity] ?? severityColors.info);
+let color = $derived(SEVERITY_CSS_COLORS[annotation.severity] ?? SEVERITY_CSS_COLORS.info);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

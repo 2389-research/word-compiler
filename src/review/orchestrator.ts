@@ -6,7 +6,16 @@ import { buildReviewContext } from "./contextBuilder.js";
 import { hashFingerprint } from "./fingerprint.js";
 import { runLocalChecks } from "./localChecks.js";
 import { buildReviewSystemPrompt, buildReviewUserPrompt, REVIEW_OUTPUT_SCHEMA } from "./prompt.js";
-import type { ChunkView, EditorialAnnotation, LLMReviewCategory, ReviewOrchestrator, Severity } from "./types.js";
+import {
+  ANNOTATION_SCOPES,
+  type ChunkView,
+  type EditorialAnnotation,
+  LLM_REVIEW_CATEGORIES,
+  type LLMReviewCategory,
+  type ReviewOrchestrator,
+  SEVERITIES,
+  type Severity,
+} from "./types.js";
 
 export interface LLMReviewClient {
   review(systemPrompt: string, userPrompt: string, signal: AbortSignal): Promise<string>;
@@ -33,8 +42,7 @@ export function createReviewOrchestrator(
     for (const chunk of chunks) {
       // Tier 1: Deterministic (instant) — publish immediately
       const localAnnotations = runLocalChecks(chunk.text, bible, chunk.sceneId);
-      const filteredLocal = localAnnotations.filter((a) => !getDismissed().has(a.fingerprint));
-      const resolvedLocal = resolveAnnotations(filteredLocal, chunk.text);
+      const resolvedLocal = resolveAnnotations(filterDismissed(localAnnotations, getDismissed()), chunk.text);
       annotations.set(chunk.index, resolvedLocal);
       onAnnotationsChanged(chunk.index, resolvedLocal);
 
@@ -46,7 +54,7 @@ export function createReviewOrchestrator(
         .review(systemPrompt, userPrompt, abortController.signal)
         .then((rawJson) => {
           const llmAnnotations = parseLLMResponse(rawJson, chunk.text);
-          const all = [...localAnnotations, ...llmAnnotations].filter((a) => !getDismissed().has(a.fingerprint));
+          const all = filterDismissed([...localAnnotations, ...llmAnnotations], getDismissed());
           const resolved = resolveAnnotations(all, chunk.text);
           annotations.set(chunk.index, resolved);
           onAnnotationsChanged(chunk.index, resolved);
@@ -76,62 +84,62 @@ function resolveAnnotations(anns: EditorialAnnotation[], text: string): Editoria
     .filter((a) => a.charRange.start !== a.charRange.end || a.anchor.focus === "");
 }
 
-const VALID_LLM_CATEGORIES = new Set<LLMReviewCategory>([
-  "tone",
-  "grammar",
-  "voice",
-  "punctuation",
-  "show_dont_tell",
-  "pov",
-  "dialogue",
-  "metaphor",
-  "vocabulary",
-  "continuity",
-]);
-const VALID_SEVERITIES = new Set<Severity>(["critical", "warning", "info"]);
-const VALID_SCOPES = new Set(["dialogue", "narration", "both"]);
+// ─── Extracted Helpers ───────────────────────────
+
+function filterDismissed(anns: EditorialAnnotation[], dismissed: Set<string>): EditorialAnnotation[] {
+  return anns.filter((a) => !dismissed.has(a.fingerprint));
+}
+
+const VALID_LLM_CATEGORIES = new Set<LLMReviewCategory>(LLM_REVIEW_CATEGORIES);
+const VALID_SEVERITIES = new Set<Severity>(SEVERITIES);
+const VALID_SCOPES = new Set<string>(ANNOTATION_SCOPES);
+
+interface RawAnnotation {
+  category: string;
+  severity: string;
+  scope: string;
+  message: string;
+  suggestion: string | null;
+  anchor: { prefix: string; focus: string; suffix: string };
+}
+
+function isValidRawAnnotation(a: unknown): a is RawAnnotation {
+  if (!a || typeof a !== "object") return false;
+  const r = a as Record<string, unknown>;
+  return (
+    typeof r.category === "string" &&
+    VALID_LLM_CATEGORIES.has(r.category as LLMReviewCategory) &&
+    typeof r.message === "string" &&
+    !!r.anchor &&
+    typeof (r.anchor as Record<string, unknown>).focus === "string"
+  );
+}
+
+function rawToAnnotation(a: RawAnnotation, chunkText: string): EditorialAnnotation {
+  const severity: Severity = VALID_SEVERITIES.has(a.severity as Severity) ? (a.severity as Severity) : "info";
+  const scope = VALID_SCOPES.has(a.scope) ? a.scope : "both";
+  const focusIdx = chunkText.indexOf(a.anchor.focus);
+  return {
+    id: generateId(),
+    category: a.category,
+    severity,
+    scope,
+    message: a.message,
+    suggestion: a.suggestion ?? null,
+    anchor: a.anchor,
+    charRange: {
+      start: focusIdx === -1 ? 0 : focusIdx,
+      end: focusIdx === -1 ? 0 : focusIdx + a.anchor.focus.length,
+    },
+    fingerprint: hashFingerprint(a.category, a.anchor.focus),
+  } as EditorialAnnotation;
+}
 
 function parseLLMResponse(raw: string, chunkText: string): EditorialAnnotation[] {
   try {
     const parsed = JSON.parse(raw);
     if (!parsed.annotations || !Array.isArray(parsed.annotations)) return [];
-    return parsed.annotations
-      .filter(
-        (a: Record<string, unknown>) =>
-          typeof a.category === "string" &&
-          VALID_LLM_CATEGORIES.has(a.category as LLMReviewCategory) &&
-          typeof a.message === "string" &&
-          a.anchor &&
-          typeof (a.anchor as Record<string, unknown>).focus === "string",
-      )
-      .map(
-        (a: {
-          category: string;
-          severity: string;
-          scope: string;
-          message: string;
-          suggestion: string | null;
-          anchor: { prefix: string; focus: string; suffix: string };
-        }) => {
-          const severity: Severity = VALID_SEVERITIES.has(a.severity as Severity) ? (a.severity as Severity) : "info";
-          const scope = VALID_SCOPES.has(a.scope) ? a.scope : "both";
-          const focusIdx = chunkText.indexOf(a.anchor.focus);
-          return {
-            id: generateId(),
-            category: a.category,
-            severity,
-            scope,
-            message: a.message,
-            suggestion: a.suggestion ?? null,
-            anchor: a.anchor,
-            charRange: {
-              start: focusIdx === -1 ? 0 : focusIdx,
-              end: focusIdx === -1 ? 0 : focusIdx + a.anchor.focus.length,
-            },
-            fingerprint: hashFingerprint(a.category, a.anchor.focus),
-          } as EditorialAnnotation;
-        },
-      );
+    return (parsed.annotations as unknown[]).filter(isValidRawAnnotation).map((a) => rawToAnnotation(a, chunkText));
   } catch {
     return [];
   }

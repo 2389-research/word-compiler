@@ -114,16 +114,14 @@ $effect(() => {
 });
 
 // Trigger review when chunks change
-let reviewDebounce: ReturnType<typeof setTimeout> | undefined;
 $effect(() => {
   const chunks = store.activeSceneChunks;
   const sceneId = store.activeScenePlan?.id;
-  clearTimeout(reviewDebounce);
   if (!sceneId || chunks.length === 0) return;
   // Read orchestrator inside untrack — we only want to react to chunk changes
   const orch = untrack(() => orchestrator);
   if (!orch) return;
-  reviewDebounce = setTimeout(() => {
+  const timeout = setTimeout(() => {
     const views: ChunkView[] = chunks.map((c, i) => ({
       index: i,
       text: getCanonicalText(c),
@@ -131,6 +129,7 @@ $effect(() => {
     }));
     orch.requestReview(views);
   }, 1000);
+  return () => clearTimeout(timeout);
 });
 
 function handleAcceptSuggestion(_annotationId: string) {

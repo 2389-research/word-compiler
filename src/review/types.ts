@@ -1,28 +1,38 @@
 import type { KillListEntry, StyleGuide, VocabPreference } from "../types/bible.js";
 
-// ─── Category Separation ────────────────────────
-// Deterministic (existing auditor): kill_list, rhythm_monotony, paragraph_length
-// LLM-only (judgment-based):
+// ─── Canonical Const Arrays ─────────────────────
+// Single source of truth: runtime arrays + derived union types.
 
-export type LLMReviewCategory =
-  | "tone"
-  | "grammar"
-  | "voice"
-  | "punctuation"
-  | "show_dont_tell"
-  | "pov"
-  | "dialogue"
-  | "metaphor"
-  | "vocabulary"
-  | "continuity";
+export const LLM_REVIEW_CATEGORIES = [
+  "tone",
+  "grammar",
+  "voice",
+  "punctuation",
+  "show_dont_tell",
+  "pov",
+  "dialogue",
+  "metaphor",
+  "vocabulary",
+  "continuity",
+] as const;
 
-export type LocalReviewCategory = "kill_list" | "rhythm_monotony" | "paragraph_length";
+export const LOCAL_REVIEW_CATEGORIES = ["kill_list", "rhythm_monotony", "paragraph_length"] as const;
+
+export const SEVERITIES = ["critical", "warning", "info"] as const;
+
+export const ANNOTATION_SCOPES = ["dialogue", "narration", "both"] as const;
+
+// ─── Derived Types ──────────────────────────────
+
+export type LLMReviewCategory = (typeof LLM_REVIEW_CATEGORIES)[number];
+
+export type LocalReviewCategory = (typeof LOCAL_REVIEW_CATEGORIES)[number];
 
 export type ReviewCategory = LLMReviewCategory | LocalReviewCategory;
 
-export type Severity = "critical" | "warning" | "info";
+export type Severity = (typeof SEVERITIES)[number];
 
-export type AnnotationScope = "dialogue" | "narration" | "both";
+export type AnnotationScope = (typeof ANNOTATION_SCOPES)[number];
 
 // ─── Core Annotation ───────────────────────────
 
