@@ -10,19 +10,40 @@ let {
   onDismiss,
 }: {
   annotation: EditorialAnnotation;
-  position: { top: number; left: number };
+  position: { top: number; left: number; anchorBottom: number };
   onAccept: (id: string) => void;
   onDismiss: (id: string) => void;
 } = $props();
 
 let color = $derived(SEVERITY_CSS_COLORS[annotation.severity] ?? SEVERITY_CSS_COLORS.info);
+let tooltipEl: HTMLDivElement;
+let flippedTop = $state<number | null>(null);
+
+$effect(() => {
+  // Re-run when position changes (new annotation or reposition)
+  const _trigger = position;
+  // Reset flip state so we measure fresh
+  flippedTop = null;
+
+  // After render, check if tooltip overflows viewport and flip above if needed
+  requestAnimationFrame(() => {
+    if (!tooltipEl) return;
+    const rect = tooltipEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    if (rect.bottom > viewportHeight - 8) {
+      // Flip above: anchorBottom is the squiggle's top relative to wrapper
+      flippedTop = position.anchorBottom - rect.height - 4;
+    }
+  });
+});
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
+  bind:this={tooltipEl}
   class="annotation-tooltip"
-  style:top="{position.top}px"
+  style:top="{flippedTop ?? position.top}px"
   style:left="{position.left}px"
   onclick={(e) => e.stopPropagation()}
 >
@@ -54,6 +75,8 @@ let color = $derived(SEVERITY_CSS_COLORS[annotation.severity] ?? SEVERITY_CSS_CO
     padding: 8px 10px;
     max-width: 340px;
     min-width: 200px;
+    max-height: 50vh;
+    overflow-y: auto;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     font-size: 12px;
     line-height: 1.4;

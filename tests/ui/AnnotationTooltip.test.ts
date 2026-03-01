@@ -7,7 +7,7 @@ function renderTooltip(overrides: Parameters<typeof makeEditorialAnnotation>[0] 
   const annotation = makeEditorialAnnotation(overrides);
   return render(AnnotationTooltip, {
     annotation,
-    position: { top: 100, left: 50 },
+    position: { top: 100, left: 50, anchorBottom: 96 },
     onAccept: vi.fn(),
     onDismiss: vi.fn(),
     ...props,
@@ -56,7 +56,7 @@ describe("AnnotationTooltip", () => {
     const annotation = makeEditorialAnnotation({ suggestion: null });
     render(AnnotationTooltip, {
       annotation,
-      position: { top: 0, left: 0 },
+      position: { top: 0, left: 0, anchorBottom: 0 },
       onAccept: vi.fn(),
       onDismiss,
     });
@@ -69,7 +69,7 @@ describe("AnnotationTooltip", () => {
     const annotation = makeEditorialAnnotation({ suggestion: "better" });
     render(AnnotationTooltip, {
       annotation,
-      position: { top: 0, left: 0 },
+      position: { top: 0, left: 0, anchorBottom: 0 },
       onAccept,
       onDismiss: vi.fn(),
     });

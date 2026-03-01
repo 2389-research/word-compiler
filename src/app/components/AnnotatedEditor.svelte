@@ -32,7 +32,7 @@ let editorElement: HTMLDivElement;
 let editor: Editor | null = null;
 let applyingExternal = false;
 let activeAnnotation = $state<EditorialAnnotation | null>(null);
-let tooltipPosition = $state({ top: 0, left: 0 });
+let tooltipPosition = $state({ top: 0, left: 0, anchorBottom: 0 });
 
 const editorialKey = new PluginKey("editorial-annotations");
 
@@ -187,6 +187,7 @@ function handleMouseOver(e: MouseEvent) {
   tooltipPosition = {
     top: rect.bottom - wrapperRect.top + 4,
     left: Math.max(0, rect.left - wrapperRect.left),
+    anchorBottom: rect.top - wrapperRect.top,
   };
   activeAnnotation = ann;
 }
