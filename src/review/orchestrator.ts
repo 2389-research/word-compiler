@@ -61,7 +61,7 @@ export function createReviewOrchestrator(
         })
         .catch((err) => {
           if (err.name === "AbortError") return;
-          // LLM failed — local annotations already showing, no action needed
+          console.warn("[editorial-review] LLM review failed:", err.message ?? err);
         })
         .finally(() => reviewing.delete(chunk.index));
     }

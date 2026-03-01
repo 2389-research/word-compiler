@@ -35,7 +35,7 @@ let {
     font-family: var(--font-mono);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
     display: inline-flex;
     align-items: center;
     gap: 4px;

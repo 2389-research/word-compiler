@@ -24,7 +24,9 @@ describe("WorkflowStore", () => {
     expect(workflow.getStageStatus("plan")).toBe("locked");
     expect(workflow.getStageStatus("draft")).toBe("locked");
     expect(workflow.getStageStatus("audit")).toBe("locked");
-    // "complete" gate passes with no flags, so it's "available" not "locked"
+    // "edit" gate passes with no flags, so it's "available" not "locked"
+    expect(workflow.getStageStatus("edit")).toBe("available");
+    // "complete" soft gate always passes, so it's "available" not "locked"
     expect(workflow.getStageStatus("complete")).toBe("available");
     expect(workflow.getStageStatus("export")).toBe("locked");
   });
@@ -81,8 +83,8 @@ describe("WorkflowStore", () => {
     expect(workflow.getStageStatus("audit")).toBe("available");
   });
 
-  it("unlocks complete when no critical unresolved flags", () => {
-    // With no flags at all, the gate passes
+  it("unlocks edit when no critical unresolved flags", () => {
+    // With no flags at all, the audit→edit gate passes
     const bible = createEmptyBible("test");
     bible.characters.push(createEmptyCharacterDossier("Marcus"));
     project.setBible(bible);
@@ -90,6 +92,19 @@ describe("WorkflowStore", () => {
     project.setScenes([{ plan, status: "drafting", sceneOrder: 0 }]);
     project.setSceneChunks(plan.id, [makeChunk({ sceneId: plan.id })]);
     workflow.goToStage("audit");
+
+    expect(workflow.getStageStatus("edit")).toBe("available");
+  });
+
+  it("unlocks complete (soft gate — always passes)", () => {
+    // edit→complete gate always passes
+    const bible = createEmptyBible("test");
+    bible.characters.push(createEmptyCharacterDossier("Marcus"));
+    project.setBible(bible);
+    const plan = makeScenePlan({ title: "Opening", narrativeGoal: "Establish world" });
+    project.setScenes([{ plan, status: "drafting", sceneOrder: 0 }]);
+    project.setSceneChunks(plan.id, [makeChunk({ sceneId: plan.id })]);
+    workflow.goToStage("edit");
 
     expect(workflow.getStageStatus("complete")).toBe("available");
   });
@@ -155,8 +170,8 @@ describe("WorkflowStore", () => {
 
   // ─── STAGES constant ─────────────────────────────
 
-  it("has 6 stages in correct order", () => {
-    expect(STAGES).toHaveLength(6);
-    expect(STAGES.map((s) => s.id)).toEqual(["bootstrap", "plan", "draft", "audit", "complete", "export"]);
+  it("has 7 stages in correct order", () => {
+    expect(STAGES).toHaveLength(7);
+    expect(STAGES.map((s) => s.id)).toEqual(["bootstrap", "plan", "draft", "audit", "edit", "complete", "export"]);
   });
 });

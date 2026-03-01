@@ -4,7 +4,7 @@ import { createEmptyChapterArc } from "../../types/index.js";
 import { Button, Modal, Tabs } from "../primitives/index.js";
 import type { Commands } from "../store/commands.js";
 import type { ProjectStore } from "../store/project.svelte.js";
-import type { BootstrapFooterState } from "./SceneBootstrapTab.svelte";
+import type { BootstrapFooterState, BootstrapPhase } from "./SceneBootstrapTab.svelte";
 import SceneBootstrapTab from "./SceneBootstrapTab.svelte";
 import type { FormFooterState } from "./SceneGuidedFormTab.svelte";
 import SceneGuidedFormTab from "./SceneGuidedFormTab.svelte";
@@ -34,8 +34,8 @@ let formRef: SceneGuidedFormTab | undefined = $state();
 let bootstrapFooter = $state<BootstrapFooterState>({
   loading: false,
   canGenerate: false,
-  hasPlans: false,
-  acceptCount: 0,
+  phase: "idle" as BootstrapPhase,
+  acceptedCount: 0,
 });
 let formFooter = $state<FormFooterState>({ formStep: "core", isFirstStep: true, isLastStep: false });
 
@@ -107,9 +107,13 @@ async function handleFormSave(plan: ScenePlan) {
   {#snippet footer()}
     {#if activeTab === "bootstrap"}
       <Button onclick={handleClose}>Cancel</Button>
-      {#if !bootstrapFooter.hasPlans}
+      {#if bootstrapFooter.phase === "idle"}
         <Button variant="primary" onclick={() => bootstrapRef?.generate()} disabled={bootstrapFooter.loading || !bootstrapFooter.canGenerate}>
-          {bootstrapFooter.loading ? "Generating..." : "Generate Scenes"}
+          Generate Scenes
+        </Button>
+      {:else if bootstrapFooter.phase === "complete"}
+        <Button variant="primary" onclick={() => bootstrapRef?.commit()} disabled={bootstrapFooter.acceptedCount === 0}>
+          Commit {bootstrapFooter.acceptedCount} Scene{bootstrapFooter.acceptedCount !== 1 ? "s" : ""}
         </Button>
       {/if}
     {:else}

@@ -8,6 +8,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { untrack } from "svelte";
 import type { EditorialAnnotation } from "../../review/types.js";
 import AnnotationTooltip from "./AnnotationTooltip.svelte";
+import { offsetToPos, textToDoc } from "./prosemirror-utils.js";
 
 let {
   text,
@@ -34,45 +35,6 @@ let activeAnnotation = $state<EditorialAnnotation | null>(null);
 let tooltipPosition = $state({ top: 0, left: 0 });
 
 const editorialKey = new PluginKey("editorial-annotations");
-
-// ─── Plain Text ↔ ProseMirror Doc ───────────────
-// TipTap treats string content as HTML by default, which can drop
-// paragraph boundaries and interpret <...> sequences. We convert
-// plain text to a proper ProseMirror JSON doc structure instead.
-function textToDoc(plainText: string): Record<string, unknown> {
-  const paragraphs = plainText.split("\n\n");
-  return {
-    type: "doc",
-    content: paragraphs.map((p) => ({
-      type: "paragraph",
-      content: p ? [{ type: "text", text: p }] : [],
-    })),
-  };
-}
-
-// ─── Position Mapping ───────────────────────────
-// ProseMirror uses node-based positions where paragraph boundaries add gaps.
-// We convert character offsets (from resolveAnchor) to PM positions.
-function offsetToPos(ed: Editor, offset: number): number {
-  const doc = ed.state.doc;
-  let acc = 0;
-  let found: number | null = null;
-  doc.descendants((node, pos, parent) => {
-    if (found !== null) return false;
-    if (node.isText) {
-      const next = acc + node.text!.length;
-      if (offset <= next) {
-        found = pos + (offset - acc);
-        return false;
-      }
-      acc = next;
-    } else if (node.isBlock && parent) {
-      if (acc > 0) acc += 2; // mirrors getText "\n\n" separator
-    }
-    return true;
-  });
-  return found ?? doc.content.size;
-}
 
 function makeDecorations(ed: Editor, anns: EditorialAnnotation[]): DecorationSet {
   const decorations: Decoration[] = [];

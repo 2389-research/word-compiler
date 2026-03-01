@@ -16,11 +16,18 @@ export function runLocalChecks(text: string, bible: Bible, sceneId: string): Edi
     }
   }
 
-  // Sentence variance — underline first sentence to make squiggle visible
+  // Sentence variance — anchor per-sentence flags to their specific snippet
   const varianceFlags = checkSentenceVariance(text, sceneId);
   for (const flag of varianceFlags) {
-    const firstSentenceEnd = text.indexOf(".") !== -1 ? text.indexOf(".") + 1 : Math.min(text.length, 80);
-    annotations.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, 0, firstSentenceEnd));
+    const snippet = extractQuotedSnippet(flag.message);
+    if (snippet) {
+      const match = findSnippetInText(text, snippet);
+      annotations.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, match.start, match.end));
+    } else {
+      // Overall stddev flag — anchor to first sentence as document-level indicator
+      const firstSentenceEnd = text.indexOf(".") !== -1 ? text.indexOf(".") + 1 : Math.min(text.length, 80);
+      annotations.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, 0, firstSentenceEnd));
+    }
   }
 
   // Paragraph length

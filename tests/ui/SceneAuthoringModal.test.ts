@@ -75,6 +75,11 @@ describe("SceneAuthoringModal", () => {
     expect(screen.getByText("Narrative Goal")).toBeInTheDocument();
   });
 
+  it("does not show Commit button in idle phase", () => {
+    render(SceneAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
+    expect(screen.queryByText(/Commit/)).not.toBeInTheDocument();
+  });
+
   it("footer shows Save & Close on guided form tab", async () => {
     render(SceneAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
     await fireEvent.click(screen.getByText("Guided Form"));

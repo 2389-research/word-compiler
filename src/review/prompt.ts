@@ -21,13 +21,16 @@ export const REVIEW_OUTPUT_SCHEMA: Record<string, unknown> = {
               suffix: { type: "string" },
             },
             required: ["prefix", "focus", "suffix"],
+            additionalProperties: false,
           },
         },
         required: ["category", "severity", "scope", "message", "suggestion", "anchor"],
+        additionalProperties: false,
       },
     },
   },
   required: ["annotations"],
+  additionalProperties: false,
 };
 
 // ─── Fixed Prompt Sections ──────────────────────

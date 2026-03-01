@@ -1,6 +1,7 @@
 import type { EditPattern } from "../../learner/diff.js";
 import type { TuningProposal } from "../../learner/tuning.js";
 import { hashFingerprint } from "../../review/fingerprint.js";
+import type { RefinementVariant } from "../../review/refineTypes.js";
 import type { EditorialAnnotation } from "../../review/types.js";
 import type {
   AuditFlag,
@@ -345,6 +346,18 @@ export function makeCharacterDelta(overrides: Partial<CharacterDelta> = {}): Cha
     suspicionGained: "Marcus may have been involved",
     emotionalShift: "Fear → determination",
     relationshipChange: null,
+    ...overrides,
+  };
+}
+
+// ─── Refinement Variant ────────────────────────────
+
+export function makeRefinementVariant(overrides: Partial<RefinementVariant> = {}): RefinementVariant {
+  return {
+    text: "The rain hammered against the window, each drop a tiny percussion in the storm's symphony.",
+    rationale: "Stronger verb choice; inverted metaphor order for freshness.",
+    killListClean: true,
+    killListViolations: [],
     ...overrides,
   };
 }
