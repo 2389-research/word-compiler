@@ -7,14 +7,8 @@ import type { EditorialAnnotation, LocalReviewCategory, Severity } from "./types
 export function runLocalChecks(text: string, bible: Bible, sceneId: string): EditorialAnnotation[] {
   const annotations: EditorialAnnotation[] = [];
 
-  // Kill list — find ALL occurrences of each pattern
-  const killFlags = checkKillList(text, bible.styleGuide.killList, sceneId);
-  for (const flag of killFlags) {
-    const matches = findAllPatternOccurrences(text, flag.message);
-    for (const match of matches) {
-      annotations.push(flagToAnnotation(flag.severity, "kill_list", flag.message, text, match.start, match.end));
-    }
-  }
+  // Kill list
+  annotations.push(...buildKillListAnnotations(text, bible, sceneId));
 
   // Sentence variance — anchor per-sentence flags to their specific snippet
   const varianceFlags = checkSentenceVariance(text, sceneId);
@@ -40,6 +34,25 @@ export function runLocalChecks(text: string, bible: Bible, sceneId: string): Edi
   }
 
   return annotations;
+}
+
+// Deduplicate by pattern to avoid N*N annotations. checkKillList returns
+// one flag per occurrence, so we group by pattern and scan once per unique pattern.
+function buildKillListAnnotations(text: string, bible: Bible, sceneId: string): EditorialAnnotation[] {
+  const killFlags = checkKillList(text, bible.styleGuide.killList, sceneId);
+  const seenPatterns = new Set<string>();
+  const result: EditorialAnnotation[] = [];
+  for (const flag of killFlags) {
+    const patternMatch = flag.message.match(/"(.+?)"/);
+    const pattern = patternMatch?.[1]?.toLowerCase();
+    if (!pattern || seenPatterns.has(pattern)) continue;
+    seenPatterns.add(pattern);
+    const matches = findAllPatternOccurrences(text, flag.message);
+    for (const match of matches) {
+      result.push(flagToAnnotation(flag.severity, "kill_list", flag.message, text, match.start, match.end));
+    }
+  }
+  return result;
 }
 
 function buildAnchor(text: string, start: number, end: number): EditorialAnnotation["anchor"] {
