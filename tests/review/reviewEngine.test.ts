@@ -27,7 +27,6 @@ describe("REVIEW_OUTPUT_SCHEMA", () => {
   });
 
   it("uses anyOf for nullable suggestion field", () => {
-    // biome-ignore lint: test accessing nested schema structure
     const annotations = (REVIEW_OUTPUT_SCHEMA as any).properties.annotations;
     const suggestion = annotations.items.properties.suggestion;
     expect(suggestion.anyOf).toBeDefined();

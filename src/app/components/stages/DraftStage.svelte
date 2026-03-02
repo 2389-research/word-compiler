@@ -53,7 +53,14 @@ const REVIEW_MAX_TOKENS = 2048;
 
 const llmReviewClient: LLMReviewClient = {
   review(systemPrompt: string, userPrompt: string, signal: AbortSignal): Promise<string> {
-    return callLLM(systemPrompt, userPrompt, REVIEW_MODEL, REVIEW_MAX_TOKENS, REVIEW_OUTPUT_SCHEMA as Record<string, unknown>, signal);
+    return callLLM(
+      systemPrompt,
+      userPrompt,
+      REVIEW_MODEL,
+      REVIEW_MAX_TOKENS,
+      REVIEW_OUTPUT_SCHEMA as Record<string, unknown>,
+      signal,
+    );
   },
 };
 

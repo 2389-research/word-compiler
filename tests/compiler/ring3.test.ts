@@ -353,7 +353,6 @@ describe("buildRing3", () => {
     const bible = makeBible([makeChar("marcus", "Marcus")]);
     // Simulate old data without presentCharacterIds by creating plan without it
     const plan = makePlan({ dialogueConstraints: {} });
-    // biome-ignore lint: simulate pre-migration data missing the field
     (plan as unknown as Record<string, unknown>).presentCharacterIds = undefined;
 
     const result = buildRing3(plan, bible, [], 0, config);
