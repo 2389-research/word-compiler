@@ -22,7 +22,7 @@ export async function fetchModels(): Promise<ModelSpec[]> {
   }));
 }
 
-export async function generate(payload: CompiledPayload): Promise<GenerateResponse> {
+export async function generate(payload: CompiledPayload, signal?: AbortSignal): Promise<GenerateResponse> {
   const response = await fetch("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -35,6 +35,7 @@ export async function generate(payload: CompiledPayload): Promise<GenerateRespon
       model: payload.model,
       ...(payload.outputSchema && { outputSchema: payload.outputSchema }),
     }),
+    signal,
   });
 
   if (!response.ok) {
@@ -51,6 +52,7 @@ export async function callLLM(
   model: string,
   maxTokens: number,
   outputSchema?: Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<string> {
   const payload: CompiledPayload = {
     systemMessage,
@@ -61,7 +63,7 @@ export async function callLLM(
     model,
     ...(outputSchema && { outputSchema }),
   };
-  const result = await generate(payload);
+  const result = await generate(payload, signal);
   return result.text;
 }
 

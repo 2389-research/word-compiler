@@ -37,7 +37,7 @@ export function buildReviewContext(bible: Bible, scenePlan: ScenePlan): ReviewCo
     },
     activeVoices,
     povRules,
-    toneIntent: bible.narrativeRules.subtextPolicy ?? "",
+    subtextPolicy: bible.narrativeRules.subtextPolicy ?? "",
   };
 }
 

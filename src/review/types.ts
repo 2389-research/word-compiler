@@ -70,7 +70,7 @@ export interface ReviewContext {
   };
   activeVoices: Array<{ name: string; fingerprint: string }>;
   povRules: { distance: string; interiority: string; reliability: string } | null;
-  toneIntent: string;
+  subtextPolicy: string;
 }
 
 // ─── Review Result ──────────────────────────────

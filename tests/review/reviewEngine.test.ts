@@ -14,7 +14,7 @@ function makeContext(overrides: Partial<ReviewContext> = {}): ReviewContext {
     },
     activeVoices: [],
     povRules: null,
-    toneIntent: "",
+    subtextPolicy: "",
     ...overrides,
   };
 }
@@ -97,7 +97,7 @@ describe("buildReviewSystemPrompt", () => {
     expect(prompt).not.toContain("POV RULES");
     expect(prompt).not.toContain("CHARACTER VOICES");
     expect(prompt).not.toContain("KILL LIST");
-    expect(prompt).not.toContain("TONE INTENT");
+    expect(prompt).not.toContain("SUBTEXT POLICY");
   });
 
   it("includes deterministic exclusion instruction", () => {
@@ -128,8 +128,8 @@ describe("buildReviewSystemPrompt", () => {
     expect(prompt).toContain("dream sequences");
   });
 
-  it("includes tone intent when present", () => {
-    const prompt = buildReviewSystemPrompt(makeContext({ toneIntent: "dark, brooding, atmospheric" }));
+  it("includes subtext policy when present", () => {
+    const prompt = buildReviewSystemPrompt(makeContext({ subtextPolicy: "dark, brooding, atmospheric" }));
     expect(prompt).toContain("dark, brooding, atmospheric");
   });
 });

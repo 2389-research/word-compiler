@@ -130,9 +130,9 @@ function voicesSection(context: ReviewContext): string | null {
   return `CHARACTER VOICES (present in scene):\n${voices}`;
 }
 
-function toneSection(context: ReviewContext): string | null {
-  if (!context.toneIntent) return null;
-  return `TONE INTENT: ${context.toneIntent}`;
+function subtextSection(context: ReviewContext): string | null {
+  if (!context.subtextPolicy) return null;
+  return `SUBTEXT POLICY: ${context.subtextPolicy}`;
 }
 
 // ─── Main Builder ───────────────────────────────
@@ -149,7 +149,7 @@ export function buildReviewSystemPrompt(context: ReviewContext): string {
     killListRefSection(context),
     povSection(context),
     voicesSection(context),
-    toneSection(context),
+    subtextSection(context),
     ANCHOR_INSTRUCTIONS,
     SUGGESTION_INSTRUCTIONS,
     EXCLUSION_INSTRUCTIONS,
@@ -198,7 +198,7 @@ export function buildSuggestionRequestPrompt(
     killListRefSection(context),
     povSection(context),
     voicesSection(context),
-    toneSection(context),
+    subtextSection(context),
   ].filter((s): s is string => s !== null);
 
   const systemPrompt = systemSections.join("\n\n");

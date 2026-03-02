@@ -63,8 +63,8 @@ export function buildRefinementSystemPrompt(context: ReviewContext): string {
     );
   }
 
-  if (context.toneIntent) {
-    sections.push(`TONE INTENT: ${context.toneIntent}`);
+  if (context.subtextPolicy) {
+    sections.push(`SUBTEXT POLICY: ${context.subtextPolicy}`);
   }
 
   sections.push(

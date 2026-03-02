@@ -153,6 +153,9 @@ function rawToAnnotation(a: RawAnnotation, chunkText: string): EditorialAnnotati
   const severity: Severity = VALID_SEVERITIES.has(a.severity as Severity) ? (a.severity as Severity) : "info";
   const scope = VALID_SCOPES.has(a.scope) ? a.scope : "both";
   const focusIdx = chunkText.indexOf(a.anchor.focus);
+  // When focus isn't found, use document midpoint as hint so resolveAnchor
+  // doesn't bias toward position 0 when scoring candidates.
+  const mid = Math.floor(chunkText.length / 2);
   return {
     id: generateId(),
     category: a.category,
@@ -162,8 +165,8 @@ function rawToAnnotation(a: RawAnnotation, chunkText: string): EditorialAnnotati
     suggestion: a.suggestion ?? null,
     anchor: a.anchor,
     charRange: {
-      start: focusIdx === -1 ? 0 : focusIdx,
-      end: focusIdx === -1 ? 0 : focusIdx + a.anchor.focus.length,
+      start: focusIdx === -1 ? mid : focusIdx,
+      end: focusIdx === -1 ? mid : focusIdx + a.anchor.focus.length,
     },
     fingerprint: hashFingerprint(a.category, a.anchor.focus),
   } as EditorialAnnotation;

@@ -53,21 +53,7 @@ const REVIEW_MAX_TOKENS = 2048;
 
 const llmReviewClient: LLMReviewClient = {
   review(systemPrompt: string, userPrompt: string, signal: AbortSignal): Promise<string> {
-    const promise = callLLM(
-      systemPrompt,
-      userPrompt,
-      REVIEW_MODEL,
-      REVIEW_MAX_TOKENS,
-      REVIEW_OUTPUT_SCHEMA as Record<string, unknown>,
-    );
-    return new Promise((resolve, reject) => {
-      if (signal.aborted) {
-        reject(new DOMException("Aborted", "AbortError"));
-        return;
-      }
-      signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
-      promise.then(resolve, reject);
-    });
+    return callLLM(systemPrompt, userPrompt, REVIEW_MODEL, REVIEW_MAX_TOKENS, REVIEW_OUTPUT_SCHEMA as Record<string, unknown>, signal);
   },
 };
 

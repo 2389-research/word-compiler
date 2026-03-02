@@ -5,35 +5,11 @@ import { hashFingerprint } from "./fingerprint.js";
 import type { EditorialAnnotation, LocalReviewCategory, Severity } from "./types.js";
 
 export function runLocalChecks(text: string, bible: Bible, sceneId: string): EditorialAnnotation[] {
-  const annotations: EditorialAnnotation[] = [];
-
-  // Kill list
-  annotations.push(...buildKillListAnnotations(text, bible, sceneId));
-
-  // Sentence variance — anchor per-sentence flags to their specific snippet
-  const varianceFlags = checkSentenceVariance(text, sceneId);
-  for (const flag of varianceFlags) {
-    const snippet = extractQuotedSnippet(flag.message);
-    if (snippet) {
-      const match = findSnippetInText(text, snippet);
-      annotations.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, match.start, match.end));
-    } else {
-      // Overall stddev flag — anchor to first sentence as document-level indicator
-      const firstSentenceEnd = text.indexOf(".") !== -1 ? text.indexOf(".") + 1 : Math.min(text.length, 80);
-      annotations.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, 0, firstSentenceEnd));
-    }
-  }
-
-  // Paragraph length
-  const maxSentences = bible.styleGuide.paragraphPolicy?.maxSentences ?? null;
-  const paraFlags = checkParagraphLength(text, maxSentences, sceneId);
-  for (const flag of paraFlags) {
-    const paraSnippet = extractQuotedSnippet(flag.message);
-    const match = paraSnippet ? findSnippetInText(text, paraSnippet) : { start: 0, end: 0 };
-    annotations.push(flagToAnnotation(flag.severity, "paragraph_length", flag.message, text, match.start, match.end));
-  }
-
-  return annotations;
+  return [
+    ...buildKillListAnnotations(text, bible, sceneId),
+    ...buildVarianceAnnotations(text, sceneId),
+    ...buildParagraphAnnotations(text, bible, sceneId),
+  ];
 }
 
 // Deduplicate by pattern to avoid N*N annotations. checkKillList returns
@@ -55,8 +31,38 @@ function buildKillListAnnotations(text: string, bible: Bible, sceneId: string): 
   return result;
 }
 
+function buildVarianceAnnotations(text: string, sceneId: string): EditorialAnnotation[] {
+  const result: EditorialAnnotation[] = [];
+  const varianceFlags = checkSentenceVariance(text, sceneId);
+  for (const flag of varianceFlags) {
+    const snippet = extractQuotedSnippet(flag.message);
+    if (snippet) {
+      const match = findSnippetInText(text, snippet);
+      if (match.start === match.end) continue;
+      result.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, match.start, match.end));
+    } else {
+      const firstSentenceEnd = text.indexOf(".") !== -1 ? text.indexOf(".") + 1 : Math.min(text.length, 80);
+      result.push(flagToAnnotation(flag.severity, "rhythm_monotony", flag.message, text, 0, firstSentenceEnd));
+    }
+  }
+  return result;
+}
+
+function buildParagraphAnnotations(text: string, bible: Bible, sceneId: string): EditorialAnnotation[] {
+  const maxSentences = bible.styleGuide.paragraphPolicy?.maxSentences ?? null;
+  const paraFlags = checkParagraphLength(text, maxSentences, sceneId);
+  const result: EditorialAnnotation[] = [];
+  for (const flag of paraFlags) {
+    const paraSnippet = extractQuotedSnippet(flag.message);
+    const match = paraSnippet ? findSnippetInText(text, paraSnippet) : { start: 0, end: 0 };
+    if (match.start === match.end) continue;
+    result.push(flagToAnnotation(flag.severity, "paragraph_length", flag.message, text, match.start, match.end));
+  }
+  return result;
+}
+
 function buildAnchor(text: string, start: number, end: number): EditorialAnnotation["anchor"] {
-  const focusText = start < end ? text.slice(start, Math.min(end, start + 60)) : "";
+  const focusText = start < end ? text.slice(start, end) : "";
   const prefixStart = Math.max(0, start - 20);
   const suffixEnd = Math.min(text.length, end + 20);
   return {
