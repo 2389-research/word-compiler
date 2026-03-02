@@ -1,3 +1,4 @@
+import type { EditorialAnnotation } from "./types.js";
 import { ANNOTATION_SCOPES, LLM_REVIEW_CATEGORIES, type ReviewContext, SEVERITIES } from "./types.js";
 
 export const REVIEW_OUTPUT_SCHEMA: Record<string, unknown> = {
@@ -11,14 +12,33 @@ export const REVIEW_OUTPUT_SCHEMA: Record<string, unknown> = {
           category: { type: "string", enum: [...LLM_REVIEW_CATEGORIES] },
           severity: { type: "string", enum: [...SEVERITIES] },
           scope: { type: "string", enum: [...ANNOTATION_SCOPES] },
-          message: { type: "string" },
-          suggestion: { anyOf: [{ type: "string" }, { type: "null" }] },
+          message: {
+            type: "string",
+            description: "Editorial rationale explaining the issue to the writer.",
+          },
+          suggestion: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            description:
+              "Verbatim replacement prose to substitute for the anchor focus text, or null if no direct replacement exists. Must be concrete text ready to drop into the manuscript — never editorial advice.",
+          },
           anchor: {
             type: "object",
             properties: {
-              prefix: { type: "string" },
-              focus: { type: "string" },
-              suffix: { type: "string" },
+              prefix: {
+                type: "string",
+                description:
+                  "8-15 words of verbatim prose immediately before the flagged span, for position resolution.",
+              },
+              focus: {
+                type: "string",
+                description:
+                  "The EXACT verbatim text being flagged. If a suggestion is provided, this is the text the suggestion replaces — they must have the same extent.",
+              },
+              suffix: {
+                type: "string",
+                description:
+                  "8-15 words of verbatim prose immediately after the flagged span, for position resolution.",
+              },
             },
             required: ["prefix", "focus", "suffix"],
             additionalProperties: false,
@@ -41,11 +61,28 @@ const SEVERITY_DEFINITIONS = `SEVERITY DEFINITIONS:
 - info: Minor polish opportunity, stylistic suggestion`;
 
 const ANCHOR_INSTRUCTIONS = `ANCHOR FORMAT:
-For each annotation, provide an anchor object with prefix (8-15 words before), focus (the exact text being flagged), and suffix (8-15 words after). These are used for position resolution.
-Set scope to "dialogue" for issues in spoken text, "narration" for narrative prose, or "both" if the issue spans both.`;
+For each annotation, provide an anchor object:
+- prefix: 8-15 words of verbatim prose immediately before the flagged span
+- focus: the EXACT verbatim text being flagged — copied character-for-character from the input
+- suffix: 8-15 words of verbatim prose immediately after the flagged span
+Set scope to "dialogue" for issues in spoken text, "narration" for narrative prose, or "both" if the issue spans both.
+
+CRITICAL — FOCUS/SUGGESTION ALIGNMENT:
+When you provide a suggestion, anchor.focus MUST span the COMPLETE text that the suggestion replaces.
+The reader will see a squiggle under anchor.focus. Clicking "Apply" substitutes anchor.focus with suggestion.
+If the issue is a duplicated phrase like "word word rest of sentence", anchor.focus must include BOTH copies plus any connecting text — not just one copy.
+If the issue is a metaphor or phrasing problem, anchor.focus must cover the entire problematic phrase, not a subset of it.
+Test: mentally deleting anchor.focus and inserting suggestion should produce correct prose with no leftover fragments.`;
 
 const EXCLUSION_INSTRUCTIONS =
   "Do NOT flag: kill list violations, sentence rhythm/monotony, or paragraph length issues — these are handled by separate deterministic checkers.";
+
+const SUGGESTION_INSTRUCTIONS = `SUGGESTION FIELD RULES:
+- \`suggestion\` must be VERBATIM REPLACEMENT PROSE ready to substitute for anchor.focus.
+- The system performs: delete anchor.focus, insert suggestion. The result must be valid prose.
+- Use \`message\` for your editorial reasoning — never put it in \`suggestion\`.
+- If you cannot provide a concrete rewrite, set \`suggestion\` to null.
+- NEVER put editorial advice ("Consider...", "Try...", "Perhaps...") in \`suggestion\`.`;
 
 // ─── Conditional Section Builders ───────────────
 
@@ -114,6 +151,7 @@ export function buildReviewSystemPrompt(context: ReviewContext): string {
     voicesSection(context),
     toneSection(context),
     ANCHOR_INSTRUCTIONS,
+    SUGGESTION_INSTRUCTIONS,
     EXCLUSION_INSTRUCTIONS,
   ].filter((s): s is string => s !== null);
 
@@ -122,4 +160,65 @@ export function buildReviewSystemPrompt(context: ReviewContext): string {
 
 export function buildReviewUserPrompt(chunkText: string): string {
   return `Review the following prose chunk for editorial issues:\n\n${chunkText}`;
+}
+
+// ─── Author-Guided Suggestion Generation ─────
+
+export const SUGGESTION_REQUEST_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    suggestion: {
+      type: "string",
+      description:
+        "Verbatim replacement prose to substitute for the flagged text. Must be concrete text ready to drop into the manuscript — never editorial advice.",
+    },
+    rationale: {
+      type: "string",
+      description: "Brief explanation of the creative choices made in the suggestion.",
+    },
+  },
+  required: ["suggestion", "rationale"],
+  additionalProperties: false,
+};
+
+export function buildSuggestionRequestPrompt(
+  context: ReviewContext,
+  annotation: EditorialAnnotation,
+  chunkText: string,
+  authorFeedback: string,
+): { systemPrompt: string; userPrompt: string } {
+  const systemSections = [
+    "You are a prose rewriting assistant for long-form fiction.",
+    "Your job: generate a VERBATIM replacement for the flagged text span. The replacement will be directly substituted into the manuscript.",
+    "NEVER return editorial advice, commentary, or instructions. Return ONLY concrete prose ready for insertion.",
+    metaphoricSection(context),
+    vocabularySection(context),
+    sentenceArchSection(context),
+    structuralBansSection(context),
+    killListRefSection(context),
+    povSection(context),
+    voicesSection(context),
+    toneSection(context),
+  ].filter((s): s is string => s !== null);
+
+  const systemPrompt = systemSections.join("\n\n");
+
+  const markedText = chunkText.replace(
+    annotation.anchor.focus,
+    `<<FOCUS_START>>${annotation.anchor.focus}<<FOCUS_END>>`,
+  );
+
+  const userPrompt = [
+    "FULL CHUNK TEXT (with focus markers):",
+    markedText,
+    "",
+    `DIAGNOSIS: [${annotation.category}] ${annotation.message}`,
+    "",
+    `AUTHOR DIRECTION: ${authorFeedback}`,
+    "",
+    "Generate a replacement for the text between <<FOCUS_START>> and <<FOCUS_END>>.",
+    "The replacement must fit seamlessly when substituted for the focus span.",
+  ].join("\n");
+
+  return { systemPrompt, userPrompt };
 }

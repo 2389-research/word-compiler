@@ -17,6 +17,7 @@ let {
   onTextChange,
   onAcceptSuggestion,
   onDismissAnnotation,
+  onRequestSuggestion,
 }: {
   text: string;
   annotations?: EditorialAnnotation[];
@@ -24,6 +25,7 @@ let {
   onTextChange?: (newText: string) => void;
   onAcceptSuggestion?: (annotationId: string) => void;
   onDismissAnnotation?: (annotationId: string) => void;
+  onRequestSuggestion?: (id: string, feedback: string) => Promise<string | null>;
 } = $props();
 
 let editorElement: HTMLDivElement;
@@ -51,7 +53,7 @@ function makeDecorations(ed: Editor, anns: EditorialAnnotation[]): DecorationSet
           class: `editorial-squiggle editorial-${ann.severity}`,
           "data-annotation-id": ann.id,
         },
-        { inclusiveStart: true, inclusiveEnd: true },
+        { inclusiveStart: true, inclusiveEnd: true, annotationId: ann.id },
       ),
     );
   }
@@ -70,10 +72,16 @@ function createEditorialPlugin(): Plugin {
         if (meta?.decoSet) {
           return meta.decoSet as DecorationSet;
         }
-        if (tr.docChanged) {
-          return prev.map(tr.mapping, tr.doc);
+        // Remap decoration positions through document changes
+        let next = tr.docChanged ? prev.map(tr.mapping, tr.doc) : prev;
+        // Remove a specific annotation's decoration (after accepting a suggestion)
+        if (meta?.removeAnnotationId) {
+          const toRemove = next.find(undefined, undefined, (spec) => spec.annotationId === meta.removeAnnotationId);
+          if (toRemove.length > 0) {
+            next = next.remove(toRemove);
+          }
         }
-        return prev;
+        return next;
       },
     },
     props: {
@@ -135,13 +143,43 @@ $effect(() => {
 
 // ─── Sync Annotations ───────────────────────────
 // Reacts to `annotations` prop changes. Reads `editor` without tracking.
+// Guard: if any annotation's charRange doesn't match its anchor.focus in the
+// current editor text, the annotations are stale (computed against a prior
+// text version). Skip the sync — the PM plugin already maintains correctly-
+// remapped decorations through edits, so skipping preserves good positions.
 $effect(() => {
   const anns = annotations;
   const ed = untrack(() => editor);
   if (!ed) return;
+
+  if (anns.length > 0) {
+    const currentText = ed.getText({ blockSeparator: "\n\n" });
+    const hasStale = anns.some((a) => {
+      if (a.charRange.start >= a.charRange.end) return false;
+      if (a.charRange.end > currentText.length) return true;
+      return currentText.slice(a.charRange.start, a.charRange.end) !== a.anchor.focus;
+    });
+    if (hasStale) return;
+  }
+
   const decoSet = makeDecorations(ed, anns);
   const tr = ed.state.tr.setMeta(editorialKey, { decoSet });
   ed.view.dispatch(tr);
+});
+
+// ─── Sync Active Annotation ─────────────────────
+// When annotations prop updates (e.g. suggestion generated), refresh
+// activeAnnotation so the tooltip reflects the new data.
+// Compare by value (suggestion field) not reference — Svelte 5 $state
+// proxies have different identities so !== always returns true.
+$effect(() => {
+  const anns = annotations;
+  const active = untrack(() => activeAnnotation);
+  if (!active) return;
+  const updated = anns.find((a) => a.id === active.id);
+  if (updated && updated.suggestion !== active.suggestion) {
+    activeAnnotation = updated;
+  }
 });
 
 // ─── Sync Readonly ──────────────────────────────
@@ -183,11 +221,10 @@ function handleMouseOver(e: MouseEvent) {
   if (!ann) return;
 
   const rect = (squiggle as HTMLElement).getBoundingClientRect();
-  const wrapperRect = editorElement.getBoundingClientRect();
   tooltipPosition = {
-    top: rect.bottom - wrapperRect.top + 4,
-    left: Math.max(0, rect.left - wrapperRect.left),
-    anchorBottom: rect.top - wrapperRect.top,
+    top: rect.bottom + 4,
+    left: rect.left,
+    anchorBottom: rect.top,
   };
   activeAnnotation = ann;
 }
@@ -200,17 +237,65 @@ function handleMouseLeave() {
   }, 200);
 }
 
+const ADVISORY_PREFIXES = [
+  "consider ",
+  "try ",
+  "perhaps ",
+  "you might ",
+  "you could ",
+  "it would be ",
+  "this could ",
+  "think about ",
+  "maybe ",
+  "instead of ",
+  "rather than ",
+  "avoid ",
+  "if the ",
+];
+
+function looksLikeAdvice(text: string): boolean {
+  const lower = text.trimStart().toLowerCase();
+  return ADVISORY_PREFIXES.some((p) => lower.startsWith(p));
+}
+
 function handleAccept(id: string) {
   const ann = annotations.find((a) => a.id === id);
   if (!ann?.suggestion || !editor) return;
 
-  const from = offsetToPos(editor, ann.charRange.start);
-  const to = offsetToPos(editor, ann.charRange.end);
-  // Suppress onUpdate during suggestion application — we fire onTextChange once below
+  // Guard: don't insert editorial advice into prose
+  if (looksLikeAdvice(ann.suggestion)) {
+    console.warn("[editorial] Blocked advisory suggestion from insertion:", ann.suggestion.slice(0, 80));
+    activeAnnotation = null;
+    onDismissAnnotation?.(id);
+    return;
+  }
+
+  // Look up the decoration's CURRENT positions (correctly remapped through prior edits)
+  // instead of using ann.charRange which may be stale after prior acceptances.
+  const decoSet = editorialKey.getState(editor.state) as DecorationSet | undefined;
+  if (!decoSet) return;
+  const matching = decoSet.find(undefined, undefined, (spec) => spec.annotationId === id);
+  if (matching.length === 0) {
+    // Decoration was removed by ProseMirror's mapping (e.g., overlapping edit) — dismiss
+    console.warn("[editorial] Decoration gone for annotation", id, "— dismissing");
+    activeAnnotation = null;
+    onDismissAnnotation?.(id);
+    return;
+  }
+
+  const from = matching[0]!.from;
+  const to = matching[0]!.to;
+
+  // Replace text AND remove the accepted decoration in a single transaction.
+  // The plugin's apply method handles both: remapping other decorations through
+  // the text change, then removing the accepted one via removeAnnotationId meta.
   applyingExternal = true;
-  const tr = editor.state.tr.replaceWith(from, to, editor.state.schema.text(ann.suggestion));
+  const tr = editor.state.tr
+    .replaceWith(from, to, editor.state.schema.text(ann.suggestion))
+    .setMeta(editorialKey, { removeAnnotationId: id });
   editor.view.dispatch(tr);
   applyingExternal = false;
+
   // Propagate the updated text to the parent
   const newText = editor.getText({ blockSeparator: "\n\n" });
   onTextChange?.(newText);
@@ -220,6 +305,12 @@ function handleAccept(id: string) {
 
 function handleDismiss(id: string) {
   activeAnnotation = null;
+  // Remove the decoration via PM transaction to avoid triggering
+  // Sync Annotations with stale charRanges (same fix as handleAccept).
+  if (editor) {
+    const tr = editor.state.tr.setMeta(editorialKey, { removeAnnotationId: id });
+    editor.view.dispatch(tr);
+  }
   onDismissAnnotation?.(id);
 }
 </script>
@@ -237,6 +328,7 @@ function handleDismiss(id: string) {
       position={tooltipPosition}
       onAccept={handleAccept}
       onDismiss={handleDismiss}
+      {onRequestSuggestion}
     />
   {/if}
 </div>
@@ -258,6 +350,9 @@ function handleDismiss(id: string) {
     line-height: 1.7;
     white-space: pre-wrap;
     min-height: 100%;
+  }
+  .annotated-editor :global(.annotated-editor-content p + p) {
+    margin-top: 0.8em;
   }
 
   /* Squiggle underlines */

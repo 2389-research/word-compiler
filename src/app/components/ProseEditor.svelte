@@ -39,7 +39,7 @@ let refinementState = $state<RefinementState>("idle");
 let selectedText = $state("");
 let selectionStart = $state(0);
 let selectionEnd = $state(0);
-let popoverPosition = $state({ top: 0, left: 0 });
+let popoverPosition = $state<{ top: number; left: number; anchorBottom?: number }>({ top: 0, left: 0 });
 let variants = $state<RefinementVariant[]>([]);
 let cutPreviewText = $state<string | null>(null);
 
@@ -86,6 +86,7 @@ $effect(() => {
       popoverPosition = {
         top: coords.bottom - wrapperRect.top + 6,
         left: Math.max(0, coords.left - wrapperRect.left),
+        anchorBottom: coords.top - wrapperRect.top,
       };
 
       refinementState = "selecting";
@@ -273,6 +274,8 @@ function handleCancel() {
     padding: 10px;
     max-width: 420px;
     min-width: 280px;
+    max-height: 60vh;
+    overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     font-size: 12px;
   }

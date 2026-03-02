@@ -16,9 +16,12 @@ let {
   sceneIR,
   isExtractingIR,
   chunkAnnotations = new Map(),
+  reviewingChunks = new Set(),
+  isAuditing = false,
   onGenerate,
   onUpdateChunk,
   onRemoveChunk,
+  onDestroyChunk,
   onRunAudit,
   onRunDeepAudit,
   onCompleteScene,
@@ -26,8 +29,10 @@ let {
   onCancelAutopilot,
   onOpenIRInspector,
   onExtractIR,
+  onReviewChunk,
   onAcceptSuggestion,
   onDismissAnnotation,
+  onRequestSuggestion,
   isAutopilot = false,
 }: {
   chunks: Chunk[];
@@ -41,9 +46,12 @@ let {
   sceneIR: NarrativeIR | null;
   isExtractingIR: boolean;
   chunkAnnotations?: Map<number, EditorialAnnotation[]>;
+  reviewingChunks?: Set<number>;
+  isAuditing?: boolean;
   onGenerate: () => void;
   onUpdateChunk: (index: number, changes: Partial<Chunk>) => void;
   onRemoveChunk: (index: number) => void;
+  onDestroyChunk?: (index: number) => void;
   onRunAudit: () => void;
   onRunDeepAudit?: () => void;
   onCompleteScene: () => void;
@@ -51,8 +59,10 @@ let {
   onCancelAutopilot: () => void;
   onOpenIRInspector: () => void;
   onExtractIR: () => void;
+  onReviewChunk?: (index: number) => void;
   onAcceptSuggestion?: (annotationId: string) => void;
   onDismissAnnotation?: (annotationId: string) => void;
+  onRequestSuggestion?: (id: string, feedback: string) => Promise<string | null>;
 } = $props();
 
 let maxChunks = $derived(scenePlan?.chunkCount ?? Infinity);
@@ -76,7 +86,7 @@ $effect(() => {
 });
 </script>
 
-<Pane title="Drafting Desk">
+<Pane title="Drafting Desk" contentClass="drafting-desk-content">
   {#snippet headerRight()}
     <div class="pane-actions">
       {#if sceneStatus === "complete"}
@@ -89,9 +99,25 @@ $effect(() => {
           </Button>
         {/if}
       {/if}
-      <Button onclick={onRunAudit} disabled={chunks.length === 0}>Run Audit</Button>
+      <Button onclick={onRunAudit} disabled={chunks.length === 0 || isAuditing}>Run Audit</Button>
+      <span class="info-tip">
+        <svg class="info-svg" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 7v4M8 5.5v-.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="info-tip-text">Scans for kill list violations, sentence rhythm issues, paragraph length, and computes prose metrics. Instant &mdash; no LLM call.</span>
+      </span>
       {#if onRunDeepAudit}
-        <Button onclick={onRunDeepAudit} disabled={chunks.length === 0} title="LLM-assisted subtext compliance check">Deep Audit</Button>
+        <Button onclick={onRunDeepAudit} disabled={chunks.length === 0 || isAuditing}>
+          {#if isAuditing}<Spinner size="sm" /> Auditing...{:else}Deep Audit{/if}
+        </Button>
+        <span class="info-tip">
+          <svg class="info-svg" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 7v4M8 5.5v-.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="info-tip-text">Sends prose to Claude to check whether characters explicitly state what should remain subtext. Requires a scene plan with subtext defined.</span>
+        </span>
       {/if}
       {#if sceneStatus !== "complete"}
         {#if isAutopilot}
@@ -144,10 +170,14 @@ $effect(() => {
         index={i}
         isLast={i === chunks.length - 1}
         annotations={chunkAnnotations.get(i) ?? []}
+        isReviewing={reviewingChunks.has(i)}
         onUpdate={onUpdateChunk}
         onRemove={onRemoveChunk}
+        onDestroy={onDestroyChunk}
         {onAcceptSuggestion}
         {onDismissAnnotation}
+        {onRequestSuggestion}
+        onReview={onReviewChunk}
       />
     {/each}
 
@@ -161,10 +191,50 @@ $effect(() => {
 </Pane>
 
 <style>
+  :global(.drafting-desk-content) {
+    padding-top: 0 !important;
+  }
   .gate-messages { padding: 6px 8px; margin-bottom: 8px; }
   .empty-state { color: var(--text-muted); padding: 20px; text-align: center; }
   .loading-indicator {
     display: flex; align-items: center; gap: 8px; padding: 12px;
     color: var(--accent); font-size: 12px;
+  }
+  .info-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+    flex-shrink: 0;
+  }
+  .info-svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    transition: color 0.12s;
+  }
+  .info-tip:hover .info-svg {
+    color: var(--accent);
+  }
+  .info-tip-text {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 240px;
+    padding: 8px 10px;
+    background: var(--bg-card, #1e1e2e);
+    border: 1px solid var(--border, #333);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+    z-index: 200;
+    pointer-events: none;
+    white-space: normal;
+  }
+  .info-tip:hover .info-tip-text {
+    display: block;
   }
 </style>

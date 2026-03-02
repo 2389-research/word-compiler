@@ -8,7 +8,13 @@ import { callLLM } from "../../../llm/client.js";
 import { computeStyleDriftFromProse } from "../../../metrics/styleDrift.js";
 import { measureVoiceSeparability } from "../../../metrics/voiceSeparability.js";
 import type { ChunkView, EditorialAnnotation, LLMReviewClient, ReviewOrchestrator } from "../../../review/index.js";
-import { createReviewOrchestrator, REVIEW_OUTPUT_SCHEMA } from "../../../review/index.js";
+import {
+  buildSuggestionRequestPrompt,
+  createReviewOrchestrator,
+  REVIEW_OUTPUT_SCHEMA,
+  SUGGESTION_REQUEST_SCHEMA,
+} from "../../../review/index.js";
+import { buildReviewContext } from "../../../review/contextBuilder.js";
 import type { Chunk, NarrativeIR, StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
 import { getCanonicalText } from "../../../types/index.js";
 import { Tabs } from "../../primitives/index.js";
@@ -65,7 +71,7 @@ const llmReviewClient: LLMReviewClient = {
   },
 };
 
-// Dismissed fingerprints (persisted per-project in localStorage)
+// ─── Persistence helpers ─────────────────────────
 function loadDismissed(): Set<string> {
   try {
     const key = `review-dismissed:${store.project?.id ?? "default"}`;
@@ -85,9 +91,35 @@ function saveDismissed(dismissed: Set<string>) {
   }
 }
 
+function loadAnnotations(sceneId: string): Map<number, EditorialAnnotation[]> {
+  try {
+    const key = `review-annotations:${store.project?.id ?? "default"}:${sceneId}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Map();
+    const entries = JSON.parse(raw) as [number, EditorialAnnotation[]][];
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+function saveAnnotations(sceneId: string, anns: Map<number, EditorialAnnotation[]>) {
+  try {
+    const key = `review-annotations:${store.project?.id ?? "default"}:${sceneId}`;
+    localStorage.setItem(key, JSON.stringify([...anns]));
+  } catch {
+    // Ignore storage failures; annotations just won't persist.
+  }
+}
+
+// ─── Reactive state ──────────────────────────────
 let dismissed = $state(loadDismissed());
 let chunkAnnotations = $state(new Map<number, EditorialAnnotation[]>());
+let reviewingChunks = $state(new Set<number>());
 let orchestrator = $state<ReviewOrchestrator | null>(null);
+// Bumped to force orchestrator recreation (e.g. after chunk destruction
+// invalidates the orchestrator's index-keyed internal state).
+let orchestratorVersion = $state(0);
 
 // Reload dismissed set when project changes
 $effect(() => {
@@ -95,76 +127,184 @@ $effect(() => {
   dismissed = loadDismissed();
 });
 
-// Recreate orchestrator when bible or scene changes
+// Recreate orchestrator when bible, scene, or version changes
 $effect(() => {
   // Read dependencies explicitly
   const bible = store.bible;
   const scenePlan = store.activeScenePlan;
+  const _version = orchestratorVersion;
 
   // Cleanup previous orchestrator — untrack to avoid read→write loop
   untrack(() => {
     orchestrator?.cancelAll();
-    chunkAnnotations = new Map();
+    reviewingChunks = new Set();
+    prevChunkCount = 0;
+    clearTimeout(autoReviewTimeout);
   });
 
   if (!bible || !scenePlan) {
     orchestrator = null;
+    chunkAnnotations = new Map();
     return;
   }
+
+  // Load persisted annotations for this scene (survives page refresh)
+  chunkAnnotations = loadAnnotations(scenePlan.id);
 
   orchestrator = createReviewOrchestrator(
     bible,
     scenePlan,
     () => dismissed,
     llmReviewClient,
-    (chunkIndex, anns) => {
+    (chunkIndex, anns, reviewedText) => {
+      // Discard stale annotations: if the chunk text has changed since the
+      // review was initiated (e.g., user accepted a suggestion while the LLM
+      // was still processing), the charRanges are against the old text.
+      const currentChunk = store.activeSceneChunks[chunkIndex];
+      if (currentChunk && getCanonicalText(currentChunk) !== reviewedText) return;
       chunkAnnotations = new Map(chunkAnnotations).set(chunkIndex, anns);
+      // Persist to localStorage so annotations survive refresh
+      if (scenePlan) saveAnnotations(scenePlan.id, chunkAnnotations);
+    },
+    (reviewing) => {
+      reviewingChunks = reviewing;
     },
   );
 });
 
-// Trigger review when chunks change
+// Auto-review fires ONLY when a new chunk appears (count increases).
+// Text edits, status changes, and note updates are invisible to this effect.
+// The author works through suggestions at their own pace, then clicks "Re-review".
+//
+// IMPORTANT: The timeout lives in a module-level variable, NOT returned as an
+// effect cleanup. This prevents a race condition: when store.activeSceneChunks
+// changes reference (e.g. status update on existing chunk), the effect re-runs,
+// but count hasn't changed so it early-returns. If the timeout were in cleanup,
+// it would be cancelled by that re-run, silently dropping the pending review.
+let autoReviewTimeout: ReturnType<typeof setTimeout> | undefined;
+let prevChunkCount = 0;
+
 $effect(() => {
-  const chunks = store.activeSceneChunks;
+  const count = store.activeSceneChunks.length;
   const sceneId = store.activeScenePlan?.id;
-  if (!sceneId || chunks.length === 0) return;
-  // Read orchestrator inside untrack — we only want to react to chunk changes
+  const generating = store.isGenerating;
+  if (!sceneId || count === 0 || count <= prevChunkCount || generating) {
+    if (!generating) prevChunkCount = count;
+    return;
+  }
+  prevChunkCount = count;
   const orch = untrack(() => orchestrator);
   if (!orch) return;
-  const timeout = setTimeout(() => {
-    const views: ChunkView[] = chunks.map((c, i) => ({
-      index: i,
-      text: getCanonicalText(c),
-      sceneId: sceneId,
-    }));
-    orch.requestReview(views);
-  }, 1000);
-  return () => clearTimeout(timeout);
+  const chunks = untrack(() => store.activeSceneChunks);
+  clearTimeout(autoReviewTimeout);
+  autoReviewTimeout = setTimeout(() => {
+    const views: ChunkView[] = chunks
+      .map((c, i) => ({ chunk: c, index: i }))
+      .filter(({ chunk }) => chunk.status !== "accepted")
+      .map(({ chunk, index }) => ({
+        index,
+        text: getCanonicalText(chunk),
+        sceneId: sceneId,
+      }));
+    if (views.length > 0) orch.requestReview(views);
+  }, 1500);
 });
 
+function handleReviewChunk(index: number) {
+  const chunks = store.activeSceneChunks;
+  const sceneId = store.activeScenePlan?.id;
+  if (!sceneId || !orchestrator || index >= chunks.length) return;
+  const chunk = chunks[index]!;
+  if (chunk.status === "accepted") return;
+  const view: ChunkView = { index, text: getCanonicalText(chunk), sceneId };
+  orchestrator.requestReview([view], true);
+}
+
 function handleAcceptSuggestion(_annotationId: string) {
-  // The AnnotatedEditor handles text replacement; we just need to trigger re-review
-  // which will happen automatically through chunk text change → $effect above
+  // Text replacement handled by AnnotatedEditor via PM transaction.
+  // No auto-re-review — author works through suggestions at their own pace.
 }
 
 function handleDismissAnnotation(annotationId: string) {
-  // Find the annotation's fingerprint and add to dismissed set
+  // Persist the fingerprint to the dismissed set so future reviews exclude it.
+  // The decoration is already removed in AnnotatedEditor via PM transaction —
+  // we intentionally do NOT modify chunkAnnotations here because that would
+  // trigger the Sync Annotations effect with stale charRanges (same corruption
+  // class as the accept bug). Same-fingerprint annotations on other chunks
+  // remain visible until the next re-review, which is the safer trade-off.
+  const sceneId = store.activeScenePlan?.id;
   for (const [, anns] of chunkAnnotations) {
     const ann = anns.find((a) => a.id === annotationId);
     if (ann) {
       dismissed = new Set(dismissed).add(ann.fingerprint);
       saveDismissed(dismissed);
-      // Remove from current annotations immediately
-      const updated = new Map(chunkAnnotations);
-      for (const [idx, chunkAnns] of updated) {
-        updated.set(
-          idx,
-          chunkAnns.filter((a) => a.fingerprint !== ann.fingerprint),
-        );
-      }
-      chunkAnnotations = updated;
       break;
     }
+  }
+  // Persist annotation removal to localStorage
+  if (sceneId) saveAnnotations(sceneId, chunkAnnotations);
+}
+
+const SUGGESTION_MAX_TOKENS = 1024;
+
+async function handleRequestSuggestion(annotationId: string, feedback: string): Promise<string | null> {
+  // 1. Find the annotation and its chunk index
+  let targetAnnotation: EditorialAnnotation | undefined;
+  let targetChunkIndex: number | undefined;
+  for (const [chunkIndex, anns] of chunkAnnotations) {
+    const ann = anns.find((a) => a.id === annotationId);
+    if (ann) {
+      targetAnnotation = ann;
+      targetChunkIndex = chunkIndex;
+      break;
+    }
+  }
+  if (!targetAnnotation || targetChunkIndex === undefined) return null;
+
+  // 2. Get chunk text and build context
+  const chunks = store.activeSceneChunks;
+  const chunk = chunks[targetChunkIndex];
+  if (!chunk || !store.bible || !store.activeScenePlan) return null;
+  const chunkText = getCanonicalText(chunk);
+  const context = buildReviewContext(store.bible, store.activeScenePlan);
+
+  // 3. Build prompt and call LLM
+  const { systemPrompt, userPrompt } = buildSuggestionRequestPrompt(
+    context,
+    targetAnnotation,
+    chunkText,
+    feedback,
+  );
+
+  try {
+    const rawJson = await callLLM(
+      systemPrompt,
+      userPrompt,
+      REVIEW_MODEL,
+      SUGGESTION_MAX_TOKENS,
+      SUGGESTION_REQUEST_SCHEMA as Record<string, unknown>,
+    );
+
+    // 4. Parse and validate
+    const parsed = JSON.parse(rawJson);
+    if (!parsed.suggestion || typeof parsed.suggestion !== "string" || parsed.suggestion.trim().length === 0) {
+      return null;
+    }
+
+    // 5. Update annotation in chunkAnnotations
+    const updatedAnns = (chunkAnnotations.get(targetChunkIndex) ?? []).map((a) =>
+      a.id === annotationId ? { ...a, suggestion: parsed.suggestion } : a,
+    );
+    chunkAnnotations = new Map(chunkAnnotations).set(targetChunkIndex, updatedAnns);
+
+    // 6. Persist
+    const sceneId = store.activeScenePlan?.id;
+    if (sceneId) saveAnnotations(sceneId, chunkAnnotations);
+
+    return parsed.suggestion;
+  } catch (err) {
+    console.warn("[editorial] Suggestion generation failed:", err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
@@ -265,6 +405,57 @@ function handleRemoveChunk(index: number) {
   commands.removeChunk(sceneId, index);
 }
 
+async function handleDestroyChunk(index: number) {
+  const sceneId = store.activeScenePlan?.id;
+  if (!sceneId) return;
+  const chunks = store.activeSceneChunks;
+  const isLast = index === chunks.length - 1;
+
+  if (!isLast) {
+    const count = chunks.length - index;
+    const ok = window.confirm(
+      `Delete chunk ${index + 1} and ${count - 1} later chunk${count - 1 > 1 ? "s" : ""} that depend on it?`,
+    );
+    if (!ok) return;
+  }
+
+  // ── Cancel everything that references chunk indices ──
+
+  // 1. Stop autopilot — it would generate into a broken state
+  if (store.isAutopilot) store.cancelAutopilot();
+
+  // 2. Cancel pending auto-review (against the old chunk array)
+  clearTimeout(autoReviewTimeout);
+
+  // 3. Cancel in-flight LLM reviews and clear reviewing indicators
+  orchestrator?.cancelAll();
+
+  // 4. Flush edit debounce timers for destroyed indices
+  for (let i = index; i < chunks.length; i++) {
+    const key = `${sceneId}:${i}`;
+    const timer = editDebounceTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      editDebounceTimers.delete(key);
+    }
+  }
+
+  // 5. Clear persisted annotations (indices are now stale)
+  saveAnnotations(sceneId, new Map());
+  chunkAnnotations = new Map();
+
+  // ── Remove chunks from end backward to avoid index shifting ──
+  for (let i = chunks.length - 1; i >= index; i--) {
+    await commands.removeChunk(sceneId, i);
+  }
+
+  // 6. Force orchestrator recreation with clean internal state.
+  //    The effect will create a fresh orchestrator (empty lastReviewedText,
+  //    empty annotations), reset prevChunkCount to 0, and auto-review will
+  //    fire for all remaining chunks after its 1.5s delay.
+  orchestratorVersion++;
+}
+
 async function handleCompleteScene() {
   const sceneId = store.activeScenePlan?.id;
   if (!sceneId) return;
@@ -300,15 +491,18 @@ async function handleUpdateIR(ir: NarrativeIR) {
         sceneStatus={store.activeScene?.status ?? null}
         isGenerating={store.isGenerating}
         isAutopilot={store.isAutopilot}
+        isAuditing={store.isAuditing}
         {canGenerate}
         {gateMessages}
         auditFlags={store.auditFlags}
         sceneIR={store.activeSceneIR}
         isExtractingIR={store.isExtractingIR}
         {chunkAnnotations}
+        {reviewingChunks}
         onGenerate={onGenerate}
         onUpdateChunk={handleUpdateChunk}
         onRemoveChunk={handleRemoveChunk}
+        onDestroyChunk={handleDestroyChunk}
         onRunAudit={onRunAudit}
         onRunDeepAudit={onRunDeepAudit}
         onCompleteScene={handleCompleteScene}
@@ -316,8 +510,10 @@ async function handleUpdateIR(ir: NarrativeIR) {
         onCancelAutopilot={() => store.cancelAutopilot()}
         onOpenIRInspector={() => { activeTab = "ir"; }}
         onExtractIR={() => onExtractIR()}
+        onReviewChunk={handleReviewChunk}
         onAcceptSuggestion={handleAcceptSuggestion}
         onDismissAnnotation={handleDismissAnnotation}
+        onRequestSuggestion={handleRequestSuggestion}
       />
     </div>
 

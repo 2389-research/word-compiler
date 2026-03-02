@@ -283,8 +283,10 @@ function exportState() {
 <svelte:window onkeydown={handleKeydown} />
 
 {#if !appReady}
-  <div class="app loading-screen">
-    <span class="app-title">Word Compiler</span>
+  <div class="app" class:loading-screen={startupStatus !== "multiple-projects"}>
+    {#if startupStatus !== "multiple-projects"}
+      <span class="app-title">Word Compiler</span>
+    {/if}
     {#if startupStatus === "loading"}
       <p>Loading project...</p>
     {:else if startupStatus === "no-projects"}

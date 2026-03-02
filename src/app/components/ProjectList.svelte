@@ -64,7 +64,7 @@ let {
 </div>
 
 <style>
-  .project-list { max-width: 800px; margin: 40px auto; padding: 0 16px; }
+  .project-list { max-width: 800px; margin: 0 auto; padding: 40px 16px; width: 100%; box-sizing: border-box; flex: 1; min-height: 0; overflow-y: auto; }
   .project-empty { color: var(--text-muted); padding: 40px; text-align: center; font-size: 13px; }
   .new-project-row { display: flex; align-items: center; gap: 8px; }
   .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 12px; }

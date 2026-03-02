@@ -17,7 +17,7 @@ let {
   selectedText: string;
   loading?: boolean;
   variants?: RefinementVariant[];
-  position: { top: number; left: number };
+  position: { top: number; left: number; anchorBottom?: number };
   onRefine: (instruction: string, chips: RefinementChip[]) => void;
   onCut: () => void;
   onAcceptVariant: (variant: RefinementVariant) => void;
@@ -28,6 +28,23 @@ let {
 let instruction = $state("");
 let activeChips = $state<Set<RefinementChip>>(new Set());
 let showAllVariants = $state(false);
+let popoverEl: HTMLDivElement;
+let flippedTop = $state<number | null>(null);
+
+// Viewport flip: reposition above selection if popover overflows bottom
+$effect(() => {
+  const _trigger = position;
+  flippedTop = null;
+
+  requestAnimationFrame(() => {
+    if (!popoverEl) return;
+    const rect = popoverEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    if (rect.bottom > viewportHeight - 8 && position.anchorBottom != null) {
+      flippedTop = position.anchorBottom - rect.height - 4;
+    }
+  });
+});
 
 function toggleChip(chip: RefinementChip) {
   const next = new Set(activeChips);
@@ -67,8 +84,9 @@ let hasResults = $derived(variants.length > 0);
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
+  bind:this={popoverEl}
   class="refinement-popover"
-  style:top="{position.top}px"
+  style:top="{flippedTop ?? position.top}px"
   style:left="{position.left}px"
   onclick={(e) => e.stopPropagation()}
   onkeydown={handleKeydown}
@@ -150,6 +168,8 @@ let hasResults = $derived(variants.length > 0);
     padding: 10px;
     max-width: 420px;
     min-width: 280px;
+    max-height: 60vh;
+    overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     font-size: 12px;
     line-height: 1.4;
@@ -240,6 +260,8 @@ let hasResults = $derived(variants.length > 0);
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
   }
 
   .variant-card {

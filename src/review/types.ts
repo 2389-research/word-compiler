@@ -101,7 +101,7 @@ export interface DismissedAnnotation {
 // ─── Orchestrator Interface ─────────────────────
 
 export interface ReviewOrchestrator {
-  requestReview(chunks: ChunkView[]): void;
+  requestReview(chunks: ChunkView[], force?: boolean): void;
   cancelAll(): void;
   annotations: Map<number, EditorialAnnotation[]>;
   reviewing: Set<number>;

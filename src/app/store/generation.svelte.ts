@@ -202,6 +202,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     const scenePlan = store.scenes.find((s) => s.plan.id === sceneId)?.plan ?? plan;
 
     store.setError(null);
+    store.setAuditing(true);
 
     try {
       const prose = chunks.map((c) => getCanonicalText(c)).join("\n\n");
@@ -218,6 +219,8 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       }
     } catch (err) {
       store.setError(err instanceof Error ? err.message : "Deep audit failed");
+    } finally {
+      store.setAuditing(false);
     }
   }
 

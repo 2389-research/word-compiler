@@ -135,7 +135,7 @@ describe("createReviewOrchestrator", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it("aborts previous request when new one starts", async () => {
+  it("aborts previous request for the same chunk when re-reviewed", async () => {
     let resolveFirst: (value: string) => void;
     const firstPromise = new Promise<string>((r) => {
       resolveFirst = r;
@@ -149,15 +149,42 @@ describe("createReviewOrchestrator", () => {
 
     const orch = createReviewOrchestrator(makeBible(), makeScene(), () => new Set(), client, onChange);
 
-    orch.requestReview([makeChunk("She was very happy.")]);
-    // Second request should abort the first
-    orch.requestReview([makeChunk("A different chunk.")]);
+    orch.requestReview([makeChunk("She was very happy.", 0)]);
+    // Second request (force=true) should abort the first and re-review
+    orch.requestReview([makeChunk("She was very happy.", 0)], true);
 
     // Resolve the first after abort
     resolveFirst!(makeLLMResponse());
     await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
 
     expect(client.review).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not abort chunk 1 review when chunk 0 is re-reviewed", async () => {
+    let resolveChunk1: (value: string) => void;
+    const chunk1Promise = new Promise<string>((r) => {
+      resolveChunk1 = r;
+    });
+    const client: LLMReviewClient = {
+      review: vi.fn().mockImplementation((_sys: string, _user: string, signal: AbortSignal) => {
+        if (signal.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
+        return chunk1Promise;
+      }),
+    };
+
+    const orch = createReviewOrchestrator(makeBible(), makeScene(), () => new Set(), client, onChange);
+
+    // Start reviews for both chunks
+    orch.requestReview([makeChunk("She was very happy.", 0), makeChunk("Clean prose.", 1)]);
+    expect(orch.reviewing.size).toBe(2);
+
+    // Re-review chunk 0 only — chunk 1 should remain in-flight
+    orch.requestReview([makeChunk("She was very happy.", 0)], true);
+    expect(orch.reviewing.has(1)).toBe(true);
+
+    // Resolve and verify chunk 1 completes normally
+    resolveChunk1!(makeLLMResponse());
+    await vi.waitFor(() => expect(orch.reviewing.has(1)).toBe(false));
   });
 
   it("cancelAll clears reviewing set", () => {
@@ -227,5 +254,77 @@ describe("createReviewOrchestrator", () => {
     // Annotations stored immediately from local checks
     expect(orch.annotations.has(0)).toBe(true);
     expect(orch.annotations.get(0)!.length).toBeGreaterThan(0);
+  });
+
+  it("fires onReviewingChanged callback when reviewing state changes", async () => {
+    const client = createMockClient();
+    const onReviewing = vi.fn();
+    const orch = createReviewOrchestrator(makeBible(), makeScene(), () => new Set(), client, onChange, onReviewing);
+
+    orch.requestReview([makeChunk("She was very happy.", 0)]);
+
+    // Called with chunk added to reviewing set
+    expect(onReviewing).toHaveBeenCalledTimes(1);
+    expect(onReviewing.mock.calls[0]![0]).toEqual(new Set([0]));
+
+    // After LLM completes, called again with empty set
+    await vi.waitFor(() => expect(onReviewing).toHaveBeenCalledTimes(2));
+    expect(onReviewing.mock.calls[1]![0]).toEqual(new Set());
+  });
+
+  it("fires onReviewingChanged on cancelAll", () => {
+    const neverResolves: LLMReviewClient = {
+      review: vi.fn().mockReturnValue(new Promise(() => {})),
+    };
+    const onReviewing = vi.fn();
+    const orch = createReviewOrchestrator(
+      makeBible(),
+      makeScene(),
+      () => new Set(),
+      neverResolves,
+      onChange,
+      onReviewing,
+    );
+
+    orch.requestReview([makeChunk("text", 0)]);
+    // 1 call from .add()
+    expect(onReviewing).toHaveBeenCalledTimes(1);
+
+    orch.cancelAll();
+    // 1 more call from .clear()
+    expect(onReviewing).toHaveBeenCalledTimes(2);
+    expect(onReviewing.mock.calls[1]![0]).toEqual(new Set());
+  });
+
+  it("skips already-reviewed chunks on auto re-review (even if text changed)", async () => {
+    const client = createMockClient();
+    const orch = createReviewOrchestrator(makeBible(), makeScene(), () => new Set(), client, onChange);
+
+    orch.requestReview([makeChunk("She was very happy.", 0), makeChunk("Clean prose.", 1)]);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(4)); // 2 local + 2 LLM
+
+    onChange.mockClear();
+    (client.review as ReturnType<typeof vi.fn>).mockClear();
+
+    // Auto re-review (no force) — skips ALL already-reviewed chunks, even if text changed
+    orch.requestReview([makeChunk("She was extremely happy.", 0), makeChunk("Clean prose.", 1)]);
+    expect(client.review).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("force re-reviews all chunks when force=true", async () => {
+    const client = createMockClient();
+    const orch = createReviewOrchestrator(makeBible(), makeScene(), () => new Set(), client, onChange);
+
+    orch.requestReview([makeChunk("She was very happy.", 0)]);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+
+    onChange.mockClear();
+    (client.review as ReturnType<typeof vi.fn>).mockClear();
+
+    // Force re-review — reviews even already-seen chunks
+    orch.requestReview([makeChunk("She was very happy.", 0)], true);
+    expect(onChange).toHaveBeenCalledTimes(1); // local annotations
+    expect(client.review).toHaveBeenCalledTimes(1); // LLM review
   });
 });

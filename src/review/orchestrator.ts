@@ -26,50 +26,73 @@ export function createReviewOrchestrator(
   scenePlan: ScenePlan,
   getDismissed: () => Set<string>,
   llmClient: LLMReviewClient,
-  onAnnotationsChanged: (chunkIndex: number, anns: EditorialAnnotation[]) => void,
+  onAnnotationsChanged: (chunkIndex: number, anns: EditorialAnnotation[], reviewedText: string) => void,
+  onReviewingChanged?: (reviewing: Set<number>) => void,
 ): ReviewOrchestrator {
-  let abortController: AbortController | null = null;
+  const abortControllers = new Map<number, AbortController>();
   const annotations = new Map<number, EditorialAnnotation[]>();
   const reviewing = new Set<number>();
+  const lastReviewedText = new Map<number, string>();
 
-  function requestReview(chunks: ChunkView[]) {
-    abortController?.abort();
-    abortController = new AbortController();
+  function notifyReviewing() {
+    onReviewingChanged?.(new Set(reviewing));
+  }
+
+  function requestReview(chunks: ChunkView[], force = false) {
+    // Auto-review: only review chunks never seen before (new prose).
+    // Force: re-review everything (author explicitly requested fresh feedback).
+    const toReview = force ? chunks : chunks.filter((c) => !lastReviewedText.has(c.index));
+    if (toReview.length === 0) return;
 
     const context = buildReviewContext(bible, scenePlan);
     const systemPrompt = buildReviewSystemPrompt(context);
 
-    for (const chunk of chunks) {
+    for (const chunk of toReview) {
+      // Abort only this chunk's previous in-flight review (if any)
+      abortControllers.get(chunk.index)?.abort();
+
+      const controller = new AbortController();
+      abortControllers.set(chunk.index, controller);
+
+      lastReviewedText.set(chunk.index, chunk.text);
+
       // Tier 1: Deterministic (instant) — publish immediately
       const localAnnotations = runLocalChecks(chunk.text, bible, chunk.sceneId);
       const resolvedLocal = resolveAnnotations(filterDismissed(localAnnotations, getDismissed()), chunk.text);
       annotations.set(chunk.index, resolvedLocal);
-      onAnnotationsChanged(chunk.index, resolvedLocal);
+      onAnnotationsChanged(chunk.index, resolvedLocal, chunk.text);
 
       // Tier 2: LLM review (async) — merge when ready
       reviewing.add(chunk.index);
+      notifyReviewing();
       const userPrompt = buildReviewUserPrompt(chunk.text);
 
       llmClient
-        .review(systemPrompt, userPrompt, abortController.signal)
+        .review(systemPrompt, userPrompt, controller.signal)
         .then((rawJson) => {
           const llmAnnotations = parseLLMResponse(rawJson, chunk.text);
           const all = filterDismissed([...localAnnotations, ...llmAnnotations], getDismissed());
           const resolved = resolveAnnotations(all, chunk.text);
           annotations.set(chunk.index, resolved);
-          onAnnotationsChanged(chunk.index, resolved);
+          onAnnotationsChanged(chunk.index, resolved, chunk.text);
         })
         .catch((err) => {
           if (err.name === "AbortError") return;
           console.warn("[editorial-review] LLM review failed:", err.message ?? err);
         })
-        .finally(() => reviewing.delete(chunk.index));
+        .finally(() => {
+          abortControllers.delete(chunk.index);
+          reviewing.delete(chunk.index);
+          notifyReviewing();
+        });
     }
   }
 
   function cancelAll() {
-    abortController?.abort();
+    for (const controller of abortControllers.values()) controller.abort();
+    abortControllers.clear();
     reviewing.clear();
+    notifyReviewing();
   }
 
   return { requestReview, cancelAll, annotations, reviewing };
