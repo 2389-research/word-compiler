@@ -93,10 +93,10 @@ Extract the following as JSON:
     {
       "name": "...",
       "sensoryPalette": {
-        "sounds": ["specific sounds, not generic"],
-        "smells": ["specific smells"],
-        "textures": ["what do hands touch here?"],
-        "lightQuality": "What does the light do?",
+        "sounds": ["ambient sounds that define the space + foreground sounds that could punctuate a scene — raw observations, not poetic descriptions"],
+        "smells": ["functional smells that tell you WHERE you are, not prose-ready descriptions"],
+        "textures": ["surfaces and temperatures characters physically contact"],
+        "lightQuality": "Neutral description of light conditions — not a metaphor",
         "prohibitedDefaults": ["generic sensory details to avoid for this location"]
       }
     }
@@ -112,7 +112,7 @@ Extract the following as JSON:
   ]
 }
 
-Be ruthlessly specific. If the synopsis doesn't give you enough to be specific, make a strong opinionated choice and flag it as [ASSUMPTION] so the author can override.`;
+Be specific but FUNCTIONAL. Every detail should anchor the reader in the space or reveal something about the world. AVOID performative specificity: no temporal twists ("the hum you stop hearing after day three"), no poetic observations about mundane infrastructure, no details that exist to demonstrate the writer's powers of observation. A sensory palette is raw material for a writer, not finished prose. If the synopsis doesn't give you enough to be specific, make a strong opinionated choice and flag it as [ASSUMPTION] so the author can override.`;
 
   return {
     systemMessage,

@@ -4,13 +4,7 @@ import * as chapterArcs from "../../../server/db/repositories/chapter-arcs.js";
 import * as projects from "../../../server/db/repositories/projects.js";
 import * as scenePlans from "../../../server/db/repositories/scene-plans.js";
 import { makeApiTestApp } from "../../helpers/apiTestApp.js";
-import {
-  createEmptyScenePlan,
-  generateId,
-  makeAuditFlag,
-  makeChapterArc,
-  makeProject,
-} from "../../helpers/factories.js";
+import { createEmptyScenePlan, makeAuditFlag, makeChapterArc, makeProject } from "../../helpers/factories.js";
 
 let app: ReturnType<typeof makeApiTestApp>["app"];
 let db: ReturnType<typeof makeApiTestApp>["db"];

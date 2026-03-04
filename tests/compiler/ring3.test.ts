@@ -196,6 +196,32 @@ describe("buildRing3", () => {
     expect(voice!.immune).toBe(true);
   });
 
+  it("SENSORY_GUARDRAIL is always present and immune", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    const plan = makePlan({ dialogueConstraints: {} });
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const guardrail = result.sections.find((s) => s.name === "SENSORY_GUARDRAIL");
+
+    expect(guardrail).toBeDefined();
+    expect(guardrail!.text).toContain("SENSORY DETAIL RULES");
+    expect(guardrail!.text).toContain("narrative job");
+    expect(guardrail!.immune).toBe(true);
+    expect(guardrail!.priority).toBe(0);
+  });
+
+  it("SENSORY_GUARDRAIL present even without a location", () => {
+    const bible = makeBible([makeChar("marcus", "Marcus")]);
+    bible.locations = [];
+    const plan = makePlan({ dialogueConstraints: {}, locationId: null });
+
+    const result = buildRing3(plan, bible, [], 0, config);
+    const names = result.sections.map((s) => s.name);
+
+    expect(names).not.toContain("SENSORY_PALETTE");
+    expect(names).toContain("SENSORY_GUARDRAIL");
+  });
+
   it("sensory palette is compressible", () => {
     const bible = makeBible([makeChar("marcus", "Marcus")]);
     const plan = makePlan({ dialogueConstraints: {} });
@@ -353,7 +379,6 @@ describe("buildRing3", () => {
     const bible = makeBible([makeChar("marcus", "Marcus")]);
     // Simulate old data without presentCharacterIds by creating plan without it
     const plan = makePlan({ dialogueConstraints: {} });
-    // biome-ignore lint: simulate pre-migration data missing the field
     (plan as unknown as Record<string, unknown>).presentCharacterIds = undefined;
 
     const result = buildRing3(plan, bible, [], 0, config);

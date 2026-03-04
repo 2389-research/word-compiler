@@ -181,7 +181,8 @@ export const SCI_FI: GenreTemplate = {
     },
     structuralBans: ["As you know, Bob exposition", "footnotes or technical appendices in prose"],
     subtextPolicy: "Technology should be shown through use, not explained through lectures.",
-    expositionPolicy: "World-build through sensory detail and character interaction with environment.",
+    expositionPolicy:
+      "World-build through character interaction with environment. Sensory details must have a narrative job — grounding unfamiliar technology or revealing how characters relate to their world. A detail without a purpose is clutter.",
   },
 };
 

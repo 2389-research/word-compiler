@@ -95,7 +95,7 @@ test.describe("Error handling", () => {
     await expect(page.locator("text=Create Your Story Bible")).toBeVisible();
 
     // Navigate through all stage buttons
-    const stageLabels = ["Plan", "Draft", "Audit", "Complete", "Export", "Bootstrap"];
+    const stageLabels = ["Plan", "Draft", "Audit", "Edit", "Complete", "Export", "Bootstrap"];
     for (const label of stageLabels) {
       await page.locator('[aria-label="Progress"] button', { hasText: label }).click();
       await page.waitForTimeout(200);

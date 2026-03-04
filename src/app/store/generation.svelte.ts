@@ -2,6 +2,15 @@ import { runAudit } from "../../auditor/index.js";
 import { checkSubtext } from "../../auditor/subtext.js";
 import { extractIR, type IRLLMClient } from "../../ir/extractor.js";
 import { callLLM, generateStream } from "../../llm/client.js";
+import { buildReviewContext } from "../../review/contextBuilder.js";
+import {
+  buildContinuousText,
+  buildRefinementSystemPrompt,
+  buildRefinementUserPrompt,
+  parseRefinementResponse,
+  REFINEMENT_OUTPUT_SCHEMA,
+} from "../../review/refine.js";
+import type { RefinementRequest, RefinementResult } from "../../review/refineTypes.js";
 import type { Chunk } from "../../types/index.js";
 import { generateId, getCanonicalText } from "../../types/index.js";
 import type { Commands } from "./commands.js";
@@ -193,6 +202,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     const scenePlan = store.scenes.find((s) => s.plan.id === sceneId)?.plan ?? plan;
 
     store.setError(null);
+    store.setAuditing(true);
 
     try {
       const prose = chunks.map((c) => getCanonicalText(c)).join("\n\n");
@@ -209,6 +219,8 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       }
     } catch (err) {
       store.setError(err instanceof Error ? err.message : "Deep audit failed");
+    } finally {
+      store.setAuditing(false);
     }
   }
 
@@ -276,5 +288,46 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     }
   }
 
-  return { generateChunk, runAuditManual, runDeepAudit, extractSceneIR, runAutopilot };
+  async function requestRefinement(request: RefinementRequest): Promise<RefinementResult | null> {
+    if (!store.bible || !store.activeScenePlan) {
+      store.setError("Cannot refine: missing bible or scene plan");
+      return null;
+    }
+
+    const scenePlan = store.scenes.find((s) => s.plan.id === request.sceneId)?.plan ?? store.activeScenePlan;
+    const chunks = chunksForScene(request.sceneId);
+    if (chunks.length === 0) {
+      store.setError("Cannot refine: no chunks for this scene");
+      return null;
+    }
+
+    const requestedAt = new Date().toISOString();
+    store.setError(null);
+
+    try {
+      const context = buildReviewContext(store.bible, scenePlan);
+      const systemPrompt = buildRefinementSystemPrompt(context);
+      const { text: sceneText } = buildContinuousText(chunks);
+      const userPrompt = buildRefinementUserPrompt(sceneText, request, scenePlan.title, scenePlan.narrativeGoal);
+
+      const raw = await callLLM(systemPrompt, userPrompt, "claude-sonnet-4-6", 4096, REFINEMENT_OUTPUT_SCHEMA);
+      const { variants, parseError } = parseRefinementResponse(raw, store.bible.styleGuide.killList);
+
+      if (variants.length === 0) {
+        store.setError(parseError ?? "Refinement produced no usable variants. Try rephrasing your instruction.");
+        return null;
+      }
+
+      return {
+        variants,
+        requestedAt,
+        completedAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      store.setError(err instanceof Error ? err.message : "Refinement failed");
+      return null;
+    }
+  }
+
+  return { generateChunk, runAuditManual, runDeepAudit, extractSceneIR, runAutopilot, requestRefinement };
 }

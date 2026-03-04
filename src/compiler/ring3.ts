@@ -17,6 +17,7 @@ import {
   formatForegroundCharacter,
   formatPovInteriority,
   formatSceneContract,
+  formatSensoryGuardrail,
   formatSensoryPalette,
 } from "./helpers.js";
 
@@ -187,6 +188,14 @@ export function buildRing3(
       });
     }
   }
+
+  // --- Sensory Guardrail (immune, cheap) ---
+  sections.push({
+    name: "SENSORY_GUARDRAIL",
+    text: formatSensoryGuardrail(),
+    priority: 0,
+    immune: true,
+  });
 
   // --- Scene Cast (guardrail immune, character blurbs compressible) ---
   sections.push(...buildSceneCast(plan.presentCharacterIds ?? [], speakingCharIds, bible));

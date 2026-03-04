@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiActions } from "../../src/app/store/api-actions.js";
-import { type CommandResult, createCommands } from "../../src/app/store/commands.js";
+import { createCommands } from "../../src/app/store/commands.js";
 import { ProjectStore } from "../../src/app/store/project.svelte.js";
 import {
   makeAuditFlag,
@@ -203,7 +203,7 @@ describe("createCommands", () => {
       const result = await cmds.updateChunk("s1", 0, { status: "accepted" });
 
       expect(result.ok).toBe(true);
-      expect(store.sceneChunks["s1"]![0]!.status).toBe("accepted");
+      expect(store.sceneChunks.s1![0]!.status).toBe("accepted");
       expect(actions.updateChunk).toHaveBeenCalled();
     });
   });
@@ -248,7 +248,7 @@ describe("createCommands", () => {
       expect(actions.deleteChunk).toHaveBeenCalledWith("c1");
 
       // Remaining chunks renumbered
-      const remaining = store.sceneChunks["s1"]!;
+      const remaining = store.sceneChunks.s1!;
       expect(remaining).toHaveLength(2);
       expect(remaining[0]!.id).toBe("c0");
       expect(remaining[0]!.sequenceNumber).toBe(0);
@@ -268,8 +268,8 @@ describe("createCommands", () => {
       const result = await cmds.removeChunk("s1", 0);
 
       expect(result.ok).toBe(true);
-      expect(store.sceneChunks["s1"]!).toHaveLength(1);
-      expect(store.sceneChunks["s1"]![0]!.sequenceNumber).toBe(0);
+      expect(store.sceneChunks.s1!).toHaveLength(1);
+      expect(store.sceneChunks.s1![0]!.sequenceNumber).toBe(0);
     });
   });
 
@@ -426,7 +426,7 @@ describe("createCommands", () => {
 
       await cmds.saveSceneIR("s1", ir);
 
-      expect(store.sceneIRs["s1"]).toEqual(ir);
+      expect(store.sceneIRs.s1).toEqual(ir);
     });
   });
 
@@ -448,7 +448,101 @@ describe("createCommands", () => {
 
       await cmds.verifySceneIR("s1");
 
-      expect(store.sceneIRs["s1"]!.verified).toBe(true);
+      expect(store.sceneIRs.s1!.verified).toBe(true);
+    });
+  });
+
+  // ─── applyRefinement ──────────────────────────
+
+  describe("applyRefinement", () => {
+    function setupChunks(store: ProjectStore, texts: string[]) {
+      const chunks = texts.map((text, i) =>
+        makeChunk({ id: `c${i}`, sceneId: "s1", sequenceNumber: i, generatedText: text }),
+      );
+      store.setSceneChunks("s1", chunks);
+      return chunks;
+    }
+
+    it("splices replacement into the middle of a single chunk", async () => {
+      const cmds = createCommands(store);
+      // "Hello world." — offsets 0..12
+      setupChunks(store, ["Hello world."]);
+
+      const result = await cmds.applyRefinement("s1", 6, 11, "earth");
+
+      expect(result.ok).toBe(true);
+      expect(store.sceneChunks.s1![0]!.editedText).toBe("Hello earth.");
+    });
+
+    it("splices across two chunk boundaries", async () => {
+      const cmds = createCommands(store);
+      // "AB\n\nCD" — chunk0=[0,2), chunk1=[4,6)
+      setupChunks(store, ["AB", "CD"]);
+
+      // Replace from offset 1 (within chunk0) to offset 5 (within chunk1)
+      const result = await cmds.applyRefinement("s1", 1, 5, "XY");
+
+      expect(result.ok).toBe(true);
+      // First chunk: "A" + replacement "XY"
+      expect(store.sceneChunks.s1![0]!.editedText).toBe("AXY");
+      // Last chunk: "D" (remaining after offset 5 within chunk1 = localEnd 1)
+      expect(store.sceneChunks.s1![1]!.editedText).toBe("D");
+    });
+
+    it("handles cut (empty replacement)", async () => {
+      const cmds = createCommands(store);
+      setupChunks(store, ["Hello world."]);
+
+      const result = await cmds.applyRefinement("s1", 5, 11, "");
+
+      expect(result.ok).toBe(true);
+      expect(store.sceneChunks.s1![0]!.editedText).toBe("Hello.");
+    });
+
+    it("empties middle chunks when spanning three", async () => {
+      const cmds = createCommands(store);
+      // "AA\n\nBB\n\nCC" — chunk0=[0,2), chunk1=[4,6), chunk2=[8,10)
+      setupChunks(store, ["AA", "BB", "CC"]);
+
+      // Replace from offset 1 to offset 9 — spans all three chunks
+      const result = await cmds.applyRefinement("s1", 1, 9, "Z");
+
+      expect(result.ok).toBe(true);
+      expect(store.sceneChunks.s1![0]!.editedText).toBe("AZ");
+      expect(store.sceneChunks.s1![1]!.editedText).toBe("");
+      expect(store.sceneChunks.s1![2]!.editedText).toBe("C");
+    });
+
+    it("returns failure for empty scene", async () => {
+      const cmds = createCommands(store);
+
+      const result = await cmds.applyRefinement("s1", 0, 5, "X");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("No chunks found for scene");
+    });
+
+    it("returns failure when selection falls in separator gap", async () => {
+      const cmds = createCommands(store);
+      // "AB\n\nCD" — gap is [2,4)
+      setupChunks(store, ["AB", "CD"]);
+
+      const result = await cmds.applyRefinement("s1", 2, 4, "X");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("No chunks found for selection range");
+    });
+
+    it("returns failure when bounds are out of range after text changes", async () => {
+      const cmds = createCommands(store);
+      // "Hi" — only 2 chars
+      setupChunks(store, ["Hi"]);
+
+      // Selection range extends beyond chunk text
+      const result = await cmds.applyRefinement("s1", 0, 10, "X");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toContain("bounds out of range");
     });
   });
 

@@ -58,7 +58,7 @@ describe("checkSubtext", () => {
 
   it("handles markdown-fenced JSON response", async () => {
     const client = makeClient(
-      "```json\n" + JSON.stringify({ violated: false, violations: [], reasoning: "ok" }) + "\n```",
+      `\`\`\`json\n${JSON.stringify({ violated: false, violations: [], reasoning: "ok" })}\n\`\`\``,
     );
     const flags = await checkSubtext("Some prose.", makePlan(), client);
     expect(flags).toHaveLength(0);

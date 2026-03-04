@@ -53,7 +53,7 @@ describe("GET /api/projects/:projectId/bibles/latest", () => {
 
 describe("GET /api/projects/:projectId/bibles/:version", () => {
   it("returns a specific bible version", async () => {
-    const { project, bible } = seedProjectAndBible(3);
+    const { project } = seedProjectAndBible(3);
 
     const res = await request(app).get(`/api/projects/${project.id}/bibles/3`);
     expect(res.status).toBe(200);

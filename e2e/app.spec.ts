@@ -11,7 +11,7 @@ test.describe("Word Compiler App", () => {
     await expect(page.locator("text=Word Compiler").first()).toBeVisible();
   });
 
-  test("shows WorkflowRail with all stages", async ({ page }) => {
+  test("shows WorkflowRail with all 7 stages", async ({ page }) => {
     await page.goto("/");
     const rail = page.locator('[aria-label="Progress"]');
     await expect(rail).toBeVisible();
@@ -19,6 +19,7 @@ test.describe("Word Compiler App", () => {
     await expect(rail.locator("button", { hasText: "Plan" })).toBeVisible();
     await expect(rail.locator("button", { hasText: "Draft" })).toBeVisible();
     await expect(rail.locator("button", { hasText: "Audit" })).toBeVisible();
+    await expect(rail.locator("button", { hasText: "Edit" })).toBeVisible();
     await expect(rail.locator("button", { hasText: "Complete" })).toBeVisible();
     await expect(rail.locator("button", { hasText: "Export" })).toBeVisible();
   });
@@ -50,7 +51,7 @@ test.describe("Word Compiler App", () => {
     await page.waitForTimeout(500);
 
     // Try clicking each stage button (some may be locked but shouldn't cause errors)
-    const stageLabels = ["Bootstrap", "Plan", "Draft", "Audit", "Complete", "Export"];
+    const stageLabels = ["Bootstrap", "Plan", "Draft", "Audit", "Edit", "Complete", "Export"];
     for (const label of stageLabels) {
       await page.locator('[aria-label="Progress"] button', { hasText: label }).click();
       await page.waitForTimeout(200);

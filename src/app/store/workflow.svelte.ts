@@ -1,13 +1,14 @@
 import {
-  checkAuditToCompleteGate,
+  checkAuditToEditGate,
   checkBootstrapToPlanGate,
   checkCompleteToExportGate,
   checkDraftToAuditGate,
+  checkEditToCompleteGate,
   checkPlanToDraftGate,
 } from "../../gates/index.js";
 import type { ProjectStore } from "./project.svelte.js";
 
-export type WorkflowStageId = "bootstrap" | "plan" | "draft" | "audit" | "complete" | "export";
+export type WorkflowStageId = "bootstrap" | "plan" | "draft" | "audit" | "edit" | "complete" | "export";
 export type StageStatus = "locked" | "available" | "active" | "completed";
 
 export interface StageDefinition {
@@ -21,7 +22,8 @@ export const STAGES: StageDefinition[] = [
   { id: "plan", label: "Plan", prereqDescription: "Bible with at least 1 character" },
   { id: "draft", label: "Draft", prereqDescription: "At least 1 scene plan" },
   { id: "audit", label: "Audit", prereqDescription: "At least 1 chunk generated" },
-  { id: "complete", label: "Complete", prereqDescription: "All critical flags resolved" },
+  { id: "edit", label: "Edit", prereqDescription: "All critical flags resolved" },
+  { id: "complete", label: "Complete", prereqDescription: "Editing complete" },
   { id: "export", label: "Export", prereqDescription: "At least 1 scene complete" },
 ];
 
@@ -46,8 +48,10 @@ export class WorkflowStore {
         return checkPlanToDraftGate(p.scenes.map((s) => s.plan)).passed;
       case "audit":
         return checkDraftToAuditGate(p.sceneChunks).passed;
+      case "edit":
+        return checkAuditToEditGate(p.auditFlags).passed;
       case "complete":
-        return checkAuditToCompleteGate(p.auditFlags).passed;
+        return checkEditToCompleteGate().passed;
       case "export":
         return checkCompleteToExportGate(p.scenes).passed;
     }

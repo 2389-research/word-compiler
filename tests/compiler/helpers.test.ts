@@ -7,6 +7,7 @@ import {
   formatForegroundCharacter,
   formatPovInteriority,
   formatSceneContract,
+  formatSensoryGuardrail,
   formatSensoryPalette,
 } from "../../src/compiler/helpers.js";
 import type { CharacterDossier, Location, RingSection, ScenePlan } from "../../src/types/index.js";
@@ -166,6 +167,12 @@ describe("formatAntiAblation", () => {
     expect(text).toContain("Vary sentence length");
   });
 
+  it("includes sensory guardrail language in anti-ablation", () => {
+    const text = formatAntiAblation(makePlan());
+    expect(text).toContain("serves a narrative purpose");
+    expect(text).toContain("performative specificity");
+  });
+
   it("includes scene-specific prohibitions", () => {
     const text = formatAntiAblation(
       makePlan({ sceneSpecificProhibitions: ["No flashbacks", "No internal monologue"] }),
@@ -173,6 +180,15 @@ describe("formatAntiAblation", () => {
     expect(text).toContain("Scene-specific bans:");
     expect(text).toContain("- No flashbacks");
     expect(text).toContain("- No internal monologue");
+  });
+});
+
+describe("formatSensoryGuardrail", () => {
+  it("returns sensory detail rules", () => {
+    const text = formatSensoryGuardrail();
+    expect(text).toContain("=== SENSORY DETAIL RULES ===");
+    expect(text).toContain("narrative job");
+    expect(text).toContain("overwrought specificity");
   });
 });
 

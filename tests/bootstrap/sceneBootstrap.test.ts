@@ -89,6 +89,70 @@ describe("buildSceneBootstrapPrompt", () => {
     expect(payload.userMessage).not.toContain("No characters have been selected");
   });
 
+  it("uses singular phrasing when sceneCount is 1", () => {
+    const payload = buildSceneBootstrapPrompt({
+      direction: "A quiet scene",
+      sceneCount: 1,
+      characters,
+      locations,
+      includeChapterArc: false,
+    });
+    expect(payload.systemMessage).toContain("generate the next scene plan");
+    expect(payload.systemMessage).not.toContain("1 scene plans");
+    expect(payload.userMessage).toContain("Generate exactly 1 scene plan.");
+    expect(payload.userMessage).not.toContain("1 scene plans");
+  });
+
+  it("uses maxTokens 8192 for single scene", () => {
+    const payload = buildSceneBootstrapPrompt({
+      direction: "A quiet scene",
+      sceneCount: 1,
+      characters: [],
+      locations: [],
+      includeChapterArc: false,
+    });
+    expect(payload.maxTokens).toBe(8192);
+  });
+
+  it("uses maxTokens 16384 for multiple scenes", () => {
+    const payload = buildSceneBootstrapPrompt({
+      direction: "A tense chapter",
+      sceneCount: 3,
+      characters: [],
+      locations: [],
+      includeChapterArc: false,
+    });
+    expect(payload.maxTokens).toBe(16384);
+  });
+
+  it("includes position hint when sceneCount is 1 with existing scenes", () => {
+    const payload = buildSceneBootstrapPrompt({
+      direction: "Continue the chapter",
+      sceneCount: 1,
+      characters,
+      locations,
+      includeChapterArc: false,
+      existingScenes,
+    });
+    expect(payload.userMessage).toContain("This is scene 3 of the chapter");
+    expect(payload.userMessage).toContain("This scene must continue seamlessly from the existing ones");
+    // Should NOT use the multi-scene range format
+    expect(payload.userMessage).not.toContain("scenes 3 through");
+  });
+
+  it("uses range format for continuity when sceneCount > 1 with existing scenes", () => {
+    const payload = buildSceneBootstrapPrompt({
+      direction: "Continue the chapter",
+      sceneCount: 2,
+      characters,
+      locations,
+      includeChapterArc: false,
+      existingScenes,
+    });
+    expect(payload.userMessage).toContain("You are generating scenes 3 through 4");
+    expect(payload.userMessage).not.toContain("This is scene");
+  });
+
   it("includes constraints when provided", () => {
     const payload = buildSceneBootstrapPrompt({
       direction: "Test",

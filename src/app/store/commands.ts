@@ -1,5 +1,8 @@
 import { checkAuditResolutionGate, checkSceneCompletionGate } from "../../gates/index.js";
+import { buildContinuousText, findChunksForRange } from "../../review/refine.js";
+import type { ChunkBoundary } from "../../review/refineTypes.js";
 import type { AuditFlag, Bible, ChapterArc, Chunk, CompilationLog, NarrativeIR, ScenePlan } from "../../types/index.js";
+import { getCanonicalText } from "../../types/index.js";
 import type { ApiActions } from "./api-actions.js";
 import type { ProjectStore } from "./project.svelte.js";
 
@@ -284,6 +287,121 @@ export function createCommands(store: ProjectStore, actions?: ApiActions) {
     }
   }
 
+  // ─── Refinement ──────────────────────────────────
+
+  const BOUNDS_ERROR = "Selection bounds out of range. Text may have changed — please re-select.";
+
+  function checkLocalBounds(localStart: number, localEnd: number, textLength: number): CommandResult | null {
+    if (localStart < 0 || localEnd > textLength || localStart > localEnd) {
+      return failure(BOUNDS_ERROR);
+    }
+    return null;
+  }
+
+  async function applySingleChunkRefinement(
+    sceneId: string,
+    boundary: ChunkBoundary,
+    chunks: Chunk[],
+    selectionStart: number,
+    selectionEnd: number,
+    replacementText: string,
+  ): Promise<CommandResult> {
+    const chunk = chunks[boundary.chunkIndex];
+    if (!chunk) return failure("Chunk not found");
+    const chunkText = getCanonicalText(chunk);
+    const localStart = selectionStart - boundary.startOffset;
+    const localEnd = selectionEnd - boundary.startOffset;
+    const boundsErr = checkLocalBounds(localStart, localEnd, chunkText.length);
+    if (boundsErr) return boundsErr;
+    const newText = chunkText.slice(0, localStart) + replacementText + chunkText.slice(localEnd);
+    return await updateChunk(sceneId, boundary.chunkIndex, { editedText: newText, status: "edited" });
+  }
+
+  async function updateLastChunk(
+    sceneId: string,
+    lastChunk: Chunk,
+    lastBoundary: ChunkBoundary,
+    selectionEnd: number,
+  ): Promise<CommandResult> {
+    const lastText = getCanonicalText(lastChunk);
+    const localLastEnd = selectionEnd - lastBoundary.startOffset;
+    const boundsErr = checkLocalBounds(0, localLastEnd, lastText.length);
+    if (boundsErr) return boundsErr;
+    return await updateChunk(sceneId, lastBoundary.chunkIndex, {
+      editedText: lastText.slice(localLastEnd),
+      status: "edited",
+    });
+  }
+
+  async function emptyMiddleChunks(sceneId: string, startIndex: number, endIndex: number): Promise<CommandResult> {
+    for (let i = startIndex; i < endIndex; i++) {
+      const result = await updateChunk(sceneId, i, { editedText: "", status: "edited" });
+      if (!result.ok) return result;
+    }
+    return success();
+  }
+
+  async function applyMultiChunkRefinement(
+    sceneId: string,
+    affected: ChunkBoundary[],
+    chunks: Chunk[],
+    selectionStart: number,
+    selectionEnd: number,
+    replacementText: string,
+  ): Promise<CommandResult> {
+    const firstBoundary = affected[0]!;
+    const lastBoundary = affected[affected.length - 1]!;
+    const firstChunk = chunks[firstBoundary.chunkIndex];
+    const lastChunk = chunks[lastBoundary.chunkIndex];
+    if (!firstChunk || !lastChunk) return failure("Chunk not found");
+
+    const firstText = getCanonicalText(firstChunk);
+    const localFirstStart = selectionStart - firstBoundary.startOffset;
+    const firstBoundsErr = checkLocalBounds(localFirstStart, firstText.length, firstText.length);
+    if (firstBoundsErr) return firstBoundsErr;
+    const firstResult = await updateChunk(sceneId, firstBoundary.chunkIndex, {
+      editedText: firstText.slice(0, localFirstStart) + replacementText,
+      status: "edited",
+    });
+    if (!firstResult.ok) return firstResult;
+
+    if (lastBoundary.chunkIndex !== firstBoundary.chunkIndex) {
+      const lastResult = await updateLastChunk(sceneId, lastChunk, lastBoundary, selectionEnd);
+      if (!lastResult.ok) return lastResult;
+    }
+
+    return await emptyMiddleChunks(sceneId, firstBoundary.chunkIndex + 1, lastBoundary.chunkIndex);
+  }
+
+  async function applyRefinement(
+    sceneId: string,
+    selectionStart: number,
+    selectionEnd: number,
+    replacementText: string,
+  ): Promise<CommandResult> {
+    try {
+      const chunks = store.sceneChunks[sceneId] ?? [];
+      if (chunks.length === 0) return failure("No chunks found for scene");
+      const { boundaries } = buildContinuousText(chunks);
+      const affected = findChunksForRange(selectionStart, selectionEnd, boundaries);
+      if (affected.length === 0) return failure("No chunks found for selection range");
+
+      if (affected.length === 1) {
+        return await applySingleChunkRefinement(
+          sceneId,
+          affected[0]!,
+          chunks,
+          selectionStart,
+          selectionEnd,
+          replacementText,
+        );
+      }
+      return await applyMultiChunkRefinement(sceneId, affected, chunks, selectionStart, selectionEnd, replacementText);
+    } catch (err) {
+      return failure(handleError(err));
+    }
+  }
+
   return {
     saveBible,
     saveScenePlan,
@@ -302,6 +420,7 @@ export function createCommands(store: ProjectStore, actions?: ApiActions) {
     saveSceneIR,
     verifySceneIR,
     saveCompilationLog,
+    applyRefinement,
   };
 }
 

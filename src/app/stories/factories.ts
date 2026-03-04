@@ -1,5 +1,8 @@
 import type { EditPattern } from "../../learner/diff.js";
 import type { TuningProposal } from "../../learner/tuning.js";
+import { hashFingerprint } from "../../review/fingerprint.js";
+import type { RefinementVariant } from "../../review/refineTypes.js";
+import type { EditorialAnnotation } from "../../review/types.js";
 import type {
   AuditFlag,
   ChapterArc,
@@ -343,6 +346,41 @@ export function makeCharacterDelta(overrides: Partial<CharacterDelta> = {}): Cha
     suspicionGained: "Marcus may have been involved",
     emotionalShift: "Fear → determination",
     relationshipChange: null,
+    ...overrides,
+  };
+}
+
+// ─── Refinement Variant ────────────────────────────
+
+export function makeRefinementVariant(overrides: Partial<RefinementVariant> = {}): RefinementVariant {
+  return {
+    text: "The rain hammered against the window, each drop a tiny percussion in the storm's symphony.",
+    rationale: "Stronger verb choice; inverted metaphor order for freshness.",
+    killListClean: true,
+    killListViolations: [],
+    ...overrides,
+  };
+}
+
+// ─── Editorial Annotation ──────────────────────────────
+
+export function makeEditorialAnnotation(overrides: Partial<EditorialAnnotation> = {}): EditorialAnnotation {
+  const category = overrides.category ?? "kill_list";
+  const focus = overrides.anchor?.focus ?? "very";
+  return {
+    id: generateId(),
+    category,
+    severity: "warning",
+    scope: "both",
+    message: `Kill list violation: "very" weakens prose`,
+    suggestion: null,
+    anchor: {
+      prefix: "She was ",
+      focus,
+      suffix: " happy and ",
+    },
+    charRange: { start: 8, end: 12 },
+    fingerprint: hashFingerprint(category, focus),
     ...overrides,
   };
 }

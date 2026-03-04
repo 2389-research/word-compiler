@@ -4,6 +4,7 @@ data/
 .env
 *.local
 .DS_Store
+*.tsbuildinfo
 eval/runs/*.json
 storybook-static/
 test-results/

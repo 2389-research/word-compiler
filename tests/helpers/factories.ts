@@ -10,7 +10,6 @@ import {
   createEmptyNarrativeIR,
   createEmptyScenePlan,
   generateId,
-  type NarrativeIR,
   type Project,
   type ReaderState,
 } from "../../src/types/index.js";
@@ -86,7 +85,7 @@ export function makeCompilationLog(chunkId: string, overrides: Partial<Compilati
   return {
     id: generateId(),
     chunkId,
-    payloadHash: "hash-" + generateId().slice(0, 6),
+    payloadHash: `hash-${generateId().slice(0, 6)}`,
     ring1Tokens: 100,
     ring2Tokens: 50,
     ring3Tokens: 200,

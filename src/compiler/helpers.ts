@@ -215,10 +215,24 @@ export function formatAntiAblation(plan: ScenePlan): string {
   lines.push(`- Do not have characters explain their own motivations.`);
   lines.push(`- Do not resolve tension unless the scene contract calls for it.`);
   lines.push(`- Subtext must remain sub. If a character states the theme, you have failed.`);
-  lines.push(`- Prefer specific, embodied detail over abstract description.`);
+  lines.push(
+    `- Ground scenes in concrete sensory detail ONLY when it serves a narrative purpose (revealing character, advancing plot, establishing mood).`,
+  );
+  lines.push(
+    `- NEVER write performative specificity — no "the X you stop noticing until Y" constructions, no hyper-technical sensory descriptions, no poetic twists on mundane infrastructure. The reader should experience the detail, not admire the description.`,
+  );
   lines.push(`- Vary sentence length. Monotony is failure.`);
 
   return lines.join("\n");
+}
+
+export function formatSensoryGuardrail(): string {
+  return [
+    "=== SENSORY DETAIL RULES ===",
+    "Use location details as raw material — deploy them naturally in service of the scene.",
+    "Every sensory detail must have a narrative job: build tension, ground the reader, or reveal character.",
+    "AVOID: overwrought specificity, temporal-twist observations, technically precise descriptions of mundane infrastructure, and any detail that exists to demonstrate the writer's powers of observation rather than serve the story.",
+  ].join("\n");
 }
 
 export function assembleSections(sections: RingSection[]): string {

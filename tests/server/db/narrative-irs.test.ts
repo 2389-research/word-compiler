@@ -167,6 +167,6 @@ describe("narrative IRs repository", () => {
     narrativeIRs.createNarrativeIR(db, ir);
     const retrieved = narrativeIRs.getNarrativeIR(db, sceneId);
     expect(retrieved!.characterDeltas[0]!.learned).toBe("the truth");
-    expect(retrieved!.characterPositions["Alice"]).toBe("doorway");
+    expect(retrieved!.characterPositions.Alice).toBe("doorway");
   });
 });

@@ -4,7 +4,7 @@ import { makeApiTestApp } from "../../helpers/apiTestApp.js";
 import { generateId, makeCompilationLog } from "../../helpers/factories.js";
 
 let app: ReturnType<typeof makeApiTestApp>["app"];
-let db: ReturnType<typeof makeApiTestApp>["db"];
+let _db: ReturnType<typeof makeApiTestApp>["db"];
 
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   const testApp = makeApiTestApp();
   app = testApp.app;
-  db = testApp.db;
+  _db = testApp.db;
 });
 
 describe("POST /api/compilation-logs", () => {

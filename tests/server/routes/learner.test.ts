@@ -7,7 +7,6 @@ import * as scenePlans from "../../../server/db/repositories/scene-plans.js";
 import { makeApiTestApp } from "../../helpers/apiTestApp.js";
 import {
   createEmptyScenePlan,
-  generateId,
   makeChapterArc,
   makeChunk,
   makeEditPattern,

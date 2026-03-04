@@ -293,7 +293,7 @@ describe("analyzeEdits", () => {
     const edited = "Before. Modified sentence entirely. After.";
     const result = analyzeEdits(original, edited, "c1", "s1", "p1");
     const nonMatch = result.find((p) => p.editType !== "DELETION" || p.subType !== "CUT_PASSAGE");
-    if (nonMatch && nonMatch.context) {
+    if (nonMatch?.context) {
       // Context should reference neighboring sentences
       expect(nonMatch.context.length).toBeGreaterThan(0);
     }

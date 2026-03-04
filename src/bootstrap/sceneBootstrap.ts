@@ -411,6 +411,43 @@ function buildContextBlocks(params: SceneBootstrapParams): string[] {
   return blocks;
 }
 
+function buildSystemMessage(params: SceneBootstrapParams): string {
+  const systemParts = [
+    params.sceneCount === 1
+      ? "You are a narrative architect. Given direction for a chapter, generate the next scene plan. The scene must maintain continuity with any existing scenes — the readerStateExiting of the previous scene should inform the readerStateEntering of this one. Be specific and opinionated."
+      : `You are a narrative architect. Given direction for a chapter, generate ${params.sceneCount} scene plans that form a cohesive chapter arc. Each scene must maintain continuity — the readerStateExiting of scene N should inform the readerStateEntering of scene N+1. Be specific and opinionated.`,
+  ];
+  const rulesBlock = condensedNarrativeRules(params.narrativeRules);
+  if (rulesBlock) systemParts.push("", rulesBlock);
+  const bansBlock = condensedKillListAndBans(params.killList, params.structuralBans);
+  if (bansBlock) systemParts.push("", bansBlock);
+  return systemParts.join("\n");
+}
+
+function buildContinuityNotes(params: SceneBootstrapParams): { positionHint: string; continuityNote: string } {
+  const existingCount = params.existingScenes?.length ?? 0;
+  if (existingCount === 0) return { positionHint: "", continuityNote: "" };
+  if (params.sceneCount === 1) {
+    return {
+      positionHint: `\nThis is scene ${existingCount + 1} of the chapter.`,
+      continuityNote: "\nThis scene must continue seamlessly from the existing ones.",
+    };
+  }
+  return {
+    positionHint: "",
+    continuityNote: `\nYou are generating scenes ${existingCount + 1} through ${existingCount + params.sceneCount}. New scenes must continue seamlessly from existing ones.`,
+  };
+}
+
+function buildCharacterInstruction(hasCharacters: boolean): string {
+  if (hasCharacters) {
+    return `"povCharacterId": "",
+      "povCharacterName": "REQUIRED — exact character name from the list above (ID will be resolved automatically)",`;
+  }
+  return `"povCharacterId": "",
+      "povCharacterName": "",`;
+}
+
 export function buildSceneBootstrapPrompt(params: SceneBootstrapParams): CompiledPayload {
   const characterList =
     params.characters.length > 0
@@ -428,43 +465,28 @@ export function buildSceneBootstrapPrompt(params: SceneBootstrapParams): Compile
     ? `\nAlso include a "chapterArc" field with: workingTitle, narrativeFunction, dominantRegister, pacingTarget, endingPosture, readerStateEntering, readerStateExiting.`
     : "";
 
-  // Build system message with optional narrative rules and kill list
-  const systemParts = [
-    `You are a narrative architect. Given direction for a chapter, generate ${params.sceneCount} scene plans that form a cohesive chapter arc. Each scene must maintain continuity — the readerStateExiting of scene N should inform the readerStateEntering of scene N+1. Be specific and opinionated.`,
-  ];
-  const rulesBlock = condensedNarrativeRules(params.narrativeRules);
-  if (rulesBlock) systemParts.push("", rulesBlock);
-  const bansBlock = condensedKillListAndBans(params.killList, params.structuralBans);
-  if (bansBlock) systemParts.push("", bansBlock);
-  const systemMessage = systemParts.join("\n");
+  const systemMessage = buildSystemMessage(params);
 
   const contextBlocks = buildContextBlocks(params);
   const contextSection = contextBlocks.length > 0 ? `\n\n${contextBlocks.join("\n\n")}\n` : "";
 
-  // Continuity note when appending to existing scenes
-  const existingCount = params.existingScenes?.length ?? 0;
-  const continuityNote =
-    existingCount > 0
-      ? `\nYou are generating scenes ${existingCount + 1} through ${existingCount + params.sceneCount}. New scenes must continue seamlessly from existing ones.`
+  const { positionHint, continuityNote } = buildContinuityNotes(params);
+  const noCharsWarning =
+    params.characters.length === 0
+      ? "\nIMPORTANT: No characters have been selected for this chapter. Leave povCharacterId and povCharacterName as empty strings. Do NOT invent or reference specific named characters — write scenes that work without assigned POV characters."
       : "";
 
   const userMessage = `CHAPTER DIRECTION:
 ${params.direction}${contextSection}
 
-Generate exactly ${params.sceneCount} scene plans.${characterList}${locationList}${constraintBlock}${params.characters.length === 0 ? "\nIMPORTANT: No characters have been selected for this chapter. Leave povCharacterId and povCharacterName as empty strings. Do NOT invent or reference specific named characters — write scenes that work without assigned POV characters." : ""}
+Generate exactly ${params.sceneCount} scene plan${params.sceneCount !== 1 ? "s" : ""}.${characterList}${locationList}${constraintBlock}${noCharsWarning}
 
 Return JSON:
 {
   "scenes": [
     {
       "title": "Scene title",
-      ${
-        params.characters.length > 0
-          ? `"povCharacterId": "",
-      "povCharacterName": "REQUIRED — exact character name from the list above (ID will be resolved automatically)",`
-          : `"povCharacterId": "",
-      "povCharacterName": "",`
-      }
+      ${buildCharacterInstruction(params.characters.length > 0)}
       "povDistance": "intimate|close|moderate|distant",
       "narrativeGoal": "What must this scene accomplish?",
       "emotionalBeat": "What should the reader FEEL?",
@@ -472,7 +494,7 @@ Return JSON:
       "failureModeToAvoid": "What would make this scene fail?",
       "density": "sparse|moderate|dense",
       "pacing": "Pacing notes",
-      "sensoryNotes": "Key sensory details to anchor the scene",
+      "sensoryNotes": "1-3 sensory details that serve THIS scene's dramatic purpose (build tension, reveal character state, ground unfamiliar setting). Each must have a narrative job — do not list ambient flavor.",
       "locationId": "",
       "locationName": "exact location name from the list above, or empty string if none (ID will be resolved automatically)",
       "estimatedWordCount": [min, max],
@@ -517,14 +539,14 @@ Return JSON:
   }
 }
 
-CRITICAL: Maintain reader state continuity across scenes. Scene 2's readerStateEntering must build on Scene 1's readerStateExiting.${chapterArcInstruction}${continuityNote}`;
+CRITICAL: Maintain reader state continuity across scenes. Scene 2's readerStateEntering must build on Scene 1's readerStateExiting.${chapterArcInstruction}${positionHint}${continuityNote}`;
 
   return {
     systemMessage,
     userMessage,
     temperature: 0.7,
     topP: 0.92,
-    maxTokens: 8000,
+    maxTokens: params.sceneCount === 1 ? 8192 : 16384,
     model: "claude-sonnet-4-6",
   };
 }

@@ -6,7 +6,7 @@ import { computeStyleDriftFromProse } from "../../../metrics/styleDrift.js";
 import { measureVoiceSeparability } from "../../../metrics/voiceSeparability.js";
 import type { StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
 import { getCanonicalText } from "../../../types/index.js";
-import { Badge, Button, Tabs } from "../../primitives/index.js";
+import { Badge, Button, Spinner, Tabs } from "../../primitives/index.js";
 import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
 import ForwardSimulator from "../ForwardSimulator.svelte";
@@ -27,6 +27,8 @@ let {
   onRunAudit: () => void;
   onRunDeepAudit: () => void;
 } = $props();
+
+let isAuditing = $derived(store.isAuditing);
 
 let sidebarTab = $state<"simulator" | "drift" | "voice" | "setups" | "learner">("simulator");
 
@@ -123,8 +125,24 @@ async function handleAcceptProposal(proposal: BibleProposal) {
   />
 
   <div class="audit-toolbar">
-    <Button size="sm" variant="primary" onclick={onRunAudit}>Run Audit</Button>
-    <Button size="sm" onclick={onRunDeepAudit}>Deep Audit</Button>
+    <Button size="sm" variant="primary" onclick={onRunAudit} disabled={isAuditing}>Run Audit</Button>
+    <span class="info-tip">
+      <svg class="info-svg" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 7v4M8 5.5v-.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="info-tip-text">Scans for kill list violations, sentence rhythm issues, paragraph length, and computes prose metrics. Instant &mdash; no LLM call.</span>
+    </span>
+    <Button size="sm" onclick={onRunDeepAudit} disabled={isAuditing}>
+      {#if isAuditing}<Spinner size="sm" /> Auditing...{:else}Deep Audit{/if}
+    </Button>
+    <button type="button" class="info-tip" aria-describedby="audit-deep-tip">
+      <svg class="info-svg" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 7v4M8 5.5v-.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span id="audit-deep-tip" class="info-tip-text" role="tooltip">Sends prose to Claude to check whether characters explicitly state what should remain subtext. Requires a scene plan with subtext defined.</span>
+    </button>
     {#if unresolvedFlags.length > 0}
       <Badge variant="warning">{unresolvedFlags.length} unresolved flag{unresolvedFlags.length !== 1 ? "s" : ""}</Badge>
     {:else}
@@ -224,6 +242,48 @@ async function handleAcceptProposal(proposal: BibleProposal) {
     padding: 6px 12px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+  }
+
+  .info-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .info-svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    transition: color 0.12s;
+  }
+  .info-tip:hover .info-svg {
+    color: var(--accent);
+  }
+  .info-tip-text {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 240px;
+    padding: 8px 10px;
+    background: var(--bg-card, #1e1e2e);
+    border: 1px solid var(--border, #333);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+    z-index: 200;
+    pointer-events: none;
+    white-space: normal;
+  }
+  .info-tip:hover .info-tip-text,
+  .info-tip:focus-visible .info-tip-text {
+    display: block;
   }
 
   .audit-columns {

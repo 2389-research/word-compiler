@@ -11,6 +11,7 @@ import AuditStage from "./components/stages/AuditStage.svelte";
 import BootstrapStage from "./components/stages/BootstrapStage.svelte";
 import CompleteStage from "./components/stages/CompleteStage.svelte";
 import DraftStage from "./components/stages/DraftStage.svelte";
+import EditStage from "./components/stages/EditStage.svelte";
 import ExportStage from "./components/stages/ExportStage.svelte";
 import PlanStage from "./components/stages/PlanStage.svelte";
 import WorkflowRail from "./components/WorkflowRail.svelte";
@@ -35,10 +36,8 @@ const actions = createApiActions(store);
 const commands = createCommands(store, actions);
 
 // Create generation action handlers
-const { generateChunk, runAuditManual, runDeepAudit, extractSceneIR, runAutopilot } = createGenerationActions(
-  store,
-  commands,
-);
+const { generateChunk, runAuditManual, runDeepAudit, extractSceneIR, runAutopilot, requestRefinement } =
+  createGenerationActions(store, commands);
 
 // Workflow store
 const workflow = new WorkflowStore(store);
@@ -50,8 +49,8 @@ function handleKeydown(e: KeyboardEvent) {
   if (!isCtrl) return;
 
   // Ctrl+1-6: stage navigation
-  const digit = Number.parseInt(e.key);
-  if (digit >= 1 && digit <= 6) {
+  const digit = Number.parseInt(e.key, 10);
+  if (digit >= 1 && digit <= 7) {
     const stage = STAGES[digit - 1];
     if (stage && workflow.getStageStatus(stage.id) !== "locked") {
       e.preventDefault();
@@ -284,8 +283,10 @@ function exportState() {
 <svelte:window onkeydown={handleKeydown} />
 
 {#if !appReady}
-  <div class="app loading-screen">
-    <span class="app-title">Word Compiler</span>
+  <div class="app" class:loading-screen={startupStatus !== "multiple-projects"}>
+    {#if startupStatus !== "multiple-projects"}
+      <span class="app-title">Word Compiler</span>
+    {/if}
     {#if startupStatus === "loading"}
       <p>Loading project...</p>
     {:else if startupStatus === "no-projects"}
@@ -395,6 +396,12 @@ function exportState() {
             {commands}
             onRunAudit={() => runAuditManual()}
             onRunDeepAudit={() => runDeepAudit()}
+          />
+        {:else if workflow.activeStage === "edit"}
+          <EditStage
+            {store}
+            {commands}
+            onRequestRefinement={requestRefinement}
           />
         {:else if workflow.activeStage === "complete"}
           <CompleteStage

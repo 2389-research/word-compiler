@@ -14,35 +14,89 @@ interface DialogueBlock {
   text: string;
 }
 
-// Match patterns like:
-//   "Dialogue here," Alice said.
-//   "Text." Bob turned away.
-//   Alice said, "Dialogue."
-const ATTRIBUTION_AFTER =
-  /[""]([^""]+)[""]\s*[,.]?\s*([A-Z][a-z]+)\s+(?:said|asked|replied|whispered|shouted|murmured|called|answered|responded)/g;
-const ATTRIBUTION_BEFORE =
-  /([A-Z][a-z]+)\s+(?:said|asked|replied|whispered|shouted|murmured|called|answered|responded)[,\s]+"([^""]+)[""]?/g;
+// ─── Proximity-based dialogue attribution ───────
+//
+// Instead of matching specific dialogue verbs ("said", "asked", etc.),
+// we find all quoted text, then search a small context window around each
+// quote for any known character name from the bible. This handles any
+// attribution style: "Dialogue," Marcus said. / Marcus turned. "Dialogue." /
+// "Dialogue." Marcus slammed the door. — no verb enumeration needed.
 
-function extractDialogueByCharacter(prose: string, bible: Bible): DialogueBlock[] {
-  const blocks: DialogueBlock[] = [];
+const QUOTE_RE = /[""\u201C\u201D]([^""\u201C\u201D]+)[""\u201C\u201D]/g;
+const CONTEXT_WINDOW = 120; // chars before/after the quote to search for a name
+const MIN_NAME_FRAGMENT_LENGTH = 3; // skip initials like "J." or "Al"
 
-  const findChar = (name: string) => bible.characters.find((c) => c.name.toLowerCase() === name.toLowerCase());
+function buildCharacterIndex(bible: Bible) {
+  const fragmentToChar = new Map<string, (typeof bible.characters)[number]>();
+  const fragments: string[] = [];
 
-  // Pattern 1: "dialogue," Character verb
-  for (const match of prose.matchAll(ATTRIBUTION_AFTER)) {
-    const dialogueText = match[1]!;
-    const charName = match[2]!;
-    const char = findChar(charName);
-    if (char) {
-      blocks.push({ characterId: char.id, characterName: char.name, text: dialogueText });
+  for (const char of bible.characters) {
+    for (const part of char.name.split(/\s+/)) {
+      if (part.length < MIN_NAME_FRAGMENT_LENGTH) continue;
+      const lower = part.toLowerCase();
+      if (!fragmentToChar.has(lower)) {
+        fragmentToChar.set(lower, char);
+        fragments.push(part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+      }
     }
   }
 
-  // Pattern 2: Character verb, "dialogue"
-  for (const match of prose.matchAll(ATTRIBUTION_BEFORE)) {
-    const charName = match[1]!;
-    const dialogueText = match[2]!;
-    const char = findChar(charName);
+  if (fragments.length === 0) return { regex: null, fragmentToChar };
+  // Sort longest-first so "Captain" matches before "Cap" if both existed
+  fragments.sort((a, b) => b.length - a.length);
+  return { regex: new RegExp(`\\b(${fragments.join("|")})\\b`, "gi"), fragmentToChar };
+}
+
+interface NameHit {
+  char: Bible["characters"][number];
+  distance: number;
+}
+
+function findNearestInWindow(
+  text: string,
+  searchRegex: RegExp,
+  fragmentToChar: Map<string, Bible["characters"][number]>,
+  measureFromEnd: boolean,
+): NameHit | null {
+  let best: NameHit | null = null;
+  for (const match of text.matchAll(searchRegex)) {
+    const char = fragmentToChar.get(match[1]!.toLowerCase());
+    if (!char) continue;
+    // After-window: distance = match position (first is closest to quote)
+    // Before-window: distance = gap from match end to window end (last is closest)
+    const distance = measureFromEnd ? text.length - (match.index! + match[0]!.length) : match.index!;
+    if (!best || distance < best.distance) best = { char, distance };
+  }
+  return best;
+}
+
+export function extractDialogueByCharacter(prose: string, bible: Bible): DialogueBlock[] {
+  const { regex: searchRegex, fragmentToChar } = buildCharacterIndex(bible);
+  if (!searchRegex) return [];
+
+  const blocks: DialogueBlock[] = [];
+
+  for (const match of prose.matchAll(QUOTE_RE)) {
+    const dialogueText = match[1]!.trim();
+    if (!dialogueText || dialogueText.length < 2) continue;
+
+    const quoteStart = match.index!;
+    const quoteEnd = quoteStart + match[0]!.length;
+
+    const afterText = prose.slice(quoteEnd, quoteEnd + CONTEXT_WINDOW);
+    const beforeText = prose.slice(Math.max(0, quoteStart - CONTEXT_WINDOW), quoteStart);
+
+    // Search both windows and pick the name closest to the quote boundary
+    const afterHit = findNearestInWindow(afterText, searchRegex, fragmentToChar, false);
+    const beforeHit = findNearestInWindow(beforeText, searchRegex, fragmentToChar, true);
+
+    let char: Bible["characters"][number] | null = null;
+    if (afterHit && beforeHit) {
+      char = afterHit.distance <= beforeHit.distance ? afterHit.char : beforeHit.char;
+    } else {
+      char = (afterHit ?? beforeHit)?.char ?? null;
+    }
+
     if (char) {
       blocks.push({ characterId: char.id, characterName: char.name, text: dialogueText });
     }

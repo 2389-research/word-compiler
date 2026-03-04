@@ -16,7 +16,6 @@ import {
   makeAuditFlag,
   makeChapterArc,
   makeChunk,
-  makeCompilationLog,
   makeProject,
 } from "../../helpers/factories.js";
 

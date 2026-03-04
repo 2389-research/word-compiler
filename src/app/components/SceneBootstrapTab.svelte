@@ -4,6 +4,7 @@ import {
   type BootstrapCharacterDossier,
   type BootstrapLocationDetail,
   buildSceneBootstrapPrompt,
+  type ExistingSceneSummary,
   mapSceneBootstrapToPlans,
   parseSceneBootstrapResponse,
 } from "../../bootstrap/sceneBootstrap.js";
@@ -14,18 +15,20 @@ import { Button, ErrorBanner, FormField, Input, Spinner, TextArea } from "../pri
 import type { Commands } from "../store/commands.js";
 import type { ProjectStore } from "../store/project.svelte.js";
 
+export type BootstrapPhase = "idle" | "generating" | "reviewing" | "complete";
+
 export type BootstrapFooterState = {
   loading: boolean;
   canGenerate: boolean;
-  hasPlans: boolean;
-  acceptCount: number;
+  phase: BootstrapPhase;
+  acceptedCount: number;
 };
 
 let {
   store,
   commands,
   onCommit,
-  footerState = $bindable({ loading: false, canGenerate: false, hasPlans: false, acceptCount: 0 }),
+  footerState = $bindable({ loading: false, canGenerate: false, phase: "idle" as BootstrapPhase, acceptedCount: 0 }),
 }: {
   store: ProjectStore;
   commands: Commands;
@@ -46,21 +49,27 @@ let streamText = $state("");
 let elapsed = $state(0);
 let error = $state<string | null>(null);
 let timerRef: ReturnType<typeof setInterval> | null = null;
-let generatedPlans = $state<ScenePlan[]>([]);
-let generatedArc = $state<ChapterArc | null>(null);
-let acceptedIndices = $state<Set<number>>(new Set());
+
+// ─── Phase state machine ─────────────────────────
+let phase = $state<BootstrapPhase>("idle");
+let acceptedPlans = $state<ScenePlan[]>([]);
+let currentPlan = $state<ScenePlan | null>(null);
+let currentArc = $state<ChapterArc | null>(null);
+let currentSceneIndex = $state(0);
+let skippedCount = $state(0);
 
 // ─── Derived ────────────────────────────────────
 let bibleCharacters = $derived(store.bible?.characters ?? []);
 let bibleLocations = $derived(store.bible?.locations ?? []);
+let isLastScene = $derived(currentSceneIndex >= sceneCount - 1);
 
 // ─── Keep footer state in sync for parent ───────
 $effect(() => {
   footerState = {
     loading,
     canGenerate: !!direction.trim(),
-    hasPlans: generatedPlans.length > 0,
-    acceptCount: acceptedIndices.size,
+    phase,
+    acceptedCount: acceptedPlans.length,
   };
 });
 
@@ -119,20 +128,16 @@ function buildChapterArcFromParsed(parsed: ReturnType<typeof parseSceneBootstrap
   };
 }
 
-function gatherBootstrapContext() {
+/** Gather context from the store for the bootstrap prompt, with overridable sceneCount and existingScenes. */
+function gatherBootstrapContext(overrides: {
+  sceneCount: number;
+  existingScenes: ExistingSceneSummary[];
+  includeChapterArc: boolean;
+}) {
   const chars = bibleCharacters
     .filter((c) => selectedCharIds.includes(c.id))
     .map((c) => ({ id: c.id, name: c.name, role: c.role }));
   const locs = bibleLocations.filter((l) => selectedLocIds.includes(l.id)).map((l) => ({ id: l.id, name: l.name }));
-
-  const existingScenes = store.scenes.map((s) => ({
-    title: s.plan.title,
-    povCharacterName: bibleCharacters.find((c) => c.id === s.plan.povCharacterId)?.name ?? "",
-    povDistance: s.plan.povDistance,
-    narrativeGoal: s.plan.narrativeGoal,
-    emotionalBeat: s.plan.emotionalBeat,
-    readerStateExiting: s.plan.readerStateExiting,
-  }));
 
   const chapterArc = store.chapterArc
     ? {
@@ -195,12 +200,12 @@ function gatherBootstrapContext() {
 
   return buildSceneBootstrapPrompt({
     direction: direction.trim(),
-    sceneCount,
+    sceneCount: overrides.sceneCount,
     characters: chars,
     locations: locs,
     constraints: constraints.trim() || undefined,
-    includeChapterArc,
-    existingScenes: existingScenes.length > 0 ? existingScenes : undefined,
+    includeChapterArc: overrides.includeChapterArc,
+    existingScenes: overrides.existingScenes.length > 0 ? overrides.existingScenes : undefined,
     chapterArc,
     narrativeRules,
     activeSetups: activeSetups.length > 0 ? activeSetups : undefined,
@@ -211,16 +216,38 @@ function gatherBootstrapContext() {
   });
 }
 
-async function handleGenerate() {
+/** Build the existingScenes array from store scenes + session acceptedPlans. */
+function buildExistingScenes() {
+  const fromStore = store.scenes.map((s) => ({
+    title: s.plan.title,
+    povCharacterName: bibleCharacters.find((c) => c.id === s.plan.povCharacterId)?.name ?? "",
+    povDistance: s.plan.povDistance,
+    narrativeGoal: s.plan.narrativeGoal,
+    emotionalBeat: s.plan.emotionalBeat,
+    readerStateExiting: s.plan.readerStateExiting,
+  }));
+
+  const fromSession = acceptedPlans.map((p) => ({
+    title: p.title,
+    povCharacterName: bibleCharacters.find((c) => c.id === p.povCharacterId)?.name ?? "",
+    povDistance: p.povDistance,
+    narrativeGoal: p.narrativeGoal,
+    emotionalBeat: p.emotionalBeat,
+    readerStateExiting: p.readerStateExiting,
+  }));
+
+  return [...fromStore, ...fromSession];
+}
+
+async function handleGenerateOne() {
   if (!direction.trim()) return;
 
   loading = true;
   error = null;
   streamText = "";
   elapsed = 0;
-  generatedPlans = [];
-  generatedArc = null;
-  acceptedIndices = new Set();
+  currentPlan = null;
+  phase = "generating";
 
   const started = Date.now();
   timerRef = setInterval(() => {
@@ -229,7 +256,13 @@ async function handleGenerate() {
 
   try {
     status = "Building prompt...";
-    const payload = gatherBootstrapContext();
+    const existingScenes = buildExistingScenes();
+    const shouldIncludeArc = includeChapterArc && isLastScene;
+    const payload = gatherBootstrapContext({
+      sceneCount: 1,
+      existingScenes,
+      includeChapterArc: shouldIncludeArc,
+    });
 
     status = "Streaming from LLM...";
     let fullText = "";
@@ -251,6 +284,7 @@ async function handleGenerate() {
     if ("error" in parsed) {
       error = `Parse failed: ${parsed.error}\n\nRaw response:\n${fullText.slice(0, 500)}`;
       loading = false;
+      phase = "reviewing"; // Stay in reviewing so user can retry
       status = "";
       return;
     }
@@ -268,14 +302,25 @@ async function handleGenerate() {
       selectedLocs,
     );
 
-    generatedPlans = plans;
-    generatedArc = buildChapterArcFromParsed(parsed);
+    currentPlan = plans[0] ?? null;
+    if (!currentPlan) {
+      error = `LLM response parsed but contained no scene plan.\n\nRaw response:\n${fullText.slice(0, 500)}`;
+      loading = false;
+      phase = "reviewing";
+      status = "";
+      return;
+    }
+    if (shouldIncludeArc) {
+      currentArc = buildChapterArcFromParsed(parsed);
+    }
 
+    phase = "reviewing";
     status = "Done!";
     loading = false;
   } catch (err) {
     error = err instanceof Error ? err.message : "Scene bootstrap failed";
     loading = false;
+    phase = "reviewing"; // Stay in reviewing for retry
     status = "";
   } finally {
     if (timerRef) {
@@ -285,24 +330,48 @@ async function handleGenerate() {
   }
 }
 
-function toggleAccept(index: number) {
-  const next = new Set(acceptedIndices);
-  if (next.has(index)) {
-    next.delete(index);
-  } else {
-    next.add(index);
-  }
-  acceptedIndices = next;
+function handleAccept() {
+  if (loading || !currentPlan) return;
+  error = null;
+  acceptedPlans = [...acceptedPlans, currentPlan];
+  currentPlan = null;
+  advanceOrComplete();
 }
 
-function acceptAll() {
-  acceptedIndices = new Set(generatedPlans.map((_, i) => i));
+function handleSkip() {
+  if (loading) return;
+  error = null;
+  currentPlan = null;
+  skippedCount++;
+  advanceOrComplete();
+}
+
+function advanceOrComplete() {
+  const nextIndex = currentSceneIndex + 1;
+  currentSceneIndex = nextIndex;
+  if (nextIndex >= sceneCount) {
+    phase = "complete";
+  } else {
+    handleGenerateOne();
+  }
+}
+
+function handleRegenerate() {
+  error = null;
+  handleGenerateOne();
+}
+
+function handleAddMore() {
+  // Discard the chapter arc since we're adding more scenes
+  currentArc = null;
+  sceneCount++;
+  phase = "generating";
+  handleGenerateOne();
 }
 
 async function commitAccepted() {
   const sourcePrompt = direction.trim() + (constraints.trim() ? `\n\nConstraints: ${constraints.trim()}` : "");
-  const plans = generatedPlans.filter((_, i) => acceptedIndices.has(i));
-  await onCommit(plans, generatedArc, sourcePrompt);
+  await onCommit(acceptedPlans, currentArc, sourcePrompt);
 }
 
 function findCharName(id: string): string {
@@ -326,42 +395,86 @@ function isLocResolved(plan: ScenePlan): boolean {
 
 /** Check if any accepted scene has unresolved references. */
 let hasUnresolved = $derived.by(() => {
-  return generatedPlans.some((plan, i) => acceptedIndices.has(i) && (!isCharResolved(plan) || !isLocResolved(plan)));
+  const plans = currentPlan ? [...acceptedPlans, currentPlan] : acceptedPlans;
+  return plans.some((plan) => !isCharResolved(plan) || !isLocResolved(plan));
 });
 
-/** Resolve a scene's POV character to an existing bible character. */
-function resolveSceneChar(sceneIndex: number, charId: string) {
-  generatedPlans = generatedPlans.map((p, i) => (i === sceneIndex ? { ...p, povCharacterId: charId } : p));
+/** Resolve a scene's POV character in the accepted plans list. */
+function resolveSceneChar(planIndex: number, charId: string) {
+  acceptedPlans = acceptedPlans.map((p, i) => (i === planIndex ? { ...p, povCharacterId: charId } : p));
 }
 
-/** Resolve a scene's location to an existing bible location. */
-function resolveSceneLoc(sceneIndex: number, locId: string) {
-  generatedPlans = generatedPlans.map((p, i) => (i === sceneIndex ? { ...p, locationId: locId || null } : p));
+/** Resolve a scene's location in the accepted plans list. */
+function resolveSceneLoc(planIndex: number, locId: string) {
+  acceptedPlans = acceptedPlans.map((p, i) => (i === planIndex ? { ...p, locationId: locId || null } : p));
 }
 
-/** Create a new character stub in the bible and assign it to the scene. */
-async function createAndAssignChar(sceneIndex: number, name: string) {
+/** Resolve the current reviewing scene's POV character. */
+function resolveCurrentChar(charId: string) {
+  if (currentPlan) {
+    currentPlan = { ...currentPlan, povCharacterId: charId };
+  }
+}
+
+/** Resolve the current reviewing scene's location. */
+function resolveCurrentLoc(locId: string) {
+  if (currentPlan) {
+    currentPlan = { ...currentPlan, locationId: locId || null };
+  }
+}
+
+/** Create a new character stub in the bible and assign it to a scene. */
+async function createAndAssignChar(planIndex: number, name: string) {
   const bible = store.bible;
   if (!bible) return;
   const newChar = createEmptyCharacterDossier(name);
   const updated = { ...bible, characters: [...bible.characters, newChar] };
   await commands.saveBible(updated);
-  resolveSceneChar(sceneIndex, newChar.id);
+  resolveSceneChar(planIndex, newChar.id);
 }
 
-/** Create a new location stub in the bible and assign it to the scene. */
-async function createAndAssignLoc(sceneIndex: number, name: string) {
+/** Create a new location stub in the bible and assign it to a scene. */
+async function createAndAssignLoc(planIndex: number, name: string) {
   const bible = store.bible;
   if (!bible) return;
   const newLoc = createEmptyLocation(name);
   const updated = { ...bible, locations: [...bible.locations, newLoc] };
   await commands.saveBible(updated);
-  resolveSceneLoc(sceneIndex, newLoc.id);
+  resolveSceneLoc(planIndex, newLoc.id);
+}
+
+/** Create char and assign to current reviewing scene. */
+async function createAndAssignCurrentChar(name: string) {
+  const bible = store.bible;
+  if (!bible) return;
+  const newChar = createEmptyCharacterDossier(name);
+  const updated = { ...bible, characters: [...bible.characters, newChar] };
+  await commands.saveBible(updated);
+  resolveCurrentChar(newChar.id);
+}
+
+/** Create loc and assign to current reviewing scene. */
+async function createAndAssignCurrentLoc(name: string) {
+  const bible = store.bible;
+  if (!bible) return;
+  const newLoc = createEmptyLocation(name);
+  const updated = { ...bible, locations: [...bible.locations, newLoc] };
+  await commands.saveBible(updated);
+  resolveCurrentLoc(newLoc.id);
 }
 
 // ─── Exported methods for parent footer ─────────
 export function generate() {
-  handleGenerate();
+  currentSceneIndex = 0;
+  acceptedPlans = [];
+  currentPlan = null;
+  currentArc = null;
+  skippedCount = 0;
+  handleGenerateOne();
+}
+
+export function commit() {
+  commitAccepted();
 }
 
 export function reset() {
@@ -369,9 +482,12 @@ export function reset() {
   status = "";
   streamText = "";
   elapsed = 0;
-  generatedPlans = [];
-  generatedArc = null;
-  acceptedIndices = new Set();
+  phase = "idle";
+  acceptedPlans = [];
+  currentPlan = null;
+  currentArc = null;
+  currentSceneIndex = 0;
+  skippedCount = 0;
   if (timerRef) {
     clearInterval(timerRef);
     timerRef = null;
@@ -379,7 +495,8 @@ export function reset() {
 }
 </script>
 
-{#if generatedPlans.length === 0}
+{#if phase === "idle"}
+  <!-- ─── Form phase ────────────────────────── -->
   <div class="bootstrap-form">
     <FormField label="Chapter Direction" required hint="Describe the chapter you want to write">
       <TextArea bind:value={direction} placeholder="A tense confrontation between Marcus and Elena at The Velvet, escalating from veiled threats to an open power play..." />
@@ -425,84 +542,188 @@ export function reset() {
       <span>Also generate Chapter Arc</span>
     </label>
   </div>
+{:else if phase === "generating"}
+  <!-- ─── Generating phase ──────────────────── -->
+  <div class="generating-phase">
+    <div class="progress-header">
+      <span class="progress-label">Scene {currentSceneIndex + 1} of {sceneCount}</span>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: {((currentSceneIndex) / sceneCount) * 100}%"></div>
+      </div>
+    </div>
 
-  {#if loading}
+    <div class="form-summary">
+      <span class="summary-label">Direction:</span> {direction}
+    </div>
+
     <div class="stream-display">{streamText || "Waiting for first token..."}</div>
     <div class="status-bar">
       <Spinner size="sm" />
       <span>{status}</span>
       <span class="status-meta">{elapsed}s · {streamText.length} chars</span>
     </div>
-  {/if}
-{:else}
-  <!-- ─── Preview generated scenes ────────── -->
-  <div class="preview-header">
-    <span class="preview-count">{generatedPlans.length} scenes generated</span>
-    <div class="preview-actions">
-      <Button size="sm" onclick={acceptAll}>Select All</Button>
-      <Button size="sm" variant="primary" onclick={commitAccepted} disabled={acceptedIndices.size === 0 || hasUnresolved}>
-        {#if hasUnresolved}Resolve Links First{:else}Accept {acceptedIndices.size} Scene{acceptedIndices.size !== 1 ? "s" : ""}{/if}
-      </Button>
-    </div>
+
+    {#if acceptedPlans.length > 0}
+      <div class="accepted-sidebar">
+        {#each acceptedPlans as plan, i (plan.id)}
+          <div class="accepted-mini">Scene {i + 1}: {plan.title}</div>
+        {/each}
+      </div>
+    {/if}
   </div>
-  <div class="preview-grid">
-    {#each generatedPlans as plan, i (plan.id)}
-      {@const charOk = isCharResolved(plan)}
-      {@const locOk = isLocResolved(plan)}
-      <div
-        class="preview-card"
-        class:preview-card-selected={acceptedIndices.has(i)}
-        class:preview-card-warn={!charOk || !locOk}
-        role="button"
-        tabindex="0"
-        onclick={() => toggleAccept(i)}
-        onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleAccept(i); } }}
-      >
-        <div class="preview-card-title">{plan.title || `Scene ${i + 1}`}</div>
+{:else if phase === "reviewing"}
+  <!-- ─── Reviewing phase ───────────────────── -->
+  <div class="reviewing-phase">
+    <div class="progress-header">
+      <span class="progress-label">Review Scene {currentSceneIndex + 1} of {sceneCount}</span>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: {((currentSceneIndex) / sceneCount) * 100}%"></div>
+      </div>
+    </div>
+
+    {#if currentPlan}
+      {@const charOk = isCharResolved(currentPlan)}
+      {@const locOk = isLocResolved(currentPlan)}
+      <div class="review-card" class:review-card-warn={!charOk || !locOk}>
+        <div class="review-card-title">{currentPlan.title || `Scene ${currentSceneIndex + 1}`}</div>
 
         {#if charOk}
-          <div class="preview-card-detail"><span class="preview-label">POV:</span> {findCharName(plan.povCharacterId) || "—"}</div>
+          <div class="review-card-detail"><span class="review-label">POV:</span> {findCharName(currentPlan.povCharacterId) || "—"}</div>
         {:else}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="resolve-row" onclick={(e) => e.stopPropagation()}>
-            <span class="resolve-warn">POV: "{plan.povCharacterId}" not in bible</span>
-            <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignChar(i, plan.povCharacterId); } else if (v) { resolveSceneChar(i, v); } }}>
+          <div class="resolve-row">
+            <span class="resolve-warn">POV: "{currentPlan.povCharacterId}" not in bible</span>
+            <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignCurrentChar(currentPlan!.povCharacterId); } else if (v) { resolveCurrentChar(v); } }}>
               <option value="">Map to...</option>
               {#each bibleCharacters as c (c.id)}
                 <option value={c.id}>{c.name} ({c.role})</option>
               {/each}
-              <option value="__new__">+ New "{plan.povCharacterId}"</option>
+              <option value="__new__">+ New "{currentPlan.povCharacterId}"</option>
             </select>
           </div>
         {/if}
 
-        <div class="preview-card-detail"><span class="preview-label">Goal:</span> {plan.narrativeGoal || "—"}</div>
-        <div class="preview-card-detail"><span class="preview-label">Beat:</span> {plan.emotionalBeat || "—"}</div>
-        <div class="preview-card-detail"><span class="preview-label">Words:</span> {plan.estimatedWordCount[0]}–{plan.estimatedWordCount[1]}</div>
+        <div class="review-card-detail"><span class="review-label">Goal:</span> {currentPlan.narrativeGoal || "—"}</div>
+        <div class="review-card-detail"><span class="review-label">Beat:</span> {currentPlan.emotionalBeat || "—"}</div>
+        <div class="review-card-detail"><span class="review-label">Effect:</span> {currentPlan.readerEffect || "—"}</div>
+        <div class="review-card-detail"><span class="review-label">Avoid:</span> {currentPlan.failureModeToAvoid || "—"}</div>
+        <div class="review-card-detail"><span class="review-label">Words:</span> {currentPlan.estimatedWordCount[0]}–{currentPlan.estimatedWordCount[1]}</div>
+        <div class="review-card-detail"><span class="review-label">Density:</span> {currentPlan.density}</div>
+        <div class="review-card-detail"><span class="review-label">Pacing:</span> {currentPlan.pacing || "—"}</div>
+        <div class="review-card-detail"><span class="review-label">Sensory:</span> {currentPlan.sensoryNotes || "—"}</div>
+        <div class="review-card-detail"><span class="review-label">Location:</span> {currentPlan.locationId ? (locOk ? findLocName(currentPlan.locationId) : "") : "—"}</div>
 
         {#if !locOk}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="resolve-row" onclick={(e) => e.stopPropagation()}>
-            <span class="resolve-warn">Location: "{plan.locationId}" not in bible</span>
-            <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignLoc(i, plan.locationId ?? "New Location"); } else { resolveSceneLoc(i, v); } }}>
+          <div class="resolve-row">
+            <span class="resolve-warn">Location: "{currentPlan.locationId}" not in bible</span>
+            <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignCurrentLoc(currentPlan!.locationId ?? "New Location"); } else { resolveCurrentLoc(v); } }}>
               <option value="">Map to...</option>
               {#each bibleLocations as l (l.id)}
                 <option value={l.id}>{l.name}</option>
               {/each}
-              <option value="__new__">+ New "{plan.locationId}"</option>
+              <option value="__new__">+ New "{currentPlan.locationId}"</option>
             </select>
           </div>
         {/if}
+
+        {#if currentPlan.chunkDescriptions.length > 0}
+          <div class="review-card-section">
+            <span class="review-label">Chunks:</span>
+            <ol class="chunk-list">
+              {#each currentPlan.chunkDescriptions as desc}
+                <li>{desc}</li>
+              {/each}
+            </ol>
+          </div>
+        {/if}
+
+        {#if currentPlan.subtext.surfaceConversation || currentPlan.subtext.actualConversation}
+          <div class="review-card-section">
+            <span class="review-label">Subtext:</span>
+            <div class="review-card-detail">Surface: {currentPlan.subtext.surfaceConversation}</div>
+            <div class="review-card-detail">Actual: {currentPlan.subtext.actualConversation}</div>
+            <div class="review-card-detail">Rule: {currentPlan.subtext.enforcementRule}</div>
+          </div>
+        {/if}
       </div>
-    {/each}
+
+      <div class="review-actions">
+        <Button size="sm" variant="primary" onclick={handleAccept}>Accept</Button>
+        <Button size="sm" onclick={handleSkip}>Skip</Button>
+        <Button size="sm" onclick={handleRegenerate}>Regenerate</Button>
+      </div>
+    {:else if error}
+      <div class="review-actions">
+        <Button size="sm" onclick={handleRegenerate}>Retry</Button>
+        <Button size="sm" onclick={handleSkip}>Skip</Button>
+      </div>
+    {/if}
+
+    {#if acceptedPlans.length > 0}
+      <div class="accepted-sidebar">
+        {#each acceptedPlans as plan, i (plan.id)}
+          <div class="accepted-mini">Scene {i + 1}: {plan.title}</div>
+        {/each}
+      </div>
+    {/if}
   </div>
-  {#if generatedArc}
-    <div class="preview-arc">
-      <span class="preview-label">Chapter Arc:</span> {generatedArc.workingTitle}
+{:else if phase === "complete"}
+  <!-- ─── Complete phase ────────────────────── -->
+  <div class="complete-phase">
+    <div class="complete-summary">
+      {acceptedPlans.length} accepted, {skippedCount} skipped
     </div>
-  {/if}
+
+    {#if acceptedPlans.length > 0}
+      <div class="accepted-list">
+        {#each acceptedPlans as plan, i (plan.id)}
+          {@const charOk = isCharResolved(plan)}
+          {@const locOk = isLocResolved(plan)}
+          <div class="accepted-card" class:accepted-card-warn={!charOk || !locOk}>
+            <div class="accepted-card-title">Scene {i + 1}: {plan.title}</div>
+            {#if charOk}
+              <div class="accepted-card-detail"><span class="review-label">POV:</span> {findCharName(plan.povCharacterId) || "—"}</div>
+            {:else}
+              <div class="resolve-row">
+                <span class="resolve-warn">POV: "{plan.povCharacterId}" not in bible</span>
+                <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignChar(i, plan.povCharacterId); } else if (v) { resolveSceneChar(i, v); } }}>
+                  <option value="">Map to...</option>
+                  {#each bibleCharacters as c (c.id)}
+                    <option value={c.id}>{c.name} ({c.role})</option>
+                  {/each}
+                  <option value="__new__">+ New "{plan.povCharacterId}"</option>
+                </select>
+              </div>
+            {/if}
+            <div class="accepted-card-detail"><span class="review-label">Goal:</span> {plan.narrativeGoal || "—"}</div>
+            <div class="accepted-card-detail"><span class="review-label">Beat:</span> {plan.emotionalBeat || "—"}</div>
+            <div class="accepted-card-detail"><span class="review-label">Words:</span> {plan.estimatedWordCount[0]}–{plan.estimatedWordCount[1]}</div>
+            {#if !locOk}
+              <div class="resolve-row">
+                <span class="resolve-warn">Location: "{plan.locationId}" not in bible</span>
+                <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignLoc(i, plan.locationId ?? "New Location"); } else { resolveSceneLoc(i, v); } }}>
+                  <option value="">Map to...</option>
+                  {#each bibleLocations as l (l.id)}
+                    <option value={l.id}>{l.name}</option>
+                  {/each}
+                  <option value="__new__">+ New "{plan.locationId}"</option>
+                </select>
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    {#if currentArc}
+      <div class="preview-arc">
+        <span class="review-label">Chapter Arc:</span> {currentArc.workingTitle}
+      </div>
+    {/if}
+
+    <div class="complete-actions">
+      <Button size="sm" onclick={handleAddMore}>+ Add Another Scene</Button>
+    </div>
+  </div>
 {/if}
 
 {#if error}
@@ -530,24 +751,65 @@ export function reset() {
   .status-meta { color: var(--text-secondary); margin-left: auto; }
   .modal-error-wrap { margin-top: 8px; }
 
-  .preview-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
-  .preview-count { font-size: 11px; color: var(--text-secondary); }
-  .preview-actions { display: flex; gap: 6px; }
-  .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
-  .preview-card {
-    display: flex; flex-direction: column; gap: 4px; padding: 10px;
-    border: 1px solid var(--border); border-radius: var(--radius-md);
-    background: var(--bg-card); text-align: left; cursor: pointer;
-    font-family: var(--font-mono); font-size: inherit; color: inherit;
-    transition: all 0.15s;
+  /* ─── Progress ────────────────────────── */
+  .progress-header { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .progress-label { font-size: 12px; color: var(--text-primary); font-weight: 500; white-space: nowrap; }
+  .progress-bar {
+    flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
   }
-  .preview-card:hover { border-color: var(--accent-dim); }
-  .preview-card-selected { border-color: var(--accent); background: rgba(0, 212, 255, 0.08); }
-  .preview-card-warn { border-color: var(--warning); }
-  .preview-card-title { font-size: 12px; color: var(--text-primary); font-weight: 500; }
-  .preview-card-detail { font-size: 10px; color: var(--text-secondary); }
-  .preview-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .progress-fill {
+    height: 100%; background: var(--accent); border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  /* ─── Form summary ────────────────────── */
+  .form-summary {
+    font-size: 11px; color: var(--text-secondary); padding: 4px 8px;
+    background: var(--bg-card); border-radius: var(--radius-sm);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .summary-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ─── Review card ─────────────────────── */
+  .review-card {
+    display: flex; flex-direction: column; gap: 6px; padding: 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--bg-card); margin-top: 8px;
+  }
+  .review-card-warn { border-color: var(--warning); }
+  .review-card-title { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+  .review-card-detail { font-size: 11px; color: var(--text-secondary); }
+  .review-card-section { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .review-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; }
+  .chunk-list { margin: 2px 0 0 16px; padding: 0; font-size: 11px; color: var(--text-secondary); }
+  .chunk-list li { margin-bottom: 2px; }
+
+  /* ─── Review actions ──────────────────── */
+  .review-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+  /* ─── Accepted sidebar ────────────────── */
+  .accepted-sidebar { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .accepted-mini {
+    font-size: 11px; color: var(--text-secondary); padding: 3px 0;
+  }
+
+  /* ─── Complete phase ──────────────────── */
+  .complete-summary {
+    font-size: 12px; color: var(--text-primary); font-weight: 500; padding: 8px 0;
+  }
+  .accepted-list { display: flex; flex-direction: column; gap: 8px; }
+  .accepted-card {
+    display: flex; flex-direction: column; gap: 4px; padding: 10px;
+    border: 1px solid var(--accent-dim); border-radius: var(--radius-md);
+    background: var(--bg-card);
+  }
+  .accepted-card-warn { border-color: var(--warning); }
+  .accepted-card-title { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+  .accepted-card-detail { font-size: 10px; color: var(--text-secondary); }
   .preview-arc { padding: 6px 0; font-size: 11px; color: var(--text-secondary); }
+  .complete-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+  /* ─── Resolution rows ─────────────────── */
   .resolve-row {
     display: flex; flex-direction: column; gap: 3px; padding: 4px 6px; margin: 2px -6px;
     background: color-mix(in srgb, var(--warning) 8%, transparent);

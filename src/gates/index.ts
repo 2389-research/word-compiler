@@ -106,6 +106,10 @@ export function checkBibleVersioningGate(bible: Bible, latestVersion: number): G
 
 // ─── Workflow Stage Gates ──────────────────────────
 
+function getUnresolvedCriticalFlags(flags: AuditFlag[]): AuditFlag[] {
+  return flags.filter((f) => f.severity === "critical" && !f.resolved);
+}
+
 /**
  * Stage gate: Bootstrap → Plan. Bible must exist with at least 1 character.
  */
@@ -142,14 +146,35 @@ export function checkDraftToAuditGate(sceneChunks: Record<string, Chunk[]>): Gat
 }
 
 /**
+ * Stage gate: Audit → Edit. No unresolved critical audit flags.
+ */
+export function checkAuditToEditGate(flags: AuditFlag[]): GateResult {
+  const unresolved = getUnresolvedCriticalFlags(flags);
+  if (unresolved.length > 0) {
+    return {
+      passed: false,
+      messages: [`${unresolved.length} unresolved critical flag(s) remain.`],
+    };
+  }
+  return { passed: true, messages: [] };
+}
+
+/**
+ * Stage gate: Edit → Complete. Soft gate — always passes (editing is subjective).
+ */
+export function checkEditToCompleteGate(): GateResult {
+  return { passed: true, messages: [] };
+}
+
+/**
  * Stage gate: Audit → Complete. No unresolved critical audit flags.
  */
 export function checkAuditToCompleteGate(flags: AuditFlag[]): GateResult {
-  const unresolvedCritical = flags.filter((f) => f.severity === "critical" && !f.resolved);
-  if (unresolvedCritical.length > 0) {
+  const unresolved = getUnresolvedCriticalFlags(flags);
+  if (unresolved.length > 0) {
     return {
       passed: false,
-      messages: [`${unresolvedCritical.length} unresolved critical flag(s) remain.`],
+      messages: [`${unresolved.length} unresolved critical flag(s) remain.`],
     };
   }
   return { passed: true, messages: [] };

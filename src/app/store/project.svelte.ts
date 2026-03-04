@@ -1,4 +1,5 @@
 import { fetchModels } from "../../llm/client.js";
+import type { EditorialAnnotation } from "../../review/types.js";
 import type {
   AuditFlag,
   Bible,
@@ -31,6 +32,7 @@ export class ProjectStore {
   activeSceneIndex = $state(0);
   sceneChunks = $state<Record<string, Chunk[]>>({});
   sceneIRs = $state<Record<string, NarrativeIR>>({});
+  editorialAnnotations = $state<Record<string, Map<number, EditorialAnnotation[]>>>({});
   bible = $state<Bible | null>(null);
   bibleVersions = $state<Array<{ version: number; createdAt: string }>>([]);
 
@@ -49,6 +51,8 @@ export class ProjectStore {
   isGenerating = $state(false);
   isAutopilot = $state(false);
   autopilotCancelled = $state(false);
+  isAuditing = $state(false);
+  reviewingChunks = $state<Set<number>>(new Set());
   extractingIRSceneId = $state<string | null>(null);
   selectedChunkIndex = $state<number | null>(null);
   bootstrapModalOpen = $state(false);
@@ -220,6 +224,14 @@ export class ProjectStore {
     this.isGenerating = value;
   }
 
+  setAuditing(value: boolean) {
+    this.isAuditing = value;
+  }
+
+  setReviewingChunks(chunks: Set<number>) {
+    this.reviewingChunks = chunks;
+  }
+
   setAutopilot(value: boolean) {
     this.isAutopilot = value;
     if (value) this.autopilotCancelled = false;
@@ -266,6 +278,22 @@ export class ProjectStore {
     const ir = this.sceneIRs[sceneId];
     if (!ir) return;
     this.sceneIRs = { ...this.sceneIRs, [sceneId]: { ...ir, verified: true } };
+  }
+
+  setEditorialAnnotations(sceneId: string, chunkIndex: number, anns: EditorialAnnotation[]) {
+    const existing = this.editorialAnnotations[sceneId] ?? new Map<number, EditorialAnnotation[]>();
+    const updated = new Map(existing);
+    updated.set(chunkIndex, anns);
+    this.editorialAnnotations = { ...this.editorialAnnotations, [sceneId]: updated };
+  }
+
+  getEditorialAnnotations(sceneId: string): Map<number, EditorialAnnotation[]> {
+    return this.editorialAnnotations[sceneId] ?? new Map();
+  }
+
+  clearEditorialAnnotations(sceneId: string) {
+    const { [sceneId]: _, ...rest } = this.editorialAnnotations;
+    this.editorialAnnotations = rest;
   }
 
   setIRInspectorOpen(value: boolean) {
@@ -335,6 +363,7 @@ export class ProjectStore {
     this.activeSceneIndex = 0;
     this.sceneChunks = {};
     this.sceneIRs = {};
+    this.editorialAnnotations = {};
     this.compiledPayload = null;
     this.compilationLog = null;
     this.lintResult = null;
@@ -342,6 +371,8 @@ export class ProjectStore {
     this.metrics = null;
     this.compilationConfig = createDefaultCompilationConfig();
     this.isGenerating = false;
+    this.isAuditing = false;
+    this.reviewingChunks = new Set();
     this.isAutopilot = false;
     this.autopilotCancelled = false;
     this.extractingIRSceneId = null;
