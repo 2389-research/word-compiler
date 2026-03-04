@@ -134,8 +134,15 @@ function extractSensoryWord(text: string): string | null {
 
 /** Extract the first matched beat verb from the text. */
 function extractBeatVerb(text: string): string | null {
-  const match = text.match(BEAT_PATTERNS[0]!);
-  if (match?.[1]) return match[1].toLowerCase();
+  // Pattern 0: direct verb (group 1). Pattern 1: body-part…verb (group 2).
+  for (let i = 0; i < BEAT_PATTERNS.length; i++) {
+    const pattern = BEAT_PATTERNS[i];
+    if (!pattern) continue;
+    const match = text.match(pattern);
+    if (!match) continue;
+    const verb = i === 0 ? match[1] : (match[2] ?? match[1]);
+    if (verb) return verb.toLowerCase();
+  }
   return null;
 }
 
@@ -348,7 +355,7 @@ function mapAdvisoryAction(group: PatternGroup): ProposedAction {
       };
     case "DIALOGUE_VOICE":
       return {
-        target: "characters.voiceNotes",
+        target: "compilationNotes",
         value: `Dialogue frequently revised — consider strengthening character voice definitions ${evidence}`,
       };
     case "REORDER":

@@ -31,6 +31,26 @@ function collectPayoffs(irs: Record<string, NarrativeIR>): Array<{ text: string;
   return payoffs;
 }
 
+/** Find the earliest chronologically-valid payoff for a setup description. */
+function findEarliestPayoff(
+  setupText: string,
+  setupOrder: number,
+  payoffs: Array<{ text: string; sceneId: string }>,
+  orders: Record<string, number>,
+): string | null {
+  let bestScene: string | null = null;
+  let bestOrder = Infinity;
+  for (const p of payoffs) {
+    const pOrder = orders[p.sceneId];
+    if (pOrder === undefined) continue;
+    if (pOrder > setupOrder && pOrder < bestOrder && matchesSetupDescription(setupText, p.text)) {
+      bestScene = p.sceneId;
+      bestOrder = pOrder;
+    }
+  }
+  return bestScene;
+}
+
 /** Match setups to their payoffs using fuzzy matching, respecting chronological order */
 function matchSetupsToPayoffs(
   irs: Record<string, NarrativeIR>,
@@ -41,18 +61,13 @@ function matchSetupsToPayoffs(
   for (const [sceneId, ir] of Object.entries(irs)) {
     if (!ir.verified) continue;
     for (const setup of ir.setupsPlanted) {
-      // Find earliest chronologically-valid payoff via single-pass scan
-      const setupOrder = orders[sceneId] ?? 0;
-      let bestScene: string | null = null;
-      let bestOrder = Infinity;
-      for (const p of payoffs) {
-        const pOrder = orders[p.sceneId] ?? 0;
-        if (pOrder > setupOrder && pOrder < bestOrder && matchesSetupDescription(setup, p.text)) {
-          bestScene = p.sceneId;
-          bestOrder = pOrder;
-        }
+      const setupOrder = orders[sceneId];
+      if (setupOrder === undefined) {
+        setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: null });
+        continue;
       }
-      setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: bestScene });
+      const paidOffInScene = findEarliestPayoff(setup, setupOrder, payoffs, orders);
+      setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene });
     }
   }
   return setups;

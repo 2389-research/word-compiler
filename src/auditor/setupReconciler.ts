@@ -43,10 +43,10 @@ export function reconcileSetupStatuses(
   const changes: ReconciliationChange[] = [];
   const trustSet = new Set(trustUnverifiedSceneIds);
 
-  // Collect trusted IRs sorted by scene order for deterministic results
+  // Collect trusted IRs with known scene order, sorted for deterministic results
   const trustedIRs = Object.entries(sceneIRs)
-    .filter(([sceneId, ir]) => ir.verified || trustSet.has(sceneId))
-    .sort(([a], [b]) => (sceneOrders[a] ?? 0) - (sceneOrders[b] ?? 0));
+    .filter(([sceneId, ir]) => (ir.verified || trustSet.has(sceneId)) && sceneId in sceneOrders)
+    .sort(([a], [b]) => sceneOrders[a]! - sceneOrders[b]!);
 
   // Pass 1: planned → planted
   const afterPlanting = bible.narrativeRules.setups.map((setup) => {
@@ -78,7 +78,7 @@ export function reconcileSetupStatuses(
     const plantedOrder = sceneOrders[setup.plantedInScene]!;
 
     for (const [sceneId, ir] of trustedIRs) {
-      const payoffOrder = sceneOrders[sceneId] ?? 0;
+      const payoffOrder = sceneOrders[sceneId]!; // guaranteed by trustedIRs filter
       if (payoffOrder <= plantedOrder) continue;
 
       const matchingPayoff = findPayoffForSetup(setup.description, ir.payoffsExecuted);
