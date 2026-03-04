@@ -1,4 +1,5 @@
 import { runAudit } from "../../auditor/index.js";
+import { reconcileSetupStatuses } from "../../auditor/setupReconciler.js";
 import { checkSubtext } from "../../auditor/subtext.js";
 import { extractIR, type IRLLMClient } from "../../ir/extractor.js";
 import { callLLM, generateStream } from "../../llm/client.js";
@@ -11,7 +12,7 @@ import {
   REFINEMENT_OUTPUT_SCHEMA,
 } from "../../review/refine.js";
 import type { RefinementRequest, RefinementResult } from "../../review/refineTypes.js";
-import type { Chunk } from "../../types/index.js";
+import type { Chunk, NarrativeIR } from "../../types/index.js";
 import { generateId, getCanonicalText } from "../../types/index.js";
 import type { Commands } from "./commands.js";
 import type { ProjectStore } from "./project.svelte.js";
@@ -160,6 +161,23 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     return { plan, sceneId, prose };
   }
 
+  async function reconcileSetupsAfterIR(sceneId: string, ir: NarrativeIR): Promise<void> {
+    if (!store.bible) return;
+    const sceneOrders: Record<string, number> = {};
+    for (const s of store.scenes) {
+      sceneOrders[s.plan.id] = s.sceneOrder;
+    }
+    const { updatedBible, changes } = reconcileSetupStatuses(
+      store.bible,
+      { ...store.sceneIRs, [sceneId]: ir },
+      sceneOrders,
+      [sceneId],
+    );
+    if (changes.length > 0) {
+      await commands.saveBible(updatedBible);
+    }
+  }
+
   async function extractSceneIR(pinnedSceneId?: string) {
     const validated = validateIRExtraction(pinnedSceneId);
     if (!validated) return;
@@ -177,6 +195,10 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       };
       const ir = await extractIR(prose, scenePlan, store.bible!, llmClient);
       await commands.saveSceneIR(sceneId, ir);
+      // Reconcile Bible setup statuses against IR evidence — isolated, non-blocking
+      reconcileSetupsAfterIR(sceneId, ir).catch((err) =>
+        console.warn("[reconcile] setup status reconciliation failed:", err),
+      );
       store.setIRInspectorOpen(true);
     } catch (err) {
       store.setError(err instanceof Error ? err.message : "IR extraction failed");

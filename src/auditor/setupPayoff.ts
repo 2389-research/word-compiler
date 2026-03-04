@@ -1,5 +1,6 @@
 import type { AuditFlag, Bible, NarrativeIR, ScenePlan } from "../types/index.js";
 import { generateId } from "../types/index.js";
+import { matchesSetupDescription } from "./setupMatching.js";
 
 // ─── Setup/Payoff Registry ───────────────────────────────
 //
@@ -15,11 +16,7 @@ export function checkSetupPayoff(sceneIR: NarrativeIR, plan: ScenePlan, bible: B
   );
 
   for (const setup of biblePlantedInThisScene) {
-    const wasPlanted = sceneIR.setupsPlanted.some(
-      (planted) =>
-        planted.toLowerCase().includes(setup.description.toLowerCase()) ||
-        setup.description.toLowerCase().includes(planted.toLowerCase()),
-    );
+    const wasPlanted = sceneIR.setupsPlanted.some((planted) => matchesSetupDescription(setup.description, planted));
     if (!wasPlanted) {
       flags.push({
         id: generateId(),
@@ -39,11 +36,7 @@ export function checkSetupPayoff(sceneIR: NarrativeIR, plan: ScenePlan, bible: B
   const biblePaidOffInThisScene = bible.narrativeRules.setups.filter((s) => s.payoffInScene === plan.id);
 
   for (const setup of biblePaidOffInThisScene) {
-    const wasExecuted = sceneIR.payoffsExecuted.some(
-      (payoff) =>
-        payoff.toLowerCase().includes(setup.description.toLowerCase()) ||
-        setup.description.toLowerCase().includes(payoff.toLowerCase()),
-    );
+    const wasExecuted = sceneIR.payoffsExecuted.some((payoff) => matchesSetupDescription(setup.description, payoff));
     if (!wasExecuted) {
       flags.push({
         id: generateId(),
@@ -74,9 +67,7 @@ export function checkDanglingSetups(allIRs: NarrativeIR[], bible: Bible, finalSc
   const danglingSetups = bible.narrativeRules.setups.filter((s) => s.status === "planted" && s.payoffInScene === null);
 
   for (const setup of danglingSetups) {
-    const paidOff = [...allPayoffsExecuted].some(
-      (payoff) => payoff.includes(setup.description.toLowerCase()) || setup.description.toLowerCase().includes(payoff),
-    );
+    const paidOff = [...allPayoffsExecuted].some((payoff) => matchesSetupDescription(setup.description, payoff));
     if (!paidOff) {
       flags.push({
         id: generateId(),

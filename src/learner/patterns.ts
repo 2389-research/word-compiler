@@ -1,4 +1,4 @@
-import type { EditPattern, EditSubType } from "./diff.js";
+import { ABSTRACT_INDICATORS, BEAT_PATTERNS, type EditPattern, type EditSubType, SENSORY_WORDS } from "./diff.js";
 
 // ─── Types ───────────────────────────────────────
 
@@ -35,6 +35,8 @@ export interface PatternGroup {
   edits: EditPattern[];
   weightedCount: number;
   confidence: number;
+  /** True for subType-level advisory groups (softer threshold, coaching proposals) */
+  advisory?: boolean;
 }
 
 // ─── Constants ───────────────────────────────────
@@ -42,6 +44,20 @@ export interface PatternGroup {
 const Z = 1.96; // 95% CI
 const PROMOTION_MIN_OCCURRENCES = 5;
 const PROMOTION_MIN_CONFIDENCE = 0.6;
+const ADVISORY_MIN_WEIGHTED_COUNT = 8;
+const ADVISORY_MIN_SCENE_COUNT = 2;
+
+/** Sentinel keys used for subTypes where unique prose text won't repeat.
+ *  These must NOT be promoted via Tier 1 (they'd inject garbage into the Bible).
+ *  They flow through the advisory tier instead, which produces coaching-style actions. */
+const SENTINEL_KEYS = new Set([
+  "_tone_shift_",
+  "_dialogue_voice_",
+  "_cut_passage_",
+  "_show_dont_tell_",
+  "_sensory_added_",
+  "_beat_added_",
+]);
 const DECAY_WINDOW = 30;
 const DECAY_WEIGHT = 0.5;
 
@@ -96,24 +112,63 @@ export function computeWeightedCount(
   return weighted;
 }
 
+// ─── Key Extraction Helpers ──────────────────────
+
+/** Extract which abstract-indicator pattern matched in the text, if any. */
+function extractAbstractIndicator(text: string): string | null {
+  for (const pattern of ABSTRACT_INDICATORS) {
+    const match = text.match(pattern);
+    if (match) return match[0].toLowerCase();
+  }
+  return null;
+}
+
+/** Extract the first matched sensory word from the text. */
+function extractSensoryWord(text: string): string | null {
+  const lower = text.toLowerCase();
+  for (const word of SENSORY_WORDS) {
+    if (lower.includes(word)) return word;
+  }
+  return null;
+}
+
+/** Extract the first matched beat verb from the text. */
+function extractBeatVerb(text: string): string | null {
+  const match = text.match(BEAT_PATTERNS[0]!);
+  if (match?.[1]) return match[1].toLowerCase();
+  return null;
+}
+
 // ─── Pattern Grouping ────────────────────────────
 
 /**
- * Normalize an edit into a grouping key.
- * For deletions: the deleted text (lowercase, trimmed).
- * For substitutions: the original text (lowercase, trimmed).
- * For additions: the first 3 words of added text (lowercase).
- * For restructures: "reorder".
+ * Normalize an edit into a grouping key based on its subType.
+ *
+ * SubType-aware strategy:
+ * - CUT_FILLER: exact deleted text (filler words genuinely repeat)
+ * - SHOW_DONT_TELL: matched abstract-indicator pattern (groups "felt a sense of X" variants)
+ * - SENSORY_ADDED: matched sensory word (groups by modality)
+ * - BEAT_ADDED: matched beat verb (groups by gesture type)
+ * - CUT_PASSAGE / TONE_SHIFT / DIALOGUE_VOICE: sentinel key (unique prose won't repeat)
+ * - REORDER: "reorder"
  */
 export function normalizePatternKey(edit: EditPattern): string {
-  switch (edit.editType) {
-    case "DELETION":
+  switch (edit.subType) {
+    case "CUT_FILLER":
       return edit.originalText.toLowerCase().trim();
-    case "SUBSTITUTION":
-      return edit.originalText.toLowerCase().trim();
-    case "ADDITION":
-      return edit.editedText.toLowerCase().trim().split(/\s+/).slice(0, 3).join(" ");
-    case "RESTRUCTURE":
+    case "CUT_PASSAGE":
+      return "_cut_passage_";
+    case "SHOW_DONT_TELL":
+      return extractAbstractIndicator(edit.originalText) ?? "_show_dont_tell_";
+    case "SENSORY_ADDED":
+      return extractSensoryWord(edit.editedText) ?? "_sensory_added_";
+    case "BEAT_ADDED":
+      return extractBeatVerb(edit.editedText) ?? "_beat_added_";
+    case "TONE_SHIFT":
+      return "_tone_shift_";
+    case "DIALOGUE_VOICE":
+      return "_dialogue_voice_";
+    case "REORDER":
       return "reorder";
   }
 }
@@ -168,6 +223,42 @@ export function groupPatterns(edits: EditPattern[], sceneOrder: Map<string, numb
   return result;
 }
 
+// ─── Advisory Grouping ──────────────────────────
+
+/**
+ * Group edit patterns by subType only (no key), creating broader
+ * advisory groups for coaching-style proposals.
+ */
+export function groupPatternsBySubType(edits: EditPattern[], sceneOrder: Map<string, number>): PatternGroup[] {
+  const groups = new Map<EditSubType, EditPattern[]>();
+  for (const edit of edits) {
+    const group = groups.get(edit.subType);
+    if (group) {
+      group.push(edit);
+    } else {
+      groups.set(edit.subType, [edit]);
+    }
+  }
+
+  const result: PatternGroup[] = [];
+  for (const [subType, groupEdits] of groups) {
+    const weightedCount = computeWeightedCount(groupEdits, sceneOrder);
+    // Wilson denominator = total edits (how much of the user's editing is this subType?)
+    const confidence = wilsonLowerBound(groupEdits.length, Math.max(edits.length, groupEdits.length));
+
+    result.push({
+      patternType: subType,
+      key: `_${subType.toLowerCase()}_`,
+      edits: groupEdits,
+      weightedCount,
+      confidence,
+      advisory: true,
+    });
+  }
+
+  return result.sort((a, b) => b.weightedCount - a.weightedCount);
+}
+
 // ─── Promotion Check ─────────────────────────────
 
 /**
@@ -178,12 +269,25 @@ export function meetsPromotionThreshold(group: PatternGroup): boolean {
   return group.weightedCount >= PROMOTION_MIN_OCCURRENCES && group.confidence >= PROMOTION_MIN_CONFIDENCE;
 }
 
+/**
+ * Check if an advisory (subType-level) group meets the softer advisory threshold.
+ * Requires >= 8 weighted occurrences AND edits from >= 2 different scenes.
+ */
+export function meetsAdvisoryThreshold(group: PatternGroup): boolean {
+  const sceneIds = new Set(group.edits.map((e) => e.sceneId));
+  return group.weightedCount >= ADVISORY_MIN_WEIGHTED_COUNT && sceneIds.size >= ADVISORY_MIN_SCENE_COUNT;
+}
+
 // ─── Action Mapping ──────────────────────────────
 
 /**
  * Map a pattern group to a proposed bible modification action.
+ * Advisory groups get coaching-style actions.
  */
 export function mapToProposedAction(group: PatternGroup): ProposedAction | null {
+  if (group.advisory) {
+    return mapAdvisoryAction(group);
+  }
   switch (group.patternType) {
     case "CUT_FILLER":
       return { target: "killList", value: group.key };
@@ -206,13 +310,76 @@ export function mapToProposedAction(group: PatternGroup): ProposedAction | null 
   }
 }
 
+function mapAdvisoryAction(group: PatternGroup): ProposedAction {
+  const n = Math.round(group.weightedCount);
+  const scenes = new Set(group.edits.map((e) => e.sceneId)).size;
+  const evidence = `(${n} edits across ${scenes} scene${scenes > 1 ? "s" : ""})`;
+
+  switch (group.patternType) {
+    case "CUT_FILLER":
+      return {
+        target: "compilationNotes",
+        value: `You frequently cut filler words — consider adding specific fillers to your kill list ${evidence}`,
+      };
+    case "CUT_PASSAGE":
+      return {
+        target: "compilationNotes",
+        value: `You frequently cut entire passages — consider tightening prose generation ${evidence}`,
+      };
+    case "SHOW_DONT_TELL":
+      return {
+        target: "suggestedTone.exemplars",
+        value: `Avoid abstract emotional telling (e.g. "felt a sense of…") — prefer concrete physical detail ${evidence}`,
+      };
+    case "SENSORY_ADDED":
+      return {
+        target: "compilationNotes",
+        value: `You frequently add sensory details — consider requesting richer environmental descriptions ${evidence}`,
+      };
+    case "BEAT_ADDED":
+      return {
+        target: "compilationNotes",
+        value: `You frequently add action beats — consider requesting more physical grounding ${evidence}`,
+      };
+    case "TONE_SHIFT":
+      return {
+        target: "compilationNotes",
+        value: `You frequently adjust tone — consider refining voice guidance in your bible ${evidence}`,
+      };
+    case "DIALOGUE_VOICE":
+      return {
+        target: "characters.voiceNotes",
+        value: `Dialogue frequently revised — consider strengthening character voice definitions ${evidence}`,
+      };
+    case "REORDER":
+      return {
+        target: "compilationNotes",
+        value: `You frequently reorder sentences — consider adjusting paragraph flow guidance ${evidence}`,
+      };
+  }
+}
+
 // ─── Main Accumulation Pipeline ──────────────────
 
 /**
  * Given all edit patterns for a project, accumulate into learned patterns.
- * Returns groups that meet the promotion threshold with proposed actions.
+ *
+ * Two-tier approach:
+ * - **Tier 1 (keyed):** Groups by (subType, smartKey) with strict thresholds (≥5 occurrences, ≥60% Wilson).
+ *   Produces specific, actionable proposals (e.g. add "well" to kill list).
+ * - **Tier 2 (advisory):** Groups by subType only with softer thresholds (≥8 weighted, ≥2 scenes).
+ *   Produces coaching-style proposals for subTypes not already covered by Tier 1.
  */
 export function accumulatePatterns(edits: EditPattern[], sceneOrder: Map<string, number>): PatternGroup[] {
-  const groups = groupPatterns(edits, sceneOrder);
-  return groups.filter(meetsPromotionThreshold);
+  // Tier 1: keyed groups with strict thresholds (exclude sentinel keys — they'd inject garbage)
+  const keyedGroups = groupPatterns(edits, sceneOrder);
+  const promoted = keyedGroups.filter((g) => meetsPromotionThreshold(g) && !SENTINEL_KEYS.has(g.key));
+
+  // Tier 2: subType-level advisory groups — only for subTypes not already promoted
+  const promotedSubTypes = new Set(promoted.map((g) => g.patternType));
+  const advisory = groupPatternsBySubType(edits, sceneOrder).filter(
+    (g) => !promotedSubTypes.has(g.patternType) && meetsAdvisoryThreshold(g),
+  );
+
+  return [...promoted, ...advisory];
 }

@@ -126,7 +126,9 @@ function formatAction(proposal: BibleProposal): string {
             </CollapsibleSection>
           {/if}
 
-          {#if !decision}
+          {#if proposal.action.section === "compilationNotes"}
+            <div class="proposal-decision">Insight</div>
+          {:else if !decision}
             <div class="proposal-actions">
               <Button onclick={() => handleAccept(proposal)} title="Apply this suggestion to your bible">Accept</Button>
               <Button onclick={() => handleReject(proposal)} title="Dismiss this suggestion">Reject</Button>

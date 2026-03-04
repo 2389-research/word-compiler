@@ -4,7 +4,9 @@ import {
   accumulatePatterns,
   computeWeightedCount,
   groupPatterns,
+  groupPatternsBySubType,
   mapToProposedAction,
+  meetsAdvisoryThreshold,
   meetsPromotionThreshold,
   normalizePatternKey,
   type PatternGroup,
@@ -106,26 +108,64 @@ describe("computeWeightedCount", () => {
 // ─── normalizePatternKey ────────────────────────
 
 describe("normalizePatternKey", () => {
-  it("uses lowercase originalText for DELETION", () => {
-    const edit = makeEdit({ editType: "DELETION", originalText: "Um Well" });
+  it("uses exact lowercase text for CUT_FILLER", () => {
+    const edit = makeEdit({ subType: "CUT_FILLER", originalText: "Um Well" });
     expect(normalizePatternKey(edit)).toBe("um well");
   });
 
-  it("uses lowercase originalText for SUBSTITUTION", () => {
-    const edit = makeEdit({ editType: "SUBSTITUTION", originalText: "She Felt Sad" });
-    expect(normalizePatternKey(edit)).toBe("she felt sad");
+  it("extracts abstract indicator for SHOW_DONT_TELL", () => {
+    const edit = makeEdit({
+      editType: "SUBSTITUTION",
+      subType: "SHOW_DONT_TELL",
+      originalText: "She felt a sense of unease",
+    });
+    expect(normalizePatternKey(edit)).toBe("felt a sense of");
   });
 
-  it("uses first 3 words of editedText for ADDITION", () => {
+  it("falls back to sentinel for SHOW_DONT_TELL without indicator match", () => {
+    const edit = makeEdit({
+      editType: "SUBSTITUTION",
+      subType: "SHOW_DONT_TELL",
+      originalText: "The weather was gloomy",
+    });
+    expect(normalizePatternKey(edit)).toBe("_show_dont_tell_");
+  });
+
+  it("extracts sensory word for SENSORY_ADDED", () => {
     const edit = makeEdit({
       editType: "ADDITION",
+      subType: "SENSORY_ADDED",
       editedText: "The bitter aroma of fresh coffee filled the room",
     });
-    expect(normalizePatternKey(edit)).toBe("the bitter aroma");
+    expect(normalizePatternKey(edit)).toBe("aroma");
   });
 
-  it("returns 'reorder' for RESTRUCTURE", () => {
-    const edit = makeEdit({ editType: "RESTRUCTURE" });
+  it("extracts beat verb for BEAT_ADDED", () => {
+    const edit = makeEdit({
+      editType: "ADDITION",
+      subType: "BEAT_ADDED",
+      editedText: "She shrugged and turned away",
+    });
+    expect(normalizePatternKey(edit)).toBe("shrugged");
+  });
+
+  it("uses sentinel for CUT_PASSAGE", () => {
+    const edit = makeEdit({ subType: "CUT_PASSAGE", originalText: "A long passage about nothing" });
+    expect(normalizePatternKey(edit)).toBe("_cut_passage_");
+  });
+
+  it("uses sentinel for TONE_SHIFT", () => {
+    const edit = makeEdit({ editType: "SUBSTITUTION", subType: "TONE_SHIFT" });
+    expect(normalizePatternKey(edit)).toBe("_tone_shift_");
+  });
+
+  it("uses sentinel for DIALOGUE_VOICE", () => {
+    const edit = makeEdit({ editType: "SUBSTITUTION", subType: "DIALOGUE_VOICE" });
+    expect(normalizePatternKey(edit)).toBe("_dialogue_voice_");
+  });
+
+  it("returns 'reorder' for REORDER", () => {
+    const edit = makeEdit({ editType: "RESTRUCTURE", subType: "REORDER" });
     expect(normalizePatternKey(edit)).toBe("reorder");
   });
 });
@@ -294,6 +334,113 @@ describe("mapToProposedAction", () => {
     const action = mapToProposedAction(group);
     expect(action!.target).toBe("compilationNotes");
   });
+
+  it("maps advisory TONE_SHIFT to compilationNotes with coaching message", () => {
+    const group: PatternGroup = {
+      patternType: "TONE_SHIFT",
+      key: "_tone_shift_",
+      edits: [makeEdit({ sceneId: "s1" }), makeEdit({ id: "e2", sceneId: "s2" })],
+      weightedCount: 10,
+      confidence: 0.5,
+      advisory: true,
+    };
+    const action = mapToProposedAction(group);
+    expect(action!.target).toBe("compilationNotes");
+    expect(action!.value).toContain("frequently adjust tone");
+    expect(action!.value).toContain("10 edits");
+  });
+
+  it("maps advisory SHOW_DONT_TELL to suggestedTone.exemplars with coaching", () => {
+    const group: PatternGroup = {
+      patternType: "SHOW_DONT_TELL",
+      key: "_show_dont_tell_",
+      edits: [makeEdit({ sceneId: "s1" }), makeEdit({ id: "e2", sceneId: "s2" })],
+      weightedCount: 12,
+      confidence: 0.4,
+      advisory: true,
+    };
+    const action = mapToProposedAction(group);
+    expect(action!.target).toBe("suggestedTone.exemplars");
+    expect(action!.value).toContain("abstract emotional telling");
+  });
+});
+
+// ─── groupPatternsBySubType ─────────────────────
+
+describe("groupPatternsBySubType", () => {
+  it("groups all edits of the same subType together", () => {
+    const edits = [
+      makeEdit({ id: "e1", subType: "TONE_SHIFT", originalText: "unique text A" }),
+      makeEdit({ id: "e2", subType: "TONE_SHIFT", originalText: "unique text B" }),
+      makeEdit({ id: "e3", subType: "CUT_FILLER", originalText: "well" }),
+    ];
+    const sceneOrder = new Map([["s1", 0]]);
+    const groups = groupPatternsBySubType(edits, sceneOrder);
+    expect(groups).toHaveLength(2);
+    const toneGroup = groups.find((g) => g.patternType === "TONE_SHIFT");
+    expect(toneGroup!.edits).toHaveLength(2);
+    expect(toneGroup!.advisory).toBe(true);
+  });
+
+  it("computes Wilson confidence against total edit count", () => {
+    const edits = [
+      ...Array.from({ length: 6 }, (_, i) =>
+        makeEdit({ id: `t${i}`, subType: "TONE_SHIFT", originalText: `text ${i}` }),
+      ),
+      ...Array.from({ length: 4 }, (_, i) => makeEdit({ id: `c${i}`, subType: "CUT_FILLER", originalText: "well" })),
+    ];
+    const sceneOrder = new Map([["s1", 0]]);
+    const groups = groupPatternsBySubType(edits, sceneOrder);
+    const toneGroup = groups.find((g) => g.patternType === "TONE_SHIFT")!;
+    // 6/10 → Wilson lower bound should be moderate
+    expect(toneGroup.confidence).toBeGreaterThan(0);
+    expect(toneGroup.confidence).toBeLessThan(0.7);
+  });
+});
+
+// ─── meetsAdvisoryThreshold ─────────────────────
+
+describe("meetsAdvisoryThreshold", () => {
+  it("rejects groups with fewer than 8 weighted occurrences", () => {
+    const group: PatternGroup = {
+      patternType: "TONE_SHIFT",
+      key: "_tone_shift_",
+      edits: [makeEdit({ sceneId: "s1" }), makeEdit({ id: "e2", sceneId: "s2" })],
+      weightedCount: 7,
+      confidence: 0.5,
+      advisory: true,
+    };
+    expect(meetsAdvisoryThreshold(group)).toBe(false);
+  });
+
+  it("rejects groups with edits from only 1 scene", () => {
+    const edits = Array.from({ length: 10 }, (_, i) => makeEdit({ id: `e${i}`, sceneId: "s1", subType: "TONE_SHIFT" }));
+    const group: PatternGroup = {
+      patternType: "TONE_SHIFT",
+      key: "_tone_shift_",
+      edits,
+      weightedCount: 10,
+      confidence: 0.5,
+      advisory: true,
+    };
+    expect(meetsAdvisoryThreshold(group)).toBe(false);
+  });
+
+  it("accepts groups meeting both thresholds", () => {
+    const edits = [
+      ...Array.from({ length: 5 }, (_, i) => makeEdit({ id: `a${i}`, sceneId: "s1", subType: "TONE_SHIFT" })),
+      ...Array.from({ length: 5 }, (_, i) => makeEdit({ id: `b${i}`, sceneId: "s2", subType: "TONE_SHIFT" })),
+    ];
+    const group: PatternGroup = {
+      patternType: "TONE_SHIFT",
+      key: "_tone_shift_",
+      edits,
+      weightedCount: 10,
+      confidence: 0.5,
+      advisory: true,
+    };
+    expect(meetsAdvisoryThreshold(group)).toBe(true);
+  });
 });
 
 // ─── accumulatePatterns ─────────────────────────
@@ -305,7 +452,7 @@ describe("accumulatePatterns", () => {
   });
 
   it("filters out groups below promotion threshold", () => {
-    // Only 2 edits — won't meet the 5-occurrence threshold
+    // Only 2 edits — won't meet the 5-occurrence threshold or 8-advisory threshold
     const edits = [
       makeEdit({ id: "e1", subType: "CUT_FILLER", originalText: "well" }),
       makeEdit({ id: "e2", subType: "CUT_FILLER", originalText: "well" }),
@@ -315,7 +462,7 @@ describe("accumulatePatterns", () => {
     expect(result).toEqual([]);
   });
 
-  it("promotes groups that meet threshold", () => {
+  it("promotes keyed groups that meet strict threshold", () => {
     const edits = Array.from({ length: 8 }, (_, i) =>
       makeEdit({ id: `e${i}`, sceneId: "s1", subType: "CUT_FILLER", originalText: "well" }),
     );
@@ -324,6 +471,7 @@ describe("accumulatePatterns", () => {
     const result = accumulatePatterns(edits, sceneOrder);
     expect(result).toHaveLength(1);
     expect(result[0]!.key).toBe("well");
+    expect(result[0]!.advisory).toBeFalsy();
     expect(result[0]!.weightedCount).toBe(8);
   });
 
@@ -338,7 +486,111 @@ describe("accumulatePatterns", () => {
     ];
     const sceneOrder = new Map([["s1", 0]]);
     const result = accumulatePatterns(edits, sceneOrder);
+    // CUT_FILLER is already covered by Tier 1, so no Tier 2 advisory for it
     expect(result).toHaveLength(1);
     expect(result[0]!.key).toBe("well");
+  });
+
+  it("promotes advisory groups for subTypes where no single key reaches keyed threshold", () => {
+    // 10 diverse SHOW_DONT_TELL edits across 2 scenes, each with a different abstract indicator
+    // or no indicator match → keys are split, no single keyed group reaches 5.
+    // But advisory tier sees 10 total across 2 scenes → promoted.
+    const indicators = [
+      "She felt a sense of dread",
+      "He felt a sense of wonder",
+      "It was an overwhelming rush",
+      "She knew that something was wrong",
+      "The weather was gloomy and dark",
+      "He felt a sense of relief",
+      "She realized that he lied",
+      "The road was sad and lonely",
+      "She understood that it was over",
+      "He was nervous about tomorrow",
+    ];
+    const edits = indicators.map((text, i) =>
+      makeEdit({
+        id: `e${i}`,
+        sceneId: i < 5 ? "s1" : "s2",
+        editType: "SUBSTITUTION",
+        subType: "SHOW_DONT_TELL",
+        originalText: text,
+      }),
+    );
+    const sceneOrder = new Map([
+      ["s1", 0],
+      ["s2", 1],
+    ]);
+    const result = accumulatePatterns(edits, sceneOrder);
+    // Keyed groups: "felt a sense of" (4 edits), "was nervous" (1), etc. — none reach 5
+    // Advisory: 10 SHOW_DONT_TELL across 2 scenes → promoted
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    const advisory = result.find((g) => g.advisory);
+    expect(advisory).toBeDefined();
+    expect(advisory!.patternType).toBe("SHOW_DONT_TELL");
+  });
+
+  it("excludes advisory groups for subTypes already covered by keyed promotion", () => {
+    // 8 identical CUT_FILLER edits across 2 scenes → promotes keyed group
+    // Advisory for CUT_FILLER should be suppressed
+    const edits = [
+      ...Array.from({ length: 5 }, (_, i) =>
+        makeEdit({ id: `a${i}`, sceneId: "s1", subType: "CUT_FILLER", originalText: "well" }),
+      ),
+      ...Array.from({ length: 5 }, (_, i) =>
+        makeEdit({ id: `b${i}`, sceneId: "s2", subType: "CUT_FILLER", originalText: "well" }),
+      ),
+    ];
+    const sceneOrder = new Map([
+      ["s1", 0],
+      ["s2", 1],
+    ]);
+    const result = accumulatePatterns(edits, sceneOrder);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.advisory).toBeFalsy();
+    expect(result[0]!.key).toBe("well");
+  });
+
+  it("combines keyed and advisory promotions for different subTypes", () => {
+    // Use diverse SHOW_DONT_TELL indicators so no single keyed group reaches 5
+    const showDontTellTexts = [
+      "She felt a sense of dread",
+      "He felt a sense of wonder",
+      "She knew that it was wrong",
+      "He realized that time was up",
+      "She was nervous about it",
+      "He felt a sense of calm",
+      "She was afraid of the dark",
+      "He understood that she left",
+      "The scene was sad and cold",
+      "She felt a sense of loss",
+    ];
+    const edits = [
+      // 8 identical CUT_FILLER → Tier 1 keyed promotion
+      ...Array.from({ length: 8 }, (_, i) =>
+        makeEdit({ id: `f${i}`, sceneId: "s1", subType: "CUT_FILLER", originalText: "well" }),
+      ),
+      // 10 diverse SHOW_DONT_TELL across 2 scenes → Tier 2 advisory
+      ...showDontTellTexts.map((text, i) =>
+        makeEdit({
+          id: `s${i}`,
+          sceneId: i < 5 ? "s1" : "s2",
+          editType: "SUBSTITUTION",
+          subType: "SHOW_DONT_TELL",
+          originalText: text,
+        }),
+      ),
+    ];
+    const sceneOrder = new Map([
+      ["s1", 0],
+      ["s2", 1],
+    ]);
+    const result = accumulatePatterns(edits, sceneOrder);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    const keyed = result.find((g) => !g.advisory);
+    const advisory = result.find((g) => g.advisory);
+    expect(keyed).toBeDefined();
+    expect(keyed!.key).toBe("well");
+    expect(advisory).toBeDefined();
+    expect(advisory!.patternType).toBe("SHOW_DONT_TELL");
   });
 });

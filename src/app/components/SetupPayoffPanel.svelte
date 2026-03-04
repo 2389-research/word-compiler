@@ -1,4 +1,5 @@
 <script lang="ts">
+import { matchesSetupDescription } from "../../auditor/setupMatching.js";
 import type { NarrativeIR } from "../../types/index.js";
 import { Badge, Pane } from "../primitives/index.js";
 
@@ -18,43 +19,48 @@ interface SetupEntry {
   paidOffInScene: string | null;
 }
 
-/** Build a map from lowercased payoff text to the earliest scene that executes it */
-function buildPayoffMap(irs: Record<string, NarrativeIR>, orders: Record<string, number>): Map<string, string> {
-  const payoffSet = new Map<string, string>();
+/** Collect all payoff texts with their scene IDs from verified IRs */
+function collectPayoffs(irs: Record<string, NarrativeIR>): Array<{ text: string; sceneId: string }> {
+  const payoffs: Array<{ text: string; sceneId: string }> = [];
   for (const [sceneId, ir] of Object.entries(irs)) {
     if (!ir.verified) continue;
     for (const payoff of ir.payoffsExecuted) {
-      const key = payoff.toLowerCase();
-      const existing = payoffSet.get(key);
-      if (!existing || (orders[sceneId] ?? 0) < (orders[existing] ?? 0)) {
-        payoffSet.set(key, sceneId);
-      }
+      payoffs.push({ text: payoff, sceneId });
     }
   }
-  return payoffSet;
+  return payoffs;
 }
 
-/** Match setups to their payoffs, respecting chronological order */
+/** Match setups to their payoffs using fuzzy matching, respecting chronological order */
 function matchSetupsToPayoffs(
   irs: Record<string, NarrativeIR>,
   orders: Record<string, number>,
-  payoffMap: Map<string, string>,
+  payoffs: Array<{ text: string; sceneId: string }>,
 ): SetupEntry[] {
   const setups: SetupEntry[] = [];
   for (const [sceneId, ir] of Object.entries(irs)) {
     if (!ir.verified) continue;
     for (const setup of ir.setupsPlanted) {
-      const payoffSceneId = payoffMap.get(setup.toLowerCase()) ?? null;
-      const resolved = payoffSceneId !== null && (orders[payoffSceneId] ?? 0) > (orders[sceneId] ?? 0);
-      setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: resolved ? payoffSceneId : null });
+      // Find earliest chronologically-valid payoff via single-pass scan
+      const setupOrder = orders[sceneId] ?? 0;
+      let bestScene: string | null = null;
+      let bestOrder = Infinity;
+      for (const p of payoffs) {
+        const pOrder = orders[p.sceneId] ?? 0;
+        if (pOrder > setupOrder && pOrder < bestOrder && matchesSetupDescription(setup, p.text)) {
+          bestScene = p.sceneId;
+          bestOrder = pOrder;
+        }
+      }
+      setups.push({ text: setup, plantedInScene: sceneId, paidOffInScene: bestScene });
     }
   }
   return setups;
 }
 
 let entries = $derived.by((): SetupEntry[] => {
-  const payoffMap = buildPayoffMap(sceneIRs, sceneOrders);
-  return matchSetupsToPayoffs(sceneIRs, sceneOrders, payoffMap);
+  const payoffs = collectPayoffs(sceneIRs);
+  return matchSetupsToPayoffs(sceneIRs, sceneOrders, payoffs);
 });
 
 let resolved = $derived(entries.filter((e) => e.paidOffInScene !== null));

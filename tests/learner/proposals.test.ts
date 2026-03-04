@@ -239,6 +239,42 @@ describe("applyProposal", () => {
     expect(updated.styleGuide.metaphoricRegister!.prohibitedDomains).toContain("clinical language");
   });
 
+  it("skips character mutation when multiple characters exist (ambiguous target)", () => {
+    const bible = makeMinimalBible();
+    bible.characters.push({
+      ...bible.characters[0]!,
+      id: "char-2",
+      name: "Bob",
+      voice: { ...bible.characters[0]!.voice, vocabularyNotes: null },
+    });
+    const proposal = makeProposal({
+      patternType: "DIALOGUE_VOICE",
+      action: { target: "characters.voiceNotes", value: "shorter dialogue", section: "characters" },
+    });
+    const updated = applyProposal(bible, proposal);
+    // Neither character should be modified
+    expect(updated.characters[0]!.voice.vocabularyNotes).toBeNull();
+    expect(updated.characters[1]!.voice.vocabularyNotes).toBeNull();
+  });
+
+  it("skips location mutation when multiple locations exist (ambiguous target)", () => {
+    const bible = makeMinimalBible();
+    bible.locations.push({
+      ...bible.locations[0]!,
+      id: "loc-2",
+      name: "The Park",
+      sensoryPalette: { ...bible.locations[0]!.sensoryPalette, atmosphere: null },
+    });
+    const proposal = makeProposal({
+      patternType: "SENSORY_ADDED",
+      action: { target: "locations.sensoryPalette", value: "coffee aroma", section: "locations" },
+    });
+    const updated = applyProposal(bible, proposal);
+    // Neither location should be modified
+    expect(updated.locations[0]!.sensoryPalette.atmosphere).toBeNull();
+    expect(updated.locations[1]!.sensoryPalette.atmosphere).toBeNull();
+  });
+
   it("handles compilationNotes gracefully (no-op)", () => {
     const bible = makeMinimalBible();
     const proposal = makeProposal({

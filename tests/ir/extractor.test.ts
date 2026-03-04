@@ -109,6 +109,62 @@ describe("buildIRExtractionPrompt", () => {
     const prompt = buildIRExtractionPrompt("prose", makePlan(), bible);
     expect(prompt).toContain("(none registered)");
   });
+
+  it("includes PAYOFF MATCHING RULES block", () => {
+    const prompt = buildIRExtractionPrompt("prose", makePlan(), makeBible());
+    expect(prompt).toContain("PAYOFF MATCHING RULES:");
+    expect(prompt).toContain("setup's description verbatim as a prefix");
+  });
+
+  it("excludes paid-off and dangling setups from ACTIVE SETUPS", () => {
+    const bible = {
+      ...makeBible(),
+      narrativeRules: {
+        ...makeBible().narrativeRules,
+        setups: [
+          {
+            id: "s1",
+            description: "The hidden letter",
+            plantedInScene: null,
+            payoffInScene: null,
+            status: "planned" as const,
+          },
+          {
+            id: "s2",
+            description: "The broken clock",
+            plantedInScene: "sc-1",
+            payoffInScene: "sc-2",
+            status: "paid-off" as const,
+          },
+          {
+            id: "s3",
+            description: "The red herring",
+            plantedInScene: "sc-1",
+            payoffInScene: null,
+            status: "dangling" as const,
+          },
+          {
+            id: "s4",
+            description: "The locked door",
+            plantedInScene: "sc-1",
+            payoffInScene: null,
+            status: "planted" as const,
+          },
+        ],
+      },
+    };
+    const prompt = buildIRExtractionPrompt("prose", makePlan(), bible);
+    expect(prompt).toContain("The hidden letter");
+    expect(prompt).toContain("The locked door");
+    expect(prompt).not.toContain("The broken clock");
+    expect(prompt).not.toContain("The red herring");
+  });
+
+  it("uses structured payoffsExecuted format instruction", () => {
+    const prompt = buildIRExtractionPrompt("prose", makePlan(), makeBible());
+    expect(prompt).toContain("<setup description from ACTIVE SETUPS>");
+    expect(prompt).toContain("<how it was paid off>");
+  });
 });
 
 describe("extractIR", () => {

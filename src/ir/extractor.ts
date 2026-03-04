@@ -18,9 +18,11 @@ export interface IRLLMClient {
 export function buildIRExtractionPrompt(prose: string, plan: ScenePlan, bible: Bible): string {
   const characterList = bible.characters.map((c) => `- ${c.name} (id: ${c.id}, role: ${c.role})`).join("\n");
 
+  const activeSetups = bible.narrativeRules.setups.filter((s) => s.status === "planned" || s.status === "planted");
+
   const setupList =
-    bible.narrativeRules.setups.length > 0
-      ? bible.narrativeRules.setups.map((s) => `- [${s.id}] ${s.description} (${s.status})`).join("\n")
+    activeSetups.length > 0
+      ? activeSetups.map((s) => `- [${s.id}] ${s.description} (${s.status})`).join("\n")
       : "(none registered)";
 
   return `SCENE PLAN:
@@ -33,6 +35,12 @@ ${characterList}
 
 ACTIVE SETUPS:
 ${setupList}
+
+PAYOFF MATCHING RULES:
+When a setup from ACTIVE SETUPS is paid off in this scene, reference it in
+payoffsExecuted using the setup's description verbatim as a prefix, followed
+by " — " and a brief note on how the payoff occurred. Only list payoffs for
+setups in the ACTIVE SETUPS list above.
 
 SCENE PROSE:
 ${prose}
@@ -56,7 +64,7 @@ Extract the narrative internal record for this scene. Return ONLY valid JSON in 
     }
   ],
   "setupsPlanted": ["description of each setup planted in this scene — quote from prose if possible"],
-  "payoffsExecuted": ["description of each setup paid off in this scene"],
+  "payoffsExecuted": ["<setup description from ACTIVE SETUPS> — <how it was paid off>"],
   "characterPositions": [
     { "characterId": "character name or id", "position": "physical/narrative position at scene end" }
   ],

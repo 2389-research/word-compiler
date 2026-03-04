@@ -82,4 +82,28 @@ describe("SetupPayoffPanel", () => {
     expect(screen.getByText(/resolved payoffs/i)).toBeTruthy();
     expect(screen.queryByText(/active setups/i)).toBeNull();
   });
+
+  it("matches payoffs via substring (setup text is substring of payoff)", () => {
+    const irs: Record<string, NarrativeIR> = {
+      "scene-1": makeIR("scene-1", { setupsPlanted: ["The locked drawer"] }),
+      "scene-2": makeIR("scene-2", { payoffsExecuted: ["The locked drawer was finally opened by Alice"] }),
+    };
+    const titles = { "scene-1": "Opening", "scene-2": "Climax" };
+    render(SetupPayoffPanel, { sceneIRs: irs, sceneTitles: titles, sceneOrders: { "scene-1": 0, "scene-2": 1 } });
+
+    expect(screen.getByText(/resolved payoffs/i)).toBeTruthy();
+    expect(screen.queryByText(/active setups/i)).toBeNull();
+  });
+
+  it("matches payoffs using dash-separator format", () => {
+    const irs: Record<string, NarrativeIR> = {
+      "scene-1": makeIR("scene-1", { setupsPlanted: ["The locked drawer"] }),
+      "scene-2": makeIR("scene-2", { payoffsExecuted: ["The locked drawer \u2014 Alice pried it open with a knife"] }),
+    };
+    const titles = { "scene-1": "Opening", "scene-2": "Climax" };
+    render(SetupPayoffPanel, { sceneIRs: irs, sceneTitles: titles, sceneOrders: { "scene-1": 0, "scene-2": 1 } });
+
+    expect(screen.getByText(/resolved payoffs/i)).toBeTruthy();
+    expect(screen.queryByText(/active setups/i)).toBeNull();
+  });
 });

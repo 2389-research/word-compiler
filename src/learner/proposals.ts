@@ -110,24 +110,26 @@ function applyStyleGuideProposal(bible: Bible, proposal: BibleProposal): void {
 }
 
 function applyCharacterProposal(bible: Bible, proposal: BibleProposal): void {
-  if (bible.characters.length > 0) {
-    const char = bible.characters[0]!;
-    if (!char.voice.vocabularyNotes) {
-      char.voice.vocabularyNotes = proposal.action.value;
-    } else {
-      char.voice.vocabularyNotes += `; ${proposal.action.value}`;
-    }
+  // Only apply when exactly 1 character exists (unambiguous target).
+  // With multiple characters we can't know which one the edits relate to.
+  if (bible.characters.length !== 1) return;
+  const char = bible.characters[0]!;
+  if (!char.voice.vocabularyNotes) {
+    char.voice.vocabularyNotes = proposal.action.value;
+  } else {
+    char.voice.vocabularyNotes += `; ${proposal.action.value}`;
   }
 }
 
 function applyLocationProposal(bible: Bible, proposal: BibleProposal): void {
-  if (bible.locations.length > 0) {
-    const loc = bible.locations[0]!;
-    if (!loc.sensoryPalette.atmosphere) {
-      loc.sensoryPalette.atmosphere = proposal.action.value;
-    } else {
-      loc.sensoryPalette.atmosphere += `; ${proposal.action.value}`;
-    }
+  // Only apply when exactly 1 location exists (unambiguous target).
+  // With multiple locations we can't know which one the edits relate to.
+  if (bible.locations.length !== 1) return;
+  const loc = bible.locations[0]!;
+  if (!loc.sensoryPalette.atmosphere) {
+    loc.sensoryPalette.atmosphere = proposal.action.value;
+  } else {
+    loc.sensoryPalette.atmosphere += `; ${proposal.action.value}`;
   }
 }
 
@@ -172,6 +174,9 @@ function resolveSection(target: string): BibleSection {
 }
 
 function buildTitle(group: PatternGroup): string {
+  if (group.advisory) {
+    return buildAdvisoryTitle(group);
+  }
   switch (group.patternType) {
     case "CUT_FILLER":
       return `Add "${group.key}" to avoid list`;
@@ -194,12 +199,36 @@ function buildTitle(group: PatternGroup): string {
   }
 }
 
+function buildAdvisoryTitle(group: PatternGroup): string {
+  switch (group.patternType) {
+    case "CUT_FILLER":
+      return "Frequent filler word cuts detected";
+    case "CUT_PASSAGE":
+      return "Frequent passage cuts detected";
+    case "SHOW_DONT_TELL":
+      return "Show-don't-tell revisions detected";
+    case "SENSORY_ADDED":
+      return "Frequent sensory detail additions";
+    case "BEAT_ADDED":
+      return "Frequent action beat additions";
+    case "TONE_SHIFT":
+      return "Frequent tone adjustments detected";
+    case "DIALOGUE_VOICE":
+      return "Frequent dialogue revisions detected";
+    case "REORDER":
+      return "Frequent sentence reordering detected";
+    default:
+      return `Editing pattern: ${group.patternType}`;
+  }
+}
+
 function buildDescription(group: PatternGroup): string {
   const sceneIds = new Set(group.edits.map((e) => e.sceneId));
-  return (
-    `Based on ${Math.round(group.weightedCount)} edits across ${sceneIds.size} scene${sceneIds.size > 1 ? "s" : ""}. ` +
-    `Confidence: ${Math.round(group.confidence * 100)}%.`
-  );
+  const base = `Based on ${Math.round(group.weightedCount)} edits across ${sceneIds.size} scene${sceneIds.size > 1 ? "s" : ""}.`;
+  if (group.advisory) {
+    return `${base} This is a broad editing trend — consider adjusting your bible or style guide to address it.`;
+  }
+  return `${base} Confidence: ${Math.round(group.confidence * 100)}%.`;
 }
 
 function truncate(s: string, max: number): string {

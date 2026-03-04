@@ -229,7 +229,7 @@ export function diffSentences(originalSentences: string[], editedSentences: stri
 
 // ─── Edit Classification ─────────────────────────
 
-const SENSORY_WORDS = new Set([
+export const SENSORY_WORDS = new Set([
   "smell",
   "scent",
   "aroma",
@@ -266,12 +266,12 @@ const SENSORY_WORDS = new Set([
   "bright",
 ]);
 
-const BEAT_PATTERNS = [
+export const BEAT_PATTERNS = [
   /\b(shrugged|nodded|sighed|smiled|frowned|winced|shook|leaned|shifted|crossed|uncrossed|folded|rubbed|tapped|drummed|clenched|relaxed)\b/i,
   /\b(hands|fingers|eyes|jaw|shoulders|arms|legs|feet|brow|lips)\b.*\b(moved|tightened|softened|dropped|rose|lifted|fell)\b/i,
 ];
 
-const ABSTRACT_INDICATORS = [
+export const ABSTRACT_INDICATORS = [
   /\bfelt (a sense of|an overwhelming|a deep|the weight of)\b/i,
   /\bwas (happy|sad|angry|afraid|nervous|excited|overwhelmed)\b/i,
   /\b(realized|understood|knew) that\b/i,
