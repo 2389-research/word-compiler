@@ -1,5 +1,6 @@
 import { lintPayload } from "../linter/index.js";
 import { countTokens } from "../tokens/index.js";
+import type { VoiceGuide } from "../profile/types.js";
 import type {
   Bible,
   ChapterArc,
@@ -32,11 +33,12 @@ export function compilePayload(
   chapterArc?: ChapterArc,
   previousSceneLastChunk?: Chunk,
   previousSceneIRs?: NarrativeIR[],
+  voiceGuide?: VoiceGuide,
 ): CompileResult {
   const irList = previousSceneIRs ?? [];
 
   // 1. Build rings
-  const ring1Result = buildRing1(bible, config);
+  const ring1Result = buildRing1(bible, config, voiceGuide);
   const ring2Result: Ring2Result | null = chapterArc ? buildRing2(chapterArc, bible, irList, config) : null;
   // Pass the last verified IR as the previous-scene IR for Part B bridge
   const lastVerifiedIR = [...irList].reverse().find((ir) => ir.verified);

@@ -1,4 +1,5 @@
 import { fetchModels } from "../../llm/client.js";
+import type { VoiceGuide } from "../../profile/types.js";
 import type { EditorialAnnotation } from "../../review/types.js";
 import type {
   AuditFlag,
@@ -35,6 +36,7 @@ export class ProjectStore {
   editorialAnnotations = $state<Record<string, Map<number, EditorialAnnotation[]>>>({});
   bible = $state<Bible | null>(null);
   bibleVersions = $state<Array<{ version: number; createdAt: string }>>([]);
+  voiceGuide = $state<VoiceGuide | null>(null);
 
   // ─── Config ────────────────────────────────────
   compilationConfig = $state<CompilationConfig>(createDefaultCompilationConfig());
@@ -128,6 +130,10 @@ export class ProjectStore {
 
   setBibleVersions(versions: Array<{ version: number; createdAt: string }>) {
     this.bibleVersions = versions;
+  }
+
+  setVoiceGuide(guide: VoiceGuide | null) {
+    this.voiceGuide = guide;
   }
 
   setChapterArc(arc: ChapterArc | null) {
@@ -343,6 +349,7 @@ export class ProjectStore {
     sceneChunks: Record<string, Chunk[]>;
     sceneIRs: Record<string, NarrativeIR>;
     bibleVersions: Array<{ version: number; createdAt: string }>;
+    voiceGuide: VoiceGuide | null;
   }) {
     this.project = data.project;
     this.bible = data.bible;
@@ -351,6 +358,7 @@ export class ProjectStore {
     this.sceneChunks = data.sceneChunks;
     this.sceneIRs = data.sceneIRs;
     this.bibleVersions = data.bibleVersions;
+    this.voiceGuide = data.voiceGuide;
     this.error = null;
   }
 
@@ -358,6 +366,7 @@ export class ProjectStore {
     this.project = null;
     this.bible = null;
     this.bibleVersions = [];
+    this.voiceGuide = null;
     this.chapterArc = null;
     this.scenes = [];
     this.activeSceneIndex = 0;

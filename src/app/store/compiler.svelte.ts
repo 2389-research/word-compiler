@@ -30,6 +30,7 @@ export function setupCompilerEffect(store: ProjectStore): void {
         store.chapterArc ?? undefined,
         store.previousSceneLastChunk ?? undefined,
         store.previousSceneIRs,
+        store.voiceGuide ?? undefined,
       );
       store.setCompiled(result.payload, result.log, result.lintResult);
     } catch (err) {
