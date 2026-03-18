@@ -105,6 +105,8 @@ The instruction should:
 - Be written as direct commands ("Write with measured warmth...", "Avoid melodrama...", "When describing emotion, ground it in physical detail...")
 - Capture the 3-4 most distinctive positive patterns from the guide
 - Capture the 2-3 strongest avoidance patterns
+- Calibrate the register: specify the author's diction level explicitly. If the author writes at a conversational-professional register (plain syntax, occasional informal phrasing, no literary flourishes or aphoristic closings), say so directly — e.g. "Write at a conversational register — the prose should read like a smart person talking to peers, not like a writer performing craft."
+- Include at least one directive about register/diction level, not just content patterns
 - Be specific to THIS author, not generic writing advice
 - Be concise — every token counts in a system message
 
