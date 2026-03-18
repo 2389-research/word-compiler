@@ -242,12 +242,12 @@ export function createWritingSample(filename: string | null, domain: string, tex
 
 export function createDefaultPipelineConfig(): PipelineConfig {
   return {
-    stage1ChunkModel: "claude-haiku-4-5-20250514",
-    stage2DocumentModel: "claude-haiku-4-5-20250514",
-    stage3ClusterModel: "claude-sonnet-4-5-20250514",
-    stage4FilterModel: "claude-sonnet-4-5-20250514",
-    stage5GuideModel: "claude-sonnet-4-5-20250514",
-    deltaUpdateModel: "claude-sonnet-4-5-20250514",
+    stage1ChunkModel: "claude-haiku-4-5-20251001",
+    stage2DocumentModel: "claude-haiku-4-5-20251001",
+    stage3ClusterModel: "claude-sonnet-4-5-20250929",
+    stage4FilterModel: "claude-sonnet-4-5-20250929",
+    stage5GuideModel: "claude-sonnet-4-5-20250929",
+    deltaUpdateModel: "claude-sonnet-4-5-20250929",
     chunkTargetTokens: 10000,
     chunkOverlapTokens: 1000,
     minChunkTokens: 100,

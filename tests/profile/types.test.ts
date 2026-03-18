@@ -81,16 +81,16 @@ describe("createWritingSample", () => {
 describe("createDefaultPipelineConfig", () => {
   it("uses haiku for stage 1 and 2 models", () => {
     const config = createDefaultPipelineConfig();
-    expect(config.stage1ChunkModel).toBe("claude-haiku-4-5-20250514");
-    expect(config.stage2DocumentModel).toBe("claude-haiku-4-5-20250514");
+    expect(config.stage1ChunkModel).toBe("claude-haiku-4-5-20251001");
+    expect(config.stage2DocumentModel).toBe("claude-haiku-4-5-20251001");
   });
 
   it("uses sonnet for stage 3-5 and delta models", () => {
     const config = createDefaultPipelineConfig();
-    expect(config.stage3ClusterModel).toBe("claude-sonnet-4-5-20250514");
-    expect(config.stage4FilterModel).toBe("claude-sonnet-4-5-20250514");
-    expect(config.stage5GuideModel).toBe("claude-sonnet-4-5-20250514");
-    expect(config.deltaUpdateModel).toBe("claude-sonnet-4-5-20250514");
+    expect(config.stage3ClusterModel).toBe("claude-sonnet-4-5-20250929");
+    expect(config.stage4FilterModel).toBe("claude-sonnet-4-5-20250929");
+    expect(config.stage5GuideModel).toBe("claude-sonnet-4-5-20250929");
+    expect(config.deltaUpdateModel).toBe("claude-sonnet-4-5-20250929");
   });
 
   it("returns correct chunking defaults", () => {
