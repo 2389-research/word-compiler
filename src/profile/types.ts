@@ -42,7 +42,7 @@ export interface ChunkAnalysisResponse {
   violationTest: string;
   avoidancePatterns: string[];
   domainAgnosticFeatures: string[];
-  contentDriftWarning: boolean;
+  contentDriftScore: number;
   contentDriftNote: string | null;
 }
 

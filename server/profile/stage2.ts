@@ -54,10 +54,10 @@ const DOCUMENT_SYNTHESIS_SCHEMA: Record<string, unknown> = {
   ],
 };
 
-export function computeDriftRatio(analyses: Pick<ChunkAnalysis, "contentDriftWarning">[]): number {
+export function computeDriftRatio(analyses: Pick<ChunkAnalysis, "contentDriftScore">[]): number {
   if (analyses.length === 0) return 0;
-  const drifted = analyses.filter((a) => a.contentDriftWarning).length;
-  return drifted / analyses.length;
+  const totalScore = analyses.reduce((sum, a) => sum + a.contentDriftScore, 0);
+  return totalScore / analyses.length;
 }
 
 export async function synthesizeDocument(
@@ -66,7 +66,7 @@ export async function synthesizeDocument(
   config: PipelineConfig,
   client: Anthropic,
 ): Promise<DocumentAnalysis> {
-  const driftedChunks = chunkAnalyses.filter((a) => a.contentDriftWarning).map((a) => a.chunkIndex);
+  const driftedChunks = chunkAnalyses.filter((a) => a.contentDriftScore >= config.driftDownweightThreshold).map((a) => a.chunkIndex);
   const driftRatio = computeDriftRatio(chunkAnalyses);
 
   if (driftRatio > config.driftExclusionThreshold) {

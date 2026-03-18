@@ -15,7 +15,7 @@ const CHUNK_ANALYSIS_SCHEMA: Record<string, unknown> = {
     violationTest: { type: "string" },
     avoidancePatterns: { type: "array", items: { type: "string" } },
     domainAgnosticFeatures: { type: "array", items: { type: "string" } },
-    contentDriftWarning: { type: "boolean" },
+    contentDriftScore: { type: "number", description: "Content drift from 0.0 (pure author voice) to 1.0 (entirely non-author content)" },
     contentDriftNote: { type: ["string", "null"] },
   },
   required: [
@@ -28,7 +28,7 @@ const CHUNK_ANALYSIS_SCHEMA: Record<string, unknown> = {
     "violationTest",
     "avoidancePatterns",
     "domainAgnosticFeatures",
-    "contentDriftWarning",
+    "contentDriftScore",
     "contentDriftNote",
   ],
 };

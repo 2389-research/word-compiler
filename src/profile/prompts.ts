@@ -54,7 +54,12 @@ ${chunk.overlapNext}
 Rules:
 - Use paraphrased evidence only — never quote directly.
 - Focus on craft choices: sentence rhythm, complexity handling, emotional strategy, voice personality.
-- If this chunk appears to drift into a different writer's voice or a different style (e.g., quoted material, embedded documents), flag contentDriftWarning = true and explain in contentDriftNote.
+- Rate how much this chunk drifts from the author's own voice using contentDriftScore (0.0 to 1.0):
+  * 0.0 = pure author voice, no drift
+  * 0.1-0.3 = mostly author voice with CMS boilerplate, brief embedded quotes, photo credits, structural elements, or minor non-author content
+  * 0.4-0.6 = significant mixed content — extended quotes, embedded documents, or substantial non-author material alongside author voice
+  * 0.7-0.9 = predominantly non-author content with some author framing
+  * 1.0 = entirely non-author content (e.g., a fully quoted press release or republished document)
 - Identify features that would transfer across domains (domain-agnostic features).
 
 Return a JSON object with these fields:
@@ -67,8 +72,8 @@ Return a JSON object with these fields:
 - violationTest: string — What would feel WRONG if you changed it? What is the writer's signature?
 - avoidancePatterns: string[] — What does this writer conspicuously avoid or refuse to do?
 - domainAgnosticFeatures: string[] — Style features that would transfer to any genre or format.
-- contentDriftWarning: boolean — True if this chunk contains material that is NOT the writer's own voice.
-- contentDriftNote: string | null — If contentDriftWarning is true, explain what drifted and why.`);
+- contentDriftScore: number — Rate content drift from 0.0 (pure author voice) to 1.0 (entirely non-author content). CMS boilerplate, brief embedded quotes, and structural elements in an otherwise author-voiced piece should score 0.1-0.3, not 1.0.
+- contentDriftNote: string | null — If contentDriftScore > 0.0, explain what non-author content is present and why you scored it as you did.`);
 
   return parts.join("\n\n");
 }

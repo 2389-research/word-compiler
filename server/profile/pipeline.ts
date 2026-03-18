@@ -22,11 +22,11 @@ export async function runPipeline(
     const chunks = chunkDocument(sample, config);
     console.log(`[profile] Stage 1: analyzing ${chunks.length} chunks for "${sample.filename ?? sample.id}" (${sample.wordCount} words)`);
     const analyses = await analyzeChunks(sample.id, chunks, config, client);
-    const driftCount = analyses.filter((a) => a.contentDriftWarning).length;
-    console.log(`[profile] Stage 1 done: ${analyses.length} chunks analyzed, ${driftCount} flagged for content drift`);
+    const highDriftCount = analyses.filter((a) => a.contentDriftScore >= 0.5).length;
+    console.log(`[profile] Stage 1 done: ${analyses.length} chunks analyzed, ${highDriftCount} with drift score >= 0.5`);
     for (const a of analyses) {
-      if (a.contentDriftWarning) {
-        console.log(`[profile]   chunk ${a.chunkIndex} drift: ${a.contentDriftNote ?? "no note"}`);
+      if (a.contentDriftScore > 0) {
+        console.log(`[profile]   chunk ${a.chunkIndex} drift=${a.contentDriftScore.toFixed(2)}: ${a.contentDriftNote ?? "no note"}`);
       }
     }
     chunkAnalysesPerDoc.push({ sample, analyses });
