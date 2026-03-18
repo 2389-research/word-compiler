@@ -1,4 +1,5 @@
 import { countTokens, truncateToTokens } from "../tokens/index.js";
+import type { VoiceGuide } from "../profile/types.js";
 import type { Bible, CompilationConfig, Ring1Result, RingSection } from "../types/index.js";
 
 function buildMetaphorSection(bible: Bible): RingSection | null {
@@ -144,7 +145,7 @@ function buildNarrativeRulesSection(bible: Bible): RingSection {
   };
 }
 
-export function buildRing1(bible: Bible, config: CompilationConfig): Ring1Result {
+export function buildRing1(bible: Bible, config: CompilationConfig, voiceGuide?: VoiceGuide): Ring1Result {
   // Header (immune, always first)
   const header: RingSection = {
     name: "HEADER",
@@ -167,16 +168,28 @@ export function buildRing1(bible: Bible, config: CompilationConfig): Ring1Result
     buildNarrativeRulesSection(bible),
   ];
 
+  if (voiceGuide?.ring1Injection) {
+    candidateSections.push({
+      name: "AUTHOR_VOICE",
+      text: `=== AUTHOR VOICE ===\n${voiceGuide.ring1Injection}`,
+      priority: 1,
+      immune: false,
+    });
+  }
+
   const sections = candidateSections.filter((s): s is RingSection => s !== null);
 
   // Assemble
   let text = sections.map((s) => s.text).join("\n\n");
 
   // Hard cap enforcement
+  const effectiveCap = voiceGuide?.ring1Injection
+    ? config.ring1HardCap + countTokens(voiceGuide.ring1Injection) + 20
+    : config.ring1HardCap;
   let wasTruncated = false;
   const tokens = countTokens(text);
-  if (tokens > config.ring1HardCap) {
-    text = truncateToTokens(text, config.ring1HardCap);
+  if (tokens > effectiveCap) {
+    text = truncateToTokens(text, effectiveCap);
     wasTruncated = true;
   }
 

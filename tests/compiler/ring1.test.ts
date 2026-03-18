@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildRing1 } from "../../src/compiler/ring1.js";
+import { type VoiceGuide, createEmptyVoiceGuide } from "../../src/profile/types.js";
 import {
   type Bible,
   type CompilationConfig,
@@ -208,6 +209,57 @@ describe("buildRing1", () => {
     expect(povSection!.text).toContain("unreliable");
     expect(povSection!.text).toContain("paranoid narrator");
     expect(povSection!.immune).toBe(true);
+  });
+
+  it("without voice guide works as before (no regression)", () => {
+    const result = buildRing1(makeBible(), makeConfig());
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("AUTHOR_VOICE");
+    expect(result.sections).toHaveLength(3); // HEADER + POV + NARRATIVE_RULES
+  });
+
+  it("with voice guide includes AUTHOR_VOICE section", () => {
+    const guide: VoiceGuide = {
+      ...createEmptyVoiceGuide(),
+      ring1Injection: "Write with short declarative sentences. Favor concrete nouns over abstractions.",
+    };
+    const result = buildRing1(makeBible(), makeConfig(), guide);
+    const authorVoice = result.sections.find((s) => s.name === "AUTHOR_VOICE");
+    expect(authorVoice).toBeDefined();
+    expect(authorVoice!.text).toContain("=== AUTHOR VOICE ===");
+    expect(authorVoice!.text).toContain("short declarative sentences");
+  });
+
+  it("AUTHOR_VOICE has priority 1 and is not immune", () => {
+    const guide: VoiceGuide = {
+      ...createEmptyVoiceGuide(),
+      ring1Injection: "Test injection text.",
+    };
+    const result = buildRing1(makeBible(), makeConfig(), guide);
+    const authorVoice = result.sections.find((s) => s.name === "AUTHOR_VOICE");
+    expect(authorVoice).toBeDefined();
+    expect(authorVoice!.priority).toBe(1);
+    expect(authorVoice!.immune).toBe(false);
+  });
+
+  it("empty ring1Injection does not add AUTHOR_VOICE section", () => {
+    const guide: VoiceGuide = {
+      ...createEmptyVoiceGuide(),
+      ring1Injection: "",
+    };
+    const result = buildRing1(makeBible(), makeConfig(), guide);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("AUTHOR_VOICE");
+  });
+
+  it("tokenCount is larger when voice guide is present", () => {
+    const guide: VoiceGuide = {
+      ...createEmptyVoiceGuide(),
+      ring1Injection: "Write with short declarative sentences. Favor concrete nouns over abstractions. Avoid adverbs.",
+    };
+    const withoutGuide = buildRing1(makeBible(), makeConfig());
+    const withGuide = buildRing1(makeBible(), makeConfig(), guide);
+    expect(withGuide.tokenCount).toBeGreaterThan(withoutGuide.tokenCount);
   });
 
   it("immune sections have priority 0", () => {
