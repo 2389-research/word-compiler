@@ -95,7 +95,12 @@ export async function synthesizeDocument(
   );
 
   return {
-    ...response,
+    consistentFeatures: response.consistentFeatures ?? [],
+    variableFeatures: response.variableFeatures ?? [],
+    dominantVoiceMarkers: response.dominantVoiceMarkers ?? [],
+    structuralPatterns: response.structuralPatterns ?? [],
+    avoidancePatterns: response.avoidancePatterns ?? [],
+    rawSummary: response.rawSummary ?? "",
     documentId: sample.id,
     chunkCount: chunkAnalyses.length,
     driftedChunks,

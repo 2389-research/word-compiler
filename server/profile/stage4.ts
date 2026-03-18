@@ -63,6 +63,7 @@ export async function filterFeatures(
     "domain_filter",
   );
 
+  if (!result.filteredFeatures) result.filteredFeatures = [];
   const keep = result.filteredFeatures.filter((f) => f.domainFilterDecision === "keep").length;
   const filter = result.filteredFeatures.filter((f) => f.domainFilterDecision === "filter").length;
   const shed = result.filteredFeatures.filter((f) => f.domainFilterDecision === "flag_for_shedding").length;

@@ -97,9 +97,15 @@ export async function clusterDocuments(
     "cross_document_clustering",
   );
 
+  console.log(`[stage3] Raw result keys: ${Object.keys(result).join(", ")}`);
   console.log(
-    `[stage3] Found ${result.stableFeatures.length} stable features, ${result.domainArtifacts.length} domain artifacts`,
+    `[stage3] Found ${result.stableFeatures?.length ?? 0} stable features, ${result.formatVariantFeatures?.length ?? 0} format variants, ${result.domainArtifacts?.length ?? 0} domain artifacts`,
   );
+
+  // Defensive: ensure arrays exist even if LLM omitted them
+  if (!result.stableFeatures) result.stableFeatures = [];
+  if (!result.formatVariantFeatures) result.formatVariantFeatures = [];
+  if (!result.domainArtifacts) result.domainArtifacts = [];
 
   return result;
 }

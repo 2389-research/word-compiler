@@ -37,7 +37,7 @@ export async function runPipeline(
   for (const { sample, analyses } of chunkAnalysesPerDoc) {
     console.log(`[profile] Stage 2: synthesizing "${sample.filename ?? sample.id}"`);
     const docAnalysis = await synthesizeDocument(sample, analyses, config, client);
-    console.log(`[profile] Stage 2 done: driftRatio=${docAnalysis.driftRatio.toFixed(2)}, ${docAnalysis.consistentFeatures.length} consistent features, ${docAnalysis.avoidancePatterns.length} avoidance patterns`);
+    console.log(`[profile] Stage 2 done: driftRatio=${docAnalysis.driftRatio.toFixed(2)}, ${docAnalysis.consistentFeatures?.length ?? 0} consistent features, ${docAnalysis.avoidancePatterns?.length ?? 0} avoidance patterns`);
     docAnalyses.push(docAnalysis);
   }
 
