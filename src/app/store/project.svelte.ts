@@ -37,6 +37,7 @@ export class ProjectStore {
   bible = $state<Bible | null>(null);
   bibleVersions = $state<Array<{ version: number; createdAt: string }>>([]);
   voiceGuide = $state<VoiceGuide | null>(null);
+  projectVoiceGuide = $state<VoiceGuide | null>(null);
 
   // ─── Config ────────────────────────────────────
   compilationConfig = $state<CompilationConfig>(createDefaultCompilationConfig());
@@ -134,6 +135,10 @@ export class ProjectStore {
 
   setVoiceGuide(guide: VoiceGuide | null) {
     this.voiceGuide = guide;
+  }
+
+  setProjectVoiceGuide(guide: VoiceGuide | null) {
+    this.projectVoiceGuide = guide;
   }
 
   setChapterArc(arc: ChapterArc | null) {
@@ -350,6 +355,7 @@ export class ProjectStore {
     sceneIRs: Record<string, NarrativeIR>;
     bibleVersions: Array<{ version: number; createdAt: string }>;
     voiceGuide: VoiceGuide | null;
+    projectVoiceGuide?: VoiceGuide | null;
   }) {
     this.project = data.project;
     this.bible = data.bible;
@@ -359,6 +365,7 @@ export class ProjectStore {
     this.sceneIRs = data.sceneIRs;
     this.bibleVersions = data.bibleVersions;
     this.voiceGuide = data.voiceGuide;
+    this.projectVoiceGuide = data.projectVoiceGuide ?? null;
     this.error = null;
   }
 
@@ -367,6 +374,7 @@ export class ProjectStore {
     this.bible = null;
     this.bibleVersions = [];
     this.voiceGuide = null;
+    this.projectVoiceGuide = null;
     this.chapterArc = null;
     this.scenes = [];
     this.activeSceneIndex = 0;

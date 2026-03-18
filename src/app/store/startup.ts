@@ -72,6 +72,14 @@ export async function loadProject(store: ProjectStore, projectId: string): Promi
       // No voice guide yet — that's fine
     }
 
+    // Fetch project-level voice guide (may not exist)
+    let projectVoiceGuide = null;
+    try {
+      projectVoiceGuide = await api.apiGetProjectVoiceGuide(projectId);
+    } catch {
+      // No project voice guide yet — that's fine
+    }
+
     store.loadFromServer({
       project,
       bible,
@@ -81,6 +89,7 @@ export async function loadProject(store: ProjectStore, projectId: string): Promi
       sceneIRs,
       bibleVersions,
       voiceGuide,
+      projectVoiceGuide,
     });
 
     return "loaded";

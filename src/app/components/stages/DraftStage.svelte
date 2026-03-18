@@ -16,8 +16,10 @@ import {
   SUGGESTION_REQUEST_SCHEMA,
   trimSuggestionOverlap,
 } from "../../../review/index.js";
+import { shouldTriggerCipher } from "../../../profile/editFilter.js";
 import type { Chunk, NarrativeIR, StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
 import { getCanonicalText } from "../../../types/index.js";
+import { apiStoreSignificantEdit, apiFireBatchCipher } from "../../../api/client.js";
 import { Tabs } from "../../primitives/index.js";
 import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
@@ -395,6 +397,28 @@ function handleUpdateChunk(index: number, changes: Partial<Chunk>) {
       setTimeout(() => {
         commands.persistChunk(sceneId, index);
         editDebounceTimers.delete(key);
+
+        // After persistChunk, track significant edits for CIPHER
+        const chunk = store.activeSceneChunks[index];
+        if (chunk?.generatedText && chunk.editedText && store.project) {
+          if (shouldTriggerCipher(chunk.generatedText, chunk.editedText)) {
+            apiStoreSignificantEdit(
+              store.project.id,
+              chunk.id,
+              chunk.generatedText,
+              chunk.editedText,
+            )
+              .then((count) => {
+                if (count >= 10) {
+                  console.log(`[cipher] ${count} significant edits — triggering batch CIPHER`);
+                  apiFireBatchCipher(store.project!.id).catch((err) =>
+                    console.warn("[cipher] Batch inference failed:", err),
+                  );
+                }
+              })
+              .catch((err) => console.warn("[cipher] Edit tracking failed:", err));
+          }
+        }
       }, 500),
     );
   } else {

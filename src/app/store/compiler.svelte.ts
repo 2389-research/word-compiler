@@ -1,4 +1,5 @@
 import { compilePayload } from "../../compiler/assembler.js";
+import type { VoiceGuide } from "../../profile/types.js";
 import type { ProjectStore } from "./project.svelte.js";
 
 /**
@@ -21,6 +22,24 @@ export function setupCompilerEffect(store: ProjectStore): void {
 
     try {
       const nextChunkNumber = store.activeSceneChunks.length;
+
+      // Combine author-level and project-level voice guides
+      let effectiveGuide: VoiceGuide | undefined = store.voiceGuide ?? undefined;
+      if (effectiveGuide && store.projectVoiceGuide?.ring1Injection) {
+        effectiveGuide = {
+          ...effectiveGuide,
+          ring1Injection:
+            effectiveGuide.ring1Injection +
+            "\n\n=== PROJECT-SPECIFIC VOICE ===\n" +
+            store.projectVoiceGuide.ring1Injection,
+        };
+      }
+      if (!effectiveGuide && store.projectVoiceGuide?.ring1Injection) {
+        effectiveGuide = {
+          ...store.projectVoiceGuide,
+        };
+      }
+
       const result = compilePayload(
         bible,
         plan,
@@ -30,7 +49,7 @@ export function setupCompilerEffect(store: ProjectStore): void {
         store.chapterArc ?? undefined,
         store.previousSceneLastChunk ?? undefined,
         store.previousSceneIRs,
-        store.voiceGuide ?? undefined,
+        effectiveGuide,
       );
       store.setCompiled(result.payload, result.log, result.lintResult);
     } catch (err) {

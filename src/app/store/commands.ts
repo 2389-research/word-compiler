@@ -1,6 +1,7 @@
 import { checkAuditResolutionGate, checkSceneCompletionGate } from "../../gates/index.js";
 import { buildContinuousText, findChunksForRange } from "../../review/refine.js";
 import type { ChunkBoundary } from "../../review/refineTypes.js";
+import { apiUpdateProjectVoiceGuide } from "../../api/client.js";
 import type { AuditFlag, Bible, ChapterArc, Chunk, CompilationLog, NarrativeIR, ScenePlan } from "../../types/index.js";
 import { getCanonicalText } from "../../types/index.js";
 import type { ApiActions } from "./api-actions.js";
@@ -205,6 +206,23 @@ export function createCommands(store: ProjectStore, actions?: ApiActions) {
       } else {
         store.completeScene(sceneId);
       }
+
+      // After successful scene completion, update project voice guide
+      const sceneChunks = store.sceneChunks[sceneId] ?? [];
+      const sceneText = sceneChunks
+        .map((c) => getCanonicalText(c))
+        .filter((t) => t.trim())
+        .join("\n\n");
+
+      if (sceneText.trim() && store.project) {
+        apiUpdateProjectVoiceGuide(store.project.id, sceneId, sceneText)
+          .then((guide) => {
+            store.setProjectVoiceGuide(guide);
+            console.log(`[profile] Project voice guide updated to v${guide.version}`);
+          })
+          .catch((err) => console.warn("[profile] Project guide update failed:", err));
+      }
+
       return success();
     } catch (err) {
       return failure(handleError(err));
