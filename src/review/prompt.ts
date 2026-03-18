@@ -143,6 +143,11 @@ function subtextSection(context: ReviewContext): string | null {
   return `SUBTEXT POLICY: ${context.subtextPolicy}`;
 }
 
+function editingInstructionsSection(context: ReviewContext): string | null {
+  if (!context.editingInstructions) return null;
+  return `=== AUTHOR VOICE — EDITING CHECKLIST ===\n${context.editingInstructions}`;
+}
+
 // ─── Main Builder ───────────────────────────────
 
 export function buildReviewSystemPrompt(context: ReviewContext): string {
@@ -158,6 +163,7 @@ export function buildReviewSystemPrompt(context: ReviewContext): string {
     povSection(context),
     voicesSection(context),
     subtextSection(context),
+    editingInstructionsSection(context),
     ANCHOR_INSTRUCTIONS,
     SUGGESTION_INSTRUCTIONS,
     EXCLUSION_INSTRUCTIONS,
@@ -207,6 +213,7 @@ export function buildSuggestionRequestPrompt(
     povSection(context),
     voicesSection(context),
     subtextSection(context),
+    editingInstructionsSection(context),
   ].filter((s): s is string => s !== null);
 
   const systemPrompt = systemSections.join("\n\n");

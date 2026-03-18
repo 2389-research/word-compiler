@@ -2,7 +2,11 @@ import type { Bible } from "../types/bible.js";
 import type { ScenePlan } from "../types/scene.js";
 import type { ReviewContext } from "./types.js";
 
-export function buildReviewContext(bible: Bible, scenePlan: ScenePlan): ReviewContext {
+export function buildReviewContext(
+  bible: Bible,
+  scenePlan: ScenePlan,
+  editingInstructions?: string,
+): ReviewContext {
   const presentIds = new Set(scenePlan.presentCharacterIds ?? []);
   const povId = scenePlan.povCharacterId || null;
 
@@ -38,6 +42,7 @@ export function buildReviewContext(bible: Bible, scenePlan: ScenePlan): ReviewCo
     activeVoices,
     povRules,
     subtextPolicy: bible.narrativeRules.subtextPolicy ?? "",
+    editingInstructions: editingInstructions ?? "",
   };
 }
 

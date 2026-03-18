@@ -121,12 +121,13 @@ $effect(() => {
   dismissed = loadDismissed();
 });
 
-// Recreate orchestrator when bible, scene, or version changes
+// Recreate orchestrator when bible, scene, voice guide, or version changes
 $effect(() => {
   // Read dependencies explicitly
   const bible = store.bible;
   const scenePlan = store.activeScenePlan;
   const _version = orchestratorVersion;
+  const _voiceGuide = store.voiceGuide;
 
   // Cleanup previous orchestrator — untrack to avoid read→write loop
   untrack(() => {
@@ -170,6 +171,7 @@ $effect(() => {
     (reviewing) => {
       reviewingChunks = reviewing;
     },
+    store.voiceGuide?.editingInstructions || undefined,
   );
 });
 
@@ -267,7 +269,7 @@ async function handleRequestSuggestion(annotationId: string, feedback: string): 
   const chunk = chunks[targetChunkIndex];
   if (!chunk || !store.bible || !store.activeScenePlan) return null;
   const chunkText = getCanonicalText(chunk);
-  const context = buildReviewContext(store.bible, store.activeScenePlan);
+  const context = buildReviewContext(store.bible, store.activeScenePlan, store.voiceGuide?.editingInstructions || undefined);
 
   // 3. Build prompt and call LLM
   const { systemPrompt, userPrompt } = buildSuggestionRequestPrompt(context, targetAnnotation, chunkText, feedback);

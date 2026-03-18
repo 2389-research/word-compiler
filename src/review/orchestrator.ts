@@ -28,6 +28,7 @@ export function createReviewOrchestrator(
   llmClient: LLMReviewClient,
   onAnnotationsChanged: (chunkIndex: number, anns: EditorialAnnotation[], reviewedText: string) => void,
   onReviewingChanged?: (reviewing: Set<number>) => void,
+  editingInstructions?: string,
 ): ReviewOrchestrator {
   const abortControllers = new Map<number, AbortController>();
   const annotations = new Map<number, EditorialAnnotation[]>();
@@ -44,7 +45,7 @@ export function createReviewOrchestrator(
     const toReview = force ? chunks : chunks.filter((c) => !lastReviewedText.has(c.index));
     if (toReview.length === 0) return;
 
-    const context = buildReviewContext(bible, scenePlan);
+    const context = buildReviewContext(bible, scenePlan, editingInstructions);
     const systemPrompt = buildReviewSystemPrompt(context);
 
     for (const chunk of toReview) {
