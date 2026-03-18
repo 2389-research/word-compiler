@@ -70,16 +70,23 @@ export async function clusterDocuments(
   config: PipelineConfig,
   client: Anthropic,
 ): Promise<CrossDocumentResult> {
-  const validDocs = docAnalyses.filter((doc) => doc.driftRatio <= config.driftExclusionThreshold);
+  // Try strict filtering first
+  let activeDocs = docAnalyses.filter((doc) => doc.driftRatio <= config.driftExclusionThreshold);
 
-  if (validDocs.length === 0) {
-    throw new Error(
-      `[stage3] All ${docAnalyses.length} documents exceeded drift exclusion threshold (${config.driftExclusionThreshold}). Cannot cluster.`,
+  if (activeDocs.length === 0) {
+    // Fallback: use ALL documents but log a warning. The drift threshold was too aggressive
+    // for this corpus — better to produce a lower-confidence guide than nothing.
+    console.warn(
+      `[stage3] All ${docAnalyses.length} documents exceeded drift threshold (${config.driftExclusionThreshold}). ` +
+        "Proceeding with all documents — results will have lower confidence.",
     );
+    activeDocs = docAnalyses;
   }
 
-  const docAnalysesJson = JSON.stringify(validDocs, null, 2);
-  const prompt = buildStage3Prompt(docAnalysesJson, validDocs.length);
+  console.log(`[stage3] Clustering ${activeDocs.length} documents (${docAnalyses.length - activeDocs.length} excluded by drift)`);
+
+  const docAnalysesJson = JSON.stringify(activeDocs, null, 2);
+  const prompt = buildStage3Prompt(docAnalysesJson, activeDocs.length);
 
   return structuredCall<CrossDocumentResult>(
     client,

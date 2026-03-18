@@ -20,16 +20,24 @@ export async function runPipeline(
   const chunkAnalysesPerDoc = [];
   for (const sample of samples) {
     const chunks = chunkDocument(sample, config);
-    console.log(`[profile] Stage 1: analyzing ${chunks.length} chunks for document ${sample.id}`);
+    console.log(`[profile] Stage 1: analyzing ${chunks.length} chunks for "${sample.filename ?? sample.id}" (${sample.wordCount} words)`);
     const analyses = await analyzeChunks(sample.id, chunks, config, client);
+    const driftCount = analyses.filter((a) => a.contentDriftWarning).length;
+    console.log(`[profile] Stage 1 done: ${analyses.length} chunks analyzed, ${driftCount} flagged for content drift`);
+    for (const a of analyses) {
+      if (a.contentDriftWarning) {
+        console.log(`[profile]   chunk ${a.chunkIndex} drift: ${a.contentDriftNote ?? "no note"}`);
+      }
+    }
     chunkAnalysesPerDoc.push({ sample, analyses });
   }
 
   // Stage 2: Synthesize each document
   const docAnalyses = [];
   for (const { sample, analyses } of chunkAnalysesPerDoc) {
-    console.log(`[profile] Stage 2: synthesizing document ${sample.id}`);
+    console.log(`[profile] Stage 2: synthesizing "${sample.filename ?? sample.id}"`);
     const docAnalysis = await synthesizeDocument(sample, analyses, config, client);
+    console.log(`[profile] Stage 2 done: driftRatio=${docAnalysis.driftRatio.toFixed(2)}, ${docAnalysis.consistentFeatures.length} consistent features, ${docAnalysis.avoidancePatterns.length} avoidance patterns`);
     docAnalyses.push(docAnalysis);
   }
 
