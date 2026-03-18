@@ -9,3 +9,4 @@ eval/runs/*.json
 storybook-static/
 test-results/
 playwright-report/
+.worktrees/
