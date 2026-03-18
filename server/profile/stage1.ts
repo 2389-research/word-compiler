@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { buildStage1Prompt, STAGE1_SYSTEM } from "../../src/profile/prompts.js";
 import type { ChunkAnalysis, ChunkAnalysisResponse, DocumentChunk, PipelineConfig } from "../../src/profile/types.js";
-import { STAGE1_SYSTEM, buildStage1Prompt } from "../../src/profile/prompts.js";
 import { parallelStructuredCalls } from "./llm.js";
 
 const CHUNK_ANALYSIS_SCHEMA: Record<string, unknown> = {
@@ -61,11 +61,7 @@ export async function analyzeChunks(
     schemaName: "chunk_analysis",
   }));
 
-  const responses = await parallelStructuredCalls<ChunkAnalysisResponse>(
-    calls,
-    client,
-    config.parallelChunkCalls,
-  );
+  const responses = await parallelStructuredCalls<ChunkAnalysisResponse>(calls, client, config.parallelChunkCalls);
 
   return responses.map((response, i) => ({
     ...response,

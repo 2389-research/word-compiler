@@ -1,5 +1,5 @@
-import type { DocumentChunk, PipelineConfig, WritingSample } from "./types.js";
 import { countTokens, lastNTokens, truncateToTokens } from "../tokens/index.js";
+import type { DocumentChunk, PipelineConfig, WritingSample } from "./types.js";
 
 const TRANSCRIPT_BLOCK_SIZE = 30;
 
@@ -40,6 +40,91 @@ export function splitSentences(text: string): string[] {
 }
 
 /**
+ * Split a long paragraph into sentence-based chunks that fit within the token target.
+ */
+function splitLongParagraph(para: string, targetTokens: number): string[] {
+  const result: string[] = [];
+  const sentences = splitSentences(para);
+  let sentBuf: string[] = [];
+  let sentTokens = 0;
+
+  for (const sent of sentences) {
+    const st = countTokens(sent);
+    if (sentTokens + st > targetTokens && sentBuf.length > 0) {
+      result.push(sentBuf.join(" "));
+      sentBuf = [];
+      sentTokens = 0;
+    }
+    sentBuf.push(sent);
+    sentTokens += st;
+  }
+  if (sentBuf.length > 0) {
+    result.push(sentBuf.join(" "));
+  }
+  return result;
+}
+
+/**
+ * Accumulate paragraphs into raw text chunks respecting the token target.
+ */
+function accumulateParagraphs(paragraphs: string[], targetTokens: number): string[] {
+  const rawChunks: string[] = [];
+  let current: string[] = [];
+  let currentTokens = 0;
+
+  for (const para of paragraphs) {
+    const paraTokens = countTokens(para);
+
+    // Single paragraph exceeds target — split on sentences
+    if (paraTokens > targetTokens) {
+      if (current.length > 0) {
+        rawChunks.push(current.join("\n\n"));
+        current = [];
+        currentTokens = 0;
+      }
+      rawChunks.push(...splitLongParagraph(para, targetTokens));
+      continue;
+    }
+
+    if (currentTokens + paraTokens > targetTokens && current.length > 0) {
+      rawChunks.push(current.join("\n\n"));
+      current = [];
+      currentTokens = 0;
+    }
+
+    current.push(para);
+    currentTokens += paraTokens;
+  }
+
+  if (current.length > 0) {
+    rawChunks.push(current.join("\n\n"));
+  }
+  return rawChunks;
+}
+
+/**
+ * Convert raw text chunks into DocumentChunk objects with overlap and position metadata.
+ */
+function buildChunkObjects(rawChunks: string[], overlapTokens: number): DocumentChunk[] {
+  const total = rawChunks.length;
+  return rawChunks.map((chunkText, i) => {
+    const isFirst = i === 0;
+    const isLast = i === total - 1;
+
+    return {
+      text: chunkText,
+      index: i,
+      total,
+      isFirst,
+      isLast,
+      overlapPrev: isFirst ? null : lastNTokens(rawChunks[i - 1]!, overlapTokens),
+      overlapNext: isLast ? null : truncateToTokens(rawChunks[i + 1]!, overlapTokens),
+      tokenCount: countTokens(chunkText),
+    };
+  });
+}
+
+/**
  * Split a writing sample into overlapping chunks for analysis.
  */
 export function chunkDocument(sample: WritingSample, config: PipelineConfig): DocumentChunk[] {
@@ -62,89 +147,7 @@ export function chunkDocument(sample: WritingSample, config: PipelineConfig): Do
     ];
   }
 
-  // Split into paragraphs and accumulate into chunks
   const paragraphs = splitParagraphs(text);
-  const rawChunks: string[] = [];
-  let current: string[] = [];
-  let currentTokens = 0;
-
-  for (const para of paragraphs) {
-    const paraTokens = countTokens(para);
-
-    // Single paragraph exceeds target — split on sentences
-    if (paraTokens > config.chunkTargetTokens) {
-      // Flush current accumulator first
-      if (current.length > 0) {
-        rawChunks.push(current.join("\n\n"));
-        current = [];
-        currentTokens = 0;
-      }
-
-      const sentences = splitSentences(para);
-      let sentBuf: string[] = [];
-      let sentTokens = 0;
-
-      for (const sent of sentences) {
-        const st = countTokens(sent);
-        if (sentTokens + st > config.chunkTargetTokens && sentBuf.length > 0) {
-          rawChunks.push(sentBuf.join(" "));
-          sentBuf = [];
-          sentTokens = 0;
-        }
-        sentBuf.push(sent);
-        sentTokens += st;
-      }
-      if (sentBuf.length > 0) {
-        rawChunks.push(sentBuf.join(" "));
-      }
-      continue;
-    }
-
-    if (currentTokens + paraTokens > config.chunkTargetTokens && current.length > 0) {
-      rawChunks.push(current.join("\n\n"));
-      current = [];
-      currentTokens = 0;
-    }
-
-    current.push(para);
-    currentTokens += paraTokens;
-  }
-
-  if (current.length > 0) {
-    rawChunks.push(current.join("\n\n"));
-  }
-
-  // Build DocumentChunk array with overlap and position metadata
-  const total = rawChunks.length;
-  const chunks: DocumentChunk[] = [];
-
-  for (let i = 0; i < total; i++) {
-    const chunkText = rawChunks[i]!;
-    const isFirst = i === 0;
-    const isLast = i === total - 1;
-
-    let overlapPrev: string | null = null;
-    let overlapNext: string | null = null;
-
-    if (!isFirst) {
-      overlapPrev = lastNTokens(rawChunks[i - 1]!, config.chunkOverlapTokens);
-    }
-
-    if (!isLast) {
-      overlapNext = truncateToTokens(rawChunks[i + 1]!, config.chunkOverlapTokens);
-    }
-
-    chunks.push({
-      text: chunkText,
-      index: i,
-      total,
-      isFirst,
-      isLast,
-      overlapPrev,
-      overlapNext,
-      tokenCount: countTokens(chunkText),
-    });
-  }
-
-  return chunks;
+  const rawChunks = accumulateParagraphs(paragraphs, config.chunkTargetTokens);
+  return buildChunkObjects(rawChunks, config.chunkOverlapTokens);
 }

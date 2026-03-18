@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { buildStage4Prompt, STAGE4_SYSTEM } from "../../src/profile/prompts.js";
 import type { CrossDocumentResult, FilterResponse, PipelineConfig } from "../../src/profile/types.js";
-import { STAGE4_SYSTEM, buildStage4Prompt } from "../../src/profile/prompts.js";
 import { structuredCall } from "./llm.js";
 
 const FILTER_RESPONSE_SCHEMA: Record<string, unknown> = {

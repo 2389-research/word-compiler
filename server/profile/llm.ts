@@ -40,12 +40,7 @@ export async function structuredCall<T>(
 /**
  * Make an LLM call expecting a plain text response.
  */
-export async function textCall(
-  client: Anthropic,
-  model: string,
-  system: string,
-  user: string,
-): Promise<string> {
+export async function textCall(client: Anthropic, model: string, system: string, user: string): Promise<string> {
   const response = await client.messages.create({
     model,
     max_tokens: DEFAULT_MAX_TOKENS,

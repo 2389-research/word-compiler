@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { buildDeltaUpdatePrompt, DELTA_SYSTEM } from "../../src/profile/prompts.js";
 import type {
   DeltaResponse,
   DocumentAnalysis,
@@ -7,7 +8,6 @@ import type {
   VoiceGuide,
   VoiceGuideVersion,
 } from "../../src/profile/types.js";
-import { DELTA_SYSTEM, buildDeltaUpdatePrompt } from "../../src/profile/prompts.js";
 import { structuredCall } from "./llm.js";
 
 // ─── Version Bumping ─────────────────────────────────────
@@ -70,60 +70,33 @@ function findFeatureByName(
 
 // ─── Apply Delta ─────────────────────────────────────────
 
-export function applyDelta(
-  guide: VoiceGuide,
-  delta: DeltaResponse,
-  newAnalyses: DocumentAnalysis[],
-  newDomain: string,
-  config: PipelineConfig,
-): VoiceGuide {
-  // 1. Deep clone
-  const updated = structuredClone(guide);
-
-  // 2. Confirmed features: upgrade confidence
+function applyConfirmed(guide: VoiceGuide, delta: DeltaResponse): void {
   for (const confirmed of delta.confirmed) {
-    const match = findFeatureByName(updated, confirmed.featureName);
+    const match = findFeatureByName(guide, confirmed.featureName);
     if (match) {
       match.feature.confidence = upgradeConfidence(match.feature.confidence);
     }
   }
+}
 
-  // 3. Contradicted features
-  let strongContradictions = 0;
+function applyContradictions(guide: VoiceGuide, delta: DeltaResponse): number {
+  let strongCount = 0;
   for (const contradicted of delta.contradicted) {
-    const match = findFeatureByName(updated, contradicted.featureName);
+    const match = findFeatureByName(guide, contradicted.featureName);
     if (contradicted.strength === "strong") {
-      strongContradictions++;
+      strongCount++;
       if (match) {
         match.feature.filterRationale += `[FLAGGED: strong contradiction — ${contradicted.evidence}]`;
       }
-    } else {
-      // weak: downgrade confidence
-      if (match) {
-        match.feature.confidence = downgradeConfidence(match.feature.confidence);
-      }
+    } else if (match) {
+      match.feature.confidence = downgradeConfidence(match.feature.confidence);
     }
   }
+  return strongCount;
+}
 
-  // 4. Bump version
-  const versionInput: VersionBumpInput = {
-    strongContradictions,
-    newFeatures: delta.newFeatures.length,
-    hasTransfer: delta.transferValidated.length > 0,
-    hasEvolution: delta.evolutionSignals !== null && delta.evolutionSignals !== "",
-  };
-  updated.version = bumpVersion(guide.version, versionInput, config);
-
-  // 5. Update corpus size
-  updated.corpusSize += newAnalyses.length;
-
-  // 6. Add new domain if not present
-  if (!updated.domainsRepresented.includes(newDomain)) {
-    updated.domainsRepresented.push(newDomain);
-  }
-
-  // 7. Append version history entry
-  const versionEntry: VoiceGuideVersion = {
+function buildVersionEntry(updated: VoiceGuide, delta: DeltaResponse): VoiceGuideVersion {
+  return {
     version: updated.version,
     updatedAt: new Date().toISOString(),
     changeReason: delta.evolutionSignals ?? "incremental update",
@@ -137,9 +110,35 @@ export function applyDelta(
     contradictedFeatures: delta.contradicted.map((c) => c.featureName),
     newFeatures: delta.newFeatures.map((f) => f.name),
   };
-  updated.versionHistory.push(versionEntry);
+}
 
-  // 8. Update timestamp
+export function applyDelta(
+  guide: VoiceGuide,
+  delta: DeltaResponse,
+  newAnalyses: DocumentAnalysis[],
+  newDomain: string,
+  config: PipelineConfig,
+): VoiceGuide {
+  const updated = structuredClone(guide);
+
+  applyConfirmed(updated, delta);
+  const strongContradictions = applyContradictions(updated, delta);
+
+  const versionInput: VersionBumpInput = {
+    strongContradictions,
+    newFeatures: delta.newFeatures.length,
+    hasTransfer: delta.transferValidated.length > 0,
+    hasEvolution: delta.evolutionSignals !== null && delta.evolutionSignals !== "",
+  };
+  updated.version = bumpVersion(guide.version, versionInput, config);
+
+  updated.corpusSize += newAnalyses.length;
+
+  if (!updated.domainsRepresented.includes(newDomain)) {
+    updated.domainsRepresented.push(newDomain);
+  }
+
+  updated.versionHistory.push(buildVersionEntry(updated, delta));
   updated.updatedAt = new Date().toISOString();
 
   return updated;

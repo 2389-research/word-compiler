@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import type { PipelineConfig, VoiceGuide, WritingSample } from "../../src/profile/types.js";
 import { chunkDocument } from "../../src/profile/chunker.js";
+import type { PipelineConfig, VoiceGuide, WritingSample } from "../../src/profile/types.js";
 import { analyzeChunks } from "./stage1.js";
 import { synthesizeDocument } from "./stage2.js";
 import { clusterDocuments } from "./stage3.js";

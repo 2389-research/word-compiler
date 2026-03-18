@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { buildStage2Prompt, STAGE2_SYSTEM } from "../../src/profile/prompts.js";
 import type {
   ChunkAnalysis,
   DocumentAnalysis,
@@ -6,7 +7,6 @@ import type {
   PipelineConfig,
   WritingSample,
 } from "../../src/profile/types.js";
-import { STAGE2_SYSTEM, buildStage2Prompt } from "../../src/profile/prompts.js";
 import { structuredCall } from "./llm.js";
 
 const DOCUMENT_SYNTHESIS_SCHEMA: Record<string, unknown> = {
@@ -66,9 +66,7 @@ export async function synthesizeDocument(
   config: PipelineConfig,
   client: Anthropic,
 ): Promise<DocumentAnalysis> {
-  const driftedChunks = chunkAnalyses
-    .filter((a) => a.contentDriftWarning)
-    .map((a) => a.chunkIndex);
+  const driftedChunks = chunkAnalyses.filter((a) => a.contentDriftWarning).map((a) => a.chunkIndex);
   const driftRatio = computeDriftRatio(chunkAnalyses);
 
   if (driftRatio > config.driftExclusionThreshold) {

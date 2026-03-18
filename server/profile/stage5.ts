@@ -1,12 +1,12 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { buildStage5Prompt, STAGE5_SYSTEM } from "../../src/profile/prompts.js";
 import type {
   CrossDocumentResult,
-  FilterResponse,
   FilteredFeature,
+  FilterResponse,
   PipelineConfig,
   VoiceGuide,
 } from "../../src/profile/types.js";
-import { STAGE5_SYSTEM, buildStage5Prompt } from "../../src/profile/prompts.js";
 import { textCall } from "./llm.js";
 
 /**
@@ -26,6 +26,45 @@ export function extractSections(guideText: string): { generation: string; editin
   };
 }
 
+interface CategorizedFeatures {
+  core: FilteredFeature[];
+  probable: FilteredFeature[];
+  avoidance: FilteredFeature[];
+  domainSpecific: FilteredFeature[];
+  flagged: FilteredFeature[];
+}
+
+function categorizeFeatures(features: FilteredFeature[]): CategorizedFeatures {
+  const result: CategorizedFeatures = { core: [], probable: [], avoidance: [], domainSpecific: [], flagged: [] };
+  for (const feature of features) {
+    if (feature.domainFilterDecision === "filter") {
+      result.domainSpecific.push(feature);
+    } else if (feature.domainFilterDecision === "flag_for_shedding") {
+      result.flagged.push(feature);
+    } else if (feature.isAvoidancePattern) {
+      result.avoidance.push(feature);
+    } else if (feature.confidence === "low") {
+      result.probable.push(feature);
+    } else {
+      result.core.push(feature);
+    }
+  }
+  return result;
+}
+
+function countConfidenceLevels(features: FilteredFeature[]): { high: number; medium: number; low: number } {
+  const kept = features.filter((f) => f.domainFilterDecision !== "filter");
+  let high = 0;
+  let medium = 0;
+  let low = 0;
+  for (const f of kept) {
+    if (f.confidence === "high") high++;
+    else if (f.confidence === "medium") medium++;
+    else low++;
+  }
+  return { high, medium, low };
+}
+
 export async function generateVoiceGuide(
   filterResult: FilterResponse,
   crossDoc: CrossDocumentResult,
@@ -33,45 +72,11 @@ export async function generateVoiceGuide(
   config: PipelineConfig,
   client: Anthropic,
 ): Promise<VoiceGuide> {
-  // Categorize features
-  const avoidance: FilteredFeature[] = [];
-  const core: FilteredFeature[] = [];
-  const probable: FilteredFeature[] = [];
-  const domainSpecific: FilteredFeature[] = [];
-  const flagged: FilteredFeature[] = [];
+  const cats = categorizeFeatures(filterResult.filteredFeatures);
+  const counts = countConfidenceLevels(filterResult.filteredFeatures);
+  const needsNewObjectNames = filterResult.filteredFeatures.filter((f) => f.needsNewObject).map((f) => f.featureName);
 
-  for (const feature of filterResult.filteredFeatures) {
-    if (feature.domainFilterDecision === "filter") {
-      domainSpecific.push(feature);
-    } else if (feature.domainFilterDecision === "flag_for_shedding") {
-      flagged.push(feature);
-    } else if (feature.isAvoidancePattern) {
-      avoidance.push(feature);
-    } else if (feature.confidence === "low") {
-      probable.push(feature);
-    } else {
-      core.push(feature);
-    }
-  }
-
-  // Count confidence levels across kept features (non-filtered)
-  const kept = filterResult.filteredFeatures.filter((f) => f.domainFilterDecision !== "filter");
-  let highCount = 0;
-  let mediumCount = 0;
-  let lowCount = 0;
-  for (const f of kept) {
-    if (f.confidence === "high") highCount++;
-    else if (f.confidence === "medium") mediumCount++;
-    else lowCount++;
-  }
-
-  // Features needing new objects
-  const needsNewObjectNames = filterResult.filteredFeatures
-    .filter((f) => f.needsNewObject)
-    .map((f) => f.featureName);
-
-  // Build the features JSON for the prompt (all kept + flagged features)
-  const allRelevant = [...core, ...probable, ...avoidance, ...flagged];
+  const allRelevant = [...cats.core, ...cats.probable, ...cats.avoidance, ...cats.flagged];
   const featuresJson = JSON.stringify(allRelevant, null, 2);
 
   const prompt = buildStage5Prompt(
@@ -79,17 +84,15 @@ export async function generateVoiceGuide(
     nDocuments,
     config.sourceDomain,
     config.targetDomain,
-    highCount,
-    mediumCount,
-    lowCount,
+    counts.high,
+    counts.medium,
+    counts.low,
     needsNewObjectNames,
   );
 
   const guideText = await textCall(client, config.stage5GuideModel, STAGE5_SYSTEM, prompt);
-
   const { generation, editing, confidence } = extractSections(guideText);
 
-  // Collect domains represented
   const domains = new Set<string>();
   if (config.sourceDomain) domains.add(config.sourceDomain);
   if (config.targetDomain) domains.add(config.targetDomain);
@@ -103,19 +106,19 @@ export async function generateVoiceGuide(
         version: "1.0.0",
         updatedAt: now,
         changeReason: "Initial voice guide generation",
-        changeSummary: `Generated from ${nDocuments} documents. ${core.length} core features, ${probable.length} probable features, ${avoidance.length} avoidance patterns identified.`,
-        confirmedFeatures: core.map((f) => f.featureName),
+        changeSummary: `Generated from ${nDocuments} documents. ${cats.core.length} core features, ${cats.probable.length} probable features, ${cats.avoidance.length} avoidance patterns identified.`,
+        confirmedFeatures: cats.core.map((f) => f.featureName),
         contradictedFeatures: [],
-        newFeatures: [...core, ...probable, ...avoidance].map((f) => f.featureName),
+        newFeatures: [...cats.core, ...cats.probable, ...cats.avoidance].map((f) => f.featureName),
       },
     ],
     corpusSize: nDocuments,
     domainsRepresented: [...domains],
-    coreFeatures: core,
-    probableFeatures: probable,
+    coreFeatures: cats.core,
+    probableFeatures: cats.probable,
     formatVariantFeatures: crossDoc.formatVariantFeatures,
-    domainSpecificFeatures: domainSpecific,
-    avoidancePatterns: avoidance,
+    domainSpecificFeatures: cats.domainSpecific,
+    avoidancePatterns: cats.avoidance,
     narrativeSummary: guideText,
     generationInstructions: generation,
     editingInstructions: editing,

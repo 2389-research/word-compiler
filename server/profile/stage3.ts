@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { buildStage3Prompt, STAGE3_SYSTEM } from "../../src/profile/prompts.js";
 import type { CrossDocumentResult, DocumentAnalysis, PipelineConfig } from "../../src/profile/types.js";
-import { STAGE3_SYSTEM, buildStage3Prompt } from "../../src/profile/prompts.js";
 import { structuredCall } from "./llm.js";
 
 const CROSS_DOCUMENT_SCHEMA: Record<string, unknown> = {
