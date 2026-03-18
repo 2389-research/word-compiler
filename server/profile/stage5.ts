@@ -20,7 +20,7 @@ export function extractSections(guideText: string): { generation: string; editin
     /(?:FOR GENERATION:|#{1,4}\s*Generation Instructions[^\n]*)\s*([\s\S]*?)(?=FOR EDITING:|#{1,4}\s*Editing Instructions)/i,
   );
   const editingMatch = guideText.match(
-    /(?:FOR EDITING:|#{1,4}\s*Editing Instructions[^\n]*)\s*([\s\S]*?)(?=\d+\.\s|\bConfidence Notes\b|#{1,3}\s+\d+\.|#{1,3}\s+Confidence)/i,
+    /(?:FOR EDITING:|#{1,4}\s*Editing Instructions[^\n]*)\s*([\s\S]*?)(?=#{1,3}\s*Confidence Notes|#{1,2}\s+What Might Not|#{1,2}\s+\d+\.\s|$)/i,
   );
   const confidenceMatch = guideText.match(/(?:CONFIDENCE NOTES|#{1,4}\s*Confidence Notes)\s*([\s\S]*?)$/i);
 
