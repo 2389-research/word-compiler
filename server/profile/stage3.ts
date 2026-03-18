@@ -88,7 +88,7 @@ export async function clusterDocuments(
   const docAnalysesJson = JSON.stringify(activeDocs, null, 2);
   const prompt = buildStage3Prompt(docAnalysesJson, activeDocs.length);
 
-  return structuredCall<CrossDocumentResult>(
+  const result = await structuredCall<CrossDocumentResult>(
     client,
     config.stage3ClusterModel,
     STAGE3_SYSTEM,
@@ -96,4 +96,10 @@ export async function clusterDocuments(
     CROSS_DOCUMENT_SCHEMA,
     "cross_document_clustering",
   );
+
+  console.log(
+    `[stage3] Found ${result.stableFeatures.length} stable features, ${result.domainArtifacts.length} domain artifacts`,
+  );
+
+  return result;
 }

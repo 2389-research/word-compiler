@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
-const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_MAX_TOKENS = 16384;
 
 /**
  * Make an LLM call expecting a structured JSON response.
@@ -29,6 +29,11 @@ export async function structuredCall<T>(
     ],
     tool_choice: { type: "tool", name: schemaName },
   });
+
+  console.log(`[llm] ${schemaName}: ${response.usage?.output_tokens} output tokens used`);
+  if (response.stop_reason === "max_tokens") {
+    console.warn(`[llm] WARNING: Response truncated at max_tokens for ${schemaName}`);
+  }
 
   const toolBlock = response.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use");
   if (!toolBlock) {

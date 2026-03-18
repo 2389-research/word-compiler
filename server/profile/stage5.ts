@@ -99,6 +99,10 @@ export async function generateVoiceGuide(
 
   const now = new Date().toISOString();
 
+  console.log(
+    `[stage5] Guide assembled: ${cats.core.length} core, ${cats.avoidance.length} avoidance, ${cats.probable.length} probable, ${cats.domainSpecific.length} domain-specific`,
+  );
+
   return {
     version: "1.0.0",
     versionHistory: [

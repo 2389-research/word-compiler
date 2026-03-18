@@ -54,7 +54,7 @@ export async function filterFeatures(
   const featuresJson = JSON.stringify(crossDoc.stableFeatures, null, 2);
   const prompt = buildStage4Prompt(featuresJson, config.sourceDomain, config.targetDomain);
 
-  return structuredCall<FilterResponse>(
+  const result = await structuredCall<FilterResponse>(
     client,
     config.stage4FilterModel,
     STAGE4_SYSTEM,
@@ -62,4 +62,13 @@ export async function filterFeatures(
     FILTER_RESPONSE_SCHEMA,
     "domain_filter",
   );
+
+  const keep = result.filteredFeatures.filter((f) => f.domainFilterDecision === "keep").length;
+  const filter = result.filteredFeatures.filter((f) => f.domainFilterDecision === "filter").length;
+  const shed = result.filteredFeatures.filter((f) => f.domainFilterDecision === "flag_for_shedding").length;
+  console.log(
+    `[stage4] ${result.filteredFeatures.length} features after filtering (keep: ${keep}, filter: ${filter}, shed: ${shed})`,
+  );
+
+  return result;
 }
