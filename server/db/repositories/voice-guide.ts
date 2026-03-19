@@ -35,7 +35,7 @@ export function saveVoiceGuide(db: Database.Database, guide: VoiceGuide): void {
 }
 
 export function saveVoiceGuideVersion(db: Database.Database, guide: VoiceGuide): void {
-  const latest = guide.versionHistory[0];
+  const latest = guide.versionHistory[guide.versionHistory.length - 1];
   if (!latest) return;
   db.prepare(
     `INSERT INTO voice_guide_versions (id, version, data, change_reason, change_summary, created_at)
