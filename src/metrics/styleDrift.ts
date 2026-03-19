@@ -21,7 +21,7 @@ export function computeStyleDrift(
 ): StyleDriftReport {
   const driftPercent = {
     avgSentenceLength: pctDrift(baselineMetrics.avgSentenceLength, currentMetrics.avgSentenceLength),
-    sentenceLengthVariance: pctDrift(baselineMetrics.sentenceLengthVariance, currentMetrics.sentenceLengthVariance),
+    sentenceLengthStdDev: pctDrift(baselineMetrics.sentenceLengthStdDev, currentMetrics.sentenceLengthStdDev),
     typeTokenRatio: pctDrift(baselineMetrics.typeTokenRatio, currentMetrics.typeTokenRatio),
     avgParagraphLength: pctDrift(baselineMetrics.avgParagraphLength, currentMetrics.avgParagraphLength),
   };

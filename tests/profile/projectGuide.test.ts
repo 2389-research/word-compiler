@@ -1,6 +1,6 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
 import { distillVoice } from "../../server/profile/projectGuide.js";
-import type Anthropic from "@anthropic-ai/sdk";
 
 // ─── distillVoice: empty sources (no LLM call needed) ────
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildRing1 } from "../../src/compiler/ring1.js";
-import { type VoiceGuide, createEmptyVoiceGuide } from "../../src/profile/types.js";
+import { createEmptyVoiceGuide, type VoiceGuide } from "../../src/profile/types.js";
 import {
   type Bible,
   type CompilationConfig,

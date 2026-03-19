@@ -1,11 +1,11 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { chunkDocument } from "../../src/profile/chunker.js";
 import type { PipelineConfig, VoiceGuide } from "../../src/profile/types.js";
 import { createDefaultPipelineConfig, createEmptyVoiceGuide, createWritingSample } from "../../src/profile/types.js";
-import { chunkDocument } from "../../src/profile/chunker.js";
 import { countTokens } from "../../src/tokens/index.js";
+import { textCall } from "./llm.js";
 import { analyzeChunks } from "./stage1.js";
 import { synthesizeDocument } from "./stage2.js";
-import { textCall } from "./llm.js";
 
 // ─── Project Voice: scene-by-scene in-domain analysis ────────────
 
@@ -189,13 +189,10 @@ The instruction should:
 
 Write ONLY the compact instruction. No preamble, no headers.`;
 
-  const injection = await textCall(
-    client,
-    "claude-sonnet-4-5-20250929",
-    DISTILL_SYSTEM,
-    prompt,
-  );
+  const injection = await textCall(client, "claude-sonnet-4-5-20250929", DISTILL_SYSTEM, prompt);
 
-  console.log(`[distillVoice] ring1Injection: ${countTokens(injection)} tokens from ${sections.length} source${sections.length !== 1 ? "s" : ""}`);
+  console.log(
+    `[distillVoice] ring1Injection: ${countTokens(injection)} tokens from ${sections.length} source${sections.length !== 1 ? "s" : ""}`,
+  );
   return injection;
 }

@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { AuditFlag } from "../../../src/types/index.js";
+import type { AuditFlag, AuditStats } from "../../../src/types/index.js";
 
 export function createAuditFlag(db: Database.Database, flag: AuditFlag): AuditFlag {
   const now = new Date().toISOString();
@@ -69,20 +69,13 @@ export function resolveAuditFlag(db: Database.Database, id: string, action: stri
   return result.changes > 0;
 }
 
-export interface AuditStats {
-  total: number;
-  resolved: number;
-  actionable: number;
-  dismissed: number;
-  signalToNoise: number;
-  byCategory: Record<string, { total: number; actionable: number }>;
-}
-
 export function getAuditStats(db: Database.Database, sceneId: string): AuditStats {
   const flags = listAuditFlags(db, sceneId);
   const resolved = flags.filter((f) => f.resolved);
   const actionable = resolved.filter((f) => f.wasActionable === true);
   const dismissed = resolved.filter((f) => f.wasActionable === false);
+  const pending = flags.filter((f) => !f.resolved);
+  const decided = actionable.length + dismissed.length;
 
   const byCategory: Record<string, { total: number; actionable: number }> = {};
   for (const flag of flags) {
@@ -97,7 +90,9 @@ export function getAuditStats(db: Database.Database, sceneId: string): AuditStat
     resolved: resolved.length,
     actionable: actionable.length,
     dismissed: dismissed.length,
-    signalToNoise: resolved.length > 0 ? actionable.length / resolved.length : 0,
+    pending: pending.length,
+    nonActionable: dismissed.length,
+    signalToNoiseRatio: decided > 0 ? actionable.length / decided : 1,
     byCategory,
   };
 }

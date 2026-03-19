@@ -1,5 +1,5 @@
-import { countTokens, truncateToTokens } from "../tokens/index.js";
 import type { VoiceGuide } from "../profile/types.js";
+import { countTokens, truncateToTokens } from "../tokens/index.js";
 import type { Bible, CompilationConfig, Ring1Result, RingSection } from "../types/index.js";
 
 function buildMetaphorSection(bible: Bible): RingSection | null {

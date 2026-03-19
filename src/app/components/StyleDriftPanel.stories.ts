@@ -26,7 +26,7 @@ export const AllConsistent: Story = {
   args: {
     reports: [
       makeStyleDriftReport("scene-2", false, { avgSentenceLength: 0.03, typeTokenRatio: 0.02 }),
-      makeStyleDriftReport("scene-3", false, { avgSentenceLength: 0.05, sentenceLengthVariance: 0.04 }),
+      makeStyleDriftReport("scene-3", false, { avgSentenceLength: 0.05, sentenceLengthStdDev: 0.04 }),
     ],
     baselineSceneTitle: "First Contact Protocol",
   },
@@ -47,13 +47,13 @@ export const AllDrifting: Story = {
     reports: [
       makeStyleDriftReport("scene-2", true, {
         avgSentenceLength: 0.22,
-        sentenceLengthVariance: 0.18,
+        sentenceLengthStdDev: 0.18,
         typeTokenRatio: 0.15,
         avgParagraphLength: 0.31,
       }),
       makeStyleDriftReport("scene-3", true, {
         avgSentenceLength: 0.35,
-        sentenceLengthVariance: 0.28,
+        sentenceLengthStdDev: 0.28,
         typeTokenRatio: 0.12,
         avgParagraphLength: 0.25,
       }),

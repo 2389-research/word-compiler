@@ -429,16 +429,18 @@ describe("audit flags repository", () => {
     expect(stats.resolved).toBe(2);
     expect(stats.actionable).toBe(1);
     expect(stats.dismissed).toBe(1);
-    expect(stats.signalToNoise).toBe(0.5);
+    expect(stats.signalToNoiseRatio).toBe(0.5);
+    expect(stats.pending).toBe(1);
+    expect(stats.nonActionable).toBe(1);
     expect(stats.byCategory.kill_list!.total).toBe(2);
     expect(stats.byCategory.kill_list!.actionable).toBe(1);
     expect(stats.byCategory.rhythm_monotony!.total).toBe(1);
   });
 
-  it("signal-to-noise is 0 when no flags resolved", () => {
+  it("signal-to-noise defaults to 1 when no flags resolved", () => {
     auditFlagsRepo.createAuditFlag(db, makeAuditFlag(sceneId));
     const stats = auditFlagsRepo.getAuditStats(db, sceneId);
-    expect(stats.signalToNoise).toBe(0);
+    expect(stats.signalToNoiseRatio).toBe(1);
   });
 });
 

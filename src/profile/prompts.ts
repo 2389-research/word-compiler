@@ -266,4 +266,3 @@ ${featuresJson}
 
   return parts.join("\n\n");
 }
-

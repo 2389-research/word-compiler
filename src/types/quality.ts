@@ -41,7 +41,7 @@ export interface ProseMetrics {
   wordCount: number;
   sentenceCount: number;
   avgSentenceLength: number;
-  sentenceLengthVariance: number;
+  sentenceLengthStdDev: number;
   typeTokenRatio: number;
   paragraphCount: number;
   avgParagraphLength: number;

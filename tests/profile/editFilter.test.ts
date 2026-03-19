@@ -34,10 +34,7 @@ describe("shouldTriggerCipher", () => {
   });
   it("returns true for deliberate cuts", () => {
     expect(
-      shouldTriggerCipher(
-        "The sky was blue and beautiful and stretched endlessly above them",
-        "The sky was blue",
-      ),
+      shouldTriggerCipher("The sky was blue and beautiful and stretched endlessly above them", "The sky was blue"),
     ).toBe(true);
   });
   it("returns true for significant expansions", () => {
@@ -50,10 +47,7 @@ describe("shouldTriggerCipher", () => {
   });
   it("returns true for dialogue voice changes", () => {
     expect(
-      shouldTriggerCipher(
-        '"I think we should probably go," she said nervously.',
-        '"We should go," she said.',
-      ),
+      shouldTriggerCipher('"I think we should probably go," she said nervously.', '"We should go," she said.'),
     ).toBe(true);
   });
   it("returns true for tone shifts", () => {

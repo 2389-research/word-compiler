@@ -1,6 +1,6 @@
 import { lintPayload } from "../linter/index.js";
-import { countTokens } from "../tokens/index.js";
 import type { VoiceGuide } from "../profile/types.js";
+import { countTokens } from "../tokens/index.js";
 import type {
   Bible,
   ChapterArc,
@@ -108,7 +108,7 @@ export function compilePayload(
   };
 
   // 6. Build log
-  const payloadHash = generateId(); // Placeholder — real hash in Phase 1
+  const payloadHash = generateId(); // Unique ID per compilation (not a content hash)
   const log: CompilationLog = {
     id: generateId(),
     chunkId: `${plan.id}_chunk${chunkNumber}`,

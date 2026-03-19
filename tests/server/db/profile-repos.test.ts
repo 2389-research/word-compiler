@@ -7,8 +7,8 @@ import * as significantEdits from "../../../server/db/repositories/significant-e
 import * as voiceGuide from "../../../server/db/repositories/voice-guide.js";
 import * as writingSamples from "../../../server/db/repositories/writing-samples.js";
 import { createSchema } from "../../../server/db/schema.js";
-import { createEmptyVoiceGuide, createWritingSample } from "../../../src/profile/types.js";
 import type { PreferenceStatement, SignificantEdit, VoiceGuide } from "../../../src/profile/types.js";
+import { createEmptyVoiceGuide, createWritingSample } from "../../../src/profile/types.js";
 import { generateId } from "../../../src/types/index.js";
 import { makeProject } from "../../helpers/factories.js";
 

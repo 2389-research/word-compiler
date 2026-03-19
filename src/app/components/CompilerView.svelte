@@ -112,7 +112,7 @@ let overBudget = $derived(lintCodes.has("TOTAL_OVER_BUDGET"));
             <MetricCard label="Words" value={metrics.wordCount} />
             <MetricCard label="Sentences" value={metrics.sentenceCount} />
             <MetricCard label="Avg Sentence" value="{metrics.avgSentenceLength.toFixed(1)}w" />
-            <MetricCard label="Variance" value={metrics.sentenceLengthVariance.toFixed(1)} valueColor={metrics.sentenceLengthVariance >= 3 ? "var(--success)" : "var(--warning)"} />
+            <MetricCard label="Variance" value={metrics.sentenceLengthStdDev.toFixed(1)} valueColor={metrics.sentenceLengthStdDev >= 3 ? "var(--success)" : "var(--warning)"} />
             <MetricCard label="TTR" value={metrics.typeTokenRatio.toFixed(2)} />
             <MetricCard label="Paragraphs" value={metrics.paragraphCount} />
           </div>

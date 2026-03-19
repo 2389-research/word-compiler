@@ -141,7 +141,9 @@ describe("GET /api/scenes/:sceneId/audit-stats", () => {
       resolved: 0,
       actionable: 0,
       dismissed: 0,
-      signalToNoise: 0,
+      pending: 0,
+      nonActionable: 0,
+      signalToNoiseRatio: 1,
       byCategory: {},
     });
   });
@@ -166,7 +168,7 @@ describe("GET /api/scenes/:sceneId/audit-stats", () => {
     expect(res.body.resolved).toBe(2);
     expect(res.body.actionable).toBe(1);
     expect(res.body.dismissed).toBe(1);
-    expect(res.body.signalToNoise).toBe(0.5);
+    expect(res.body.signalToNoiseRatio).toBe(0.5);
     expect(res.body.byCategory).toEqual({
       kill_list: { total: 2, actionable: 1 },
       sentence_variance: { total: 2, actionable: 0 },

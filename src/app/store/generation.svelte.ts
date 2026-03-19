@@ -112,7 +112,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     }
   }
 
-  function runAuditManual(pinnedSceneId?: string) {
+  async function runAuditManual(pinnedSceneId?: string) {
     const plan = store.activeScenePlan;
     if (!store.bible || !plan) {
       store.setError("Cannot audit: missing bible or scene plan");
@@ -126,9 +126,14 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       return;
     }
 
-    const allText = chunks.map((c) => getCanonicalText(c)).join("\n\n");
-    const { flags, metrics } = runAudit(allText, store.bible!, sceneId);
-    store.setAudit(flags, metrics);
+    try {
+      const allText = chunks.map((c) => getCanonicalText(c)).join("\n\n");
+      const { flags, metrics } = runAudit(allText, store.bible!, sceneId);
+      store.setAudit(flags, metrics);
+      await commands.saveAuditFlags(flags);
+    } catch (err) {
+      store.setError(err instanceof Error ? err.message : "Manual audit failed");
+    }
   }
 
   /** Helper: validate preconditions for IR extraction, returning context or null */
@@ -199,7 +204,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       try {
         await reconcileSetupsAfterIR(sceneId, ir);
       } catch (err) {
-        console.warn("[reconcile] setup status reconciliation failed:", err);
+        store.setError(`Setup reconciliation failed: ${err instanceof Error ? err.message : String(err)}`);
       }
       store.setIRInspectorOpen(true);
     } catch (err) {

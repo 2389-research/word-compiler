@@ -123,5 +123,4 @@ describe("createDefaultPipelineConfig", () => {
     expect(config.driftDownweightThreshold).toBe(0.5);
     expect(config.driftExclusionThreshold).toBe(0.8);
   });
-
 });

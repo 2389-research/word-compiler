@@ -27,7 +27,15 @@ export function createSignificantEdit(db: Database.Database, edit: SignificantEd
   db.prepare(
     `INSERT INTO significant_edits (id, project_id, chunk_id, original_text, edited_text, processed, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(edit.id, edit.projectId, edit.chunkId, edit.originalText, edit.editedText, edit.processed ? 1 : 0, edit.createdAt);
+  ).run(
+    edit.id,
+    edit.projectId,
+    edit.chunkId,
+    edit.originalText,
+    edit.editedText,
+    edit.processed ? 1 : 0,
+    edit.createdAt,
+  );
 }
 
 export function listUnprocessedEdits(db: Database.Database, projectId: string): SignificantEdit[] {

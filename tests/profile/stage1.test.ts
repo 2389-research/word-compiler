@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { analyzeChunks } from "../../server/profile/stage1.js";
 import type { DocumentChunk } from "@/profile/types.js";
 import { createDefaultPipelineConfig } from "@/profile/types.js";
+import { analyzeChunks } from "../../server/profile/stage1.js";
 
 describe("analyzeChunks", () => {
   it("skips chunks below minimum token count", async () => {

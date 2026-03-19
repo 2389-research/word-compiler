@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createWritingSample, createDefaultPipelineConfig } from "@/profile/types.js";
 import { chunkDocument } from "@/profile/chunker.js";
+import { createDefaultPipelineConfig, createWritingSample } from "@/profile/types.js";
 
 describe("pipeline orchestration", () => {
   it("chunks writing samples before stage 1", () => {

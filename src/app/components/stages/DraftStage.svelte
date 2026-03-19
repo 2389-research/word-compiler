@@ -1,5 +1,6 @@
 <script lang="ts">
 import { untrack } from "svelte";
+import { apiFireBatchCipher, apiStoreSignificantEdit } from "../../../api/client.js";
 import { checkChunkReviewGate, checkCompileGate, checkScenePlanGate } from "../../../gates/index.js";
 import { analyzeEdits } from "../../../learner/diff.js";
 import { applyProposal, type BibleProposal } from "../../../learner/proposals.js";
@@ -7,6 +8,7 @@ import { generateTuningProposals, type TuningProposal } from "../../../learner/t
 import { callLLM } from "../../../llm/client.js";
 import { computeStyleDriftFromProse } from "../../../metrics/styleDrift.js";
 import { measureVoiceSeparability } from "../../../metrics/voiceSeparability.js";
+import { shouldTriggerCipher } from "../../../profile/editFilter.js";
 import { buildReviewContext } from "../../../review/contextBuilder.js";
 import type { ChunkView, EditorialAnnotation, LLMReviewClient, ReviewOrchestrator } from "../../../review/index.js";
 import {
@@ -16,10 +18,8 @@ import {
   SUGGESTION_REQUEST_SCHEMA,
   trimSuggestionOverlap,
 } from "../../../review/index.js";
-import { shouldTriggerCipher } from "../../../profile/editFilter.js";
 import type { Chunk, NarrativeIR, StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
 import { getCanonicalText } from "../../../types/index.js";
-import { apiStoreSignificantEdit, apiFireBatchCipher } from "../../../api/client.js";
 import { Tabs } from "../../primitives/index.js";
 import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
@@ -271,7 +271,11 @@ async function handleRequestSuggestion(annotationId: string, feedback: string): 
   const chunk = chunks[targetChunkIndex];
   if (!chunk || !store.bible || !store.activeScenePlan) return null;
   const chunkText = getCanonicalText(chunk);
-  const context = buildReviewContext(store.bible, store.activeScenePlan, store.voiceGuide?.editingInstructions || undefined);
+  const context = buildReviewContext(
+    store.bible,
+    store.activeScenePlan,
+    store.voiceGuide?.editingInstructions || undefined,
+  );
 
   // 3. Build prompt and call LLM
   const { systemPrompt, userPrompt } = buildSuggestionRequestPrompt(context, targetAnnotation, chunkText, feedback);
@@ -402,12 +406,7 @@ function handleUpdateChunk(index: number, changes: Partial<Chunk>) {
         const chunk = store.activeSceneChunks[index];
         if (chunk?.generatedText && chunk.editedText && store.project) {
           if (shouldTriggerCipher(chunk.generatedText, chunk.editedText)) {
-            apiStoreSignificantEdit(
-              store.project.id,
-              chunk.id,
-              chunk.generatedText,
-              chunk.editedText,
-            )
+            apiStoreSignificantEdit(store.project.id, chunk.id, chunk.generatedText, chunk.editedText)
               .then((count) => {
                 if (count >= 10) {
                   console.log(`[cipher] ${count} significant edits — triggering batch CIPHER`);

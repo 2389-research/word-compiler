@@ -12,9 +12,9 @@ interface ProjectVoiceGuideRow {
 }
 
 export function getProjectVoiceGuide(db: Database.Database, projectId: string): VoiceGuide | null {
-  const row = db
-    .prepare("SELECT * FROM project_voice_guide WHERE project_id = ?")
-    .get(projectId) as ProjectVoiceGuideRow | undefined;
+  const row = db.prepare("SELECT * FROM project_voice_guide WHERE project_id = ?").get(projectId) as
+    | ProjectVoiceGuideRow
+    | undefined;
   if (!row) return null;
   return JSON.parse(row.data) as VoiceGuide;
 }

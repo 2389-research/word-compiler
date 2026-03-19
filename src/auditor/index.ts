@@ -179,7 +179,7 @@ export function computeMetrics(prose: string): ProseMetrics {
     wordCount: words,
     sentenceCount: sentences.length,
     avgSentenceLength: sentences.length > 0 ? words / sentences.length : 0,
-    sentenceLengthVariance: variance,
+    sentenceLengthStdDev: variance,
     typeTokenRatio: allWords.length > 0 ? uniqueWords.size / allWords.length : 0,
     paragraphCount: paragraphs.length,
     avgParagraphLength: paragraphs.length > 0 ? sentences.length / paragraphs.length : 0,

@@ -48,7 +48,7 @@ let {
                 <td>{stat.characterName}</td>
                 <td class="td-mono">{stat.dialogueCount}</td>
                 <td class="td-mono">{stat.avgSentenceLength.toFixed(1)}</td>
-                <td class="td-mono">{stat.sentenceLengthVariance.toFixed(1)}</td>
+                <td class="td-mono">{stat.sentenceLengthStdDev.toFixed(1)}</td>
                 <td class="td-mono">{stat.typeTokenRatio.toFixed(2)}</td>
               </tr>
             {/each}

@@ -38,6 +38,8 @@ function checkR2OverCap(ring2TokenCount: number, config: CompilationConfig): Lin
 function checkR3Starved(ring1: Ring1Result, ring3: Ring3Result, ring2TokenCount: number): LintIssue | null {
   const totalUsed = ring1.tokenCount + ring2TokenCount + ring3.tokenCount;
   const r3Fraction = totalUsed > 0 ? ring3.tokenCount / totalUsed : 1;
+  // Warn at 40% — softer than config's ring3MinFraction (60%) target.
+  // The budget enforcer handles the hard guarantee; this lint catches critical starvation.
   if (r3Fraction < 0.4) {
     return {
       code: "R3_STARVED",

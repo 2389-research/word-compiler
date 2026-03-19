@@ -83,7 +83,9 @@ export async function clusterDocuments(
     activeDocs = docAnalyses;
   }
 
-  console.log(`[stage3] Clustering ${activeDocs.length} documents (${docAnalyses.length - activeDocs.length} excluded by drift)`);
+  console.log(
+    `[stage3] Clustering ${activeDocs.length} documents (${docAnalyses.length - activeDocs.length} excluded by drift)`,
+  );
 
   const docAnalysesJson = JSON.stringify(activeDocs, null, 2);
   const prompt = buildStage3Prompt(docAnalysesJson, activeDocs.length);

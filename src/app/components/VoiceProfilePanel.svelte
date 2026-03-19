@@ -1,14 +1,14 @@
 <script lang="ts">
-import { Button, ErrorBanner, Input, Modal, Select, Spinner, TextArea } from "../primitives/index.js";
 import {
+  apiCreateWritingSample,
+  apiDeleteWritingSample,
+  apiGenerateVoiceGuide,
   apiGetVoiceGuide,
   apiListWritingSamples,
-  apiCreateWritingSample,
-  apiGenerateVoiceGuide,
-  apiDeleteWritingSample,
 } from "../../api/client.js";
-import type { VoiceGuide, WritingSample } from "../../profile/types.js";
 import { extractCoreSensibility } from "../../profile/renderer.js";
+import type { VoiceGuide, WritingSample } from "../../profile/types.js";
+import { Button, ErrorBanner, Input, Modal, Select, Spinner, TextArea } from "../primitives/index.js";
 
 let guide = $state<VoiceGuide | null>(null);
 let samples = $state<WritingSample[]>([]);
@@ -48,11 +48,7 @@ async function handleAddSample() {
   addingSample = true;
   error = null;
   try {
-    const sample = await apiCreateWritingSample(
-      sampleFilename.trim() || null,
-      sampleDomain,
-      sampleText.trim(),
-    );
+    const sample = await apiCreateWritingSample(sampleFilename.trim() || null, sampleDomain, sampleText.trim());
     samples = [...samples, sample];
     sampleText = "";
     sampleFilename = "";

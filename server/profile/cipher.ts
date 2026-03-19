@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { PreferenceStatement } from "../../src/profile/types.js";
+import { truncateToTokens } from "../../src/tokens/index.js";
 import { generateId } from "../../src/types/index.js";
-import { countTokens, truncateToTokens } from "../../src/tokens/index.js";
 import { textCall } from "./llm.js";
 
 export const CIPHER_BATCH_SIZE = 10;

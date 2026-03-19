@@ -188,7 +188,7 @@ export const AllClear: Story = {
       wordCount: 850,
       sentenceCount: 62,
       avgSentenceLength: 13.7,
-      sentenceLengthVariance: 5.2,
+      sentenceLengthStdDev: 5.2,
       typeTokenRatio: 0.71,
     }),
   },

@@ -40,7 +40,14 @@ export function saveVoiceGuideVersion(db: Database.Database, guide: VoiceGuide):
   db.prepare(
     `INSERT INTO voice_guide_versions (id, version, data, change_reason, change_summary, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(generateId(), latest.version, JSON.stringify(guide), latest.changeReason, latest.changeSummary, latest.updatedAt);
+  ).run(
+    generateId(),
+    latest.version,
+    JSON.stringify(guide),
+    latest.changeReason,
+    latest.changeSummary,
+    latest.updatedAt,
+  );
 }
 
 export function listVoiceGuideVersions(db: Database.Database): VoiceGuideVersion[] {

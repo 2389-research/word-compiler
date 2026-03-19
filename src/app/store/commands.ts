@@ -1,7 +1,7 @@
+import { apiUpdateProjectVoiceGuide } from "../../api/client.js";
 import { checkAuditResolutionGate, checkSceneCompletionGate } from "../../gates/index.js";
 import { buildContinuousText, findChunksForRange } from "../../review/refine.js";
 import type { ChunkBoundary } from "../../review/refineTypes.js";
-import { apiUpdateProjectVoiceGuide } from "../../api/client.js";
 import type { AuditFlag, Bible, ChapterArc, Chunk, CompilationLog, NarrativeIR, ScenePlan } from "../../types/index.js";
 import { getCanonicalText } from "../../types/index.js";
 import type { ApiActions } from "./api-actions.js";

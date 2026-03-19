@@ -66,7 +66,9 @@ export async function synthesizeDocument(
   config: PipelineConfig,
   client: Anthropic,
 ): Promise<DocumentAnalysis> {
-  const driftedChunks = chunkAnalyses.filter((a) => a.contentDriftScore >= config.driftDownweightThreshold).map((a) => a.chunkIndex);
+  const driftedChunks = chunkAnalyses
+    .filter((a) => a.contentDriftScore >= config.driftDownweightThreshold)
+    .map((a) => a.chunkIndex);
   const driftRatio = computeDriftRatio(chunkAnalyses);
 
   if (driftRatio > config.driftExclusionThreshold) {

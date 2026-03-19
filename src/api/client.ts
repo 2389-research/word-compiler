@@ -1,6 +1,13 @@
-import type { VoiceGuide, VoiceGuideVersion, WritingSample, PipelineConfig, PreferenceStatement } from "@/profile/types.js";
+import type {
+  PipelineConfig,
+  PreferenceStatement,
+  VoiceGuide,
+  VoiceGuideVersion,
+  WritingSample,
+} from "@/profile/types.js";
 import type {
   AuditFlag,
+  AuditStats,
   Bible,
   ChapterArc,
   Chunk,
@@ -172,14 +179,7 @@ export function apiResolveAuditFlag(id: string, action: string, wasActionable: b
   });
 }
 
-export interface AuditStats {
-  total: number;
-  resolved: number;
-  actionable: number;
-  dismissed: number;
-  signalToNoise: number;
-  byCategory: Record<string, { total: number; actionable: number }>;
-}
+export type { AuditStats };
 
 export function apiGetAuditStats(sceneId: string): Promise<AuditStats> {
   return fetchJson(`${BASE}/scenes/${sceneId}/audit-stats`);
@@ -324,10 +324,9 @@ export interface CipherBatchResult {
 }
 
 export async function apiFireBatchCipher(projectId: string): Promise<CipherBatchResult> {
-  const data = await fetchJson<CipherBatchResult | { statement: null }>(
-    `${BASE}/projects/${projectId}/cipher/batch`,
-    { method: "POST" },
-  );
+  const data = await fetchJson<CipherBatchResult | { statement: null }>(`${BASE}/projects/${projectId}/cipher/batch`, {
+    method: "POST",
+  });
   if ("statement" in data && data.statement === null) return { statement: null };
   return data as CipherBatchResult;
 }
@@ -355,8 +354,7 @@ export async function apiUpdateProjectVoiceGuide(
 }
 
 export async function apiRedistillVoice(projectId: string): Promise<{ ring1Injection: string; skipped?: boolean }> {
-  return fetchJson<{ ring1Injection: string; skipped?: boolean }>(
-    `${BASE}/projects/${projectId}/voice/redistill`,
-    { method: "POST" },
-  );
+  return fetchJson<{ ring1Injection: string; skipped?: boolean }>(`${BASE}/projects/${projectId}/voice/redistill`, {
+    method: "POST",
+  });
 }

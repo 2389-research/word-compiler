@@ -14,7 +14,7 @@ function makeReport(overrides: Partial<VoiceSeparabilityReport> = {}): VoiceSepa
         characterName: "Alice",
         dialogueCount: 12,
         avgSentenceLength: 8.5,
-        sentenceLengthVariance: 2.1,
+        sentenceLengthStdDev: 2.1,
         typeTokenRatio: 0.72,
       },
       {
@@ -22,7 +22,7 @@ function makeReport(overrides: Partial<VoiceSeparabilityReport> = {}): VoiceSepa
         characterName: "Bob",
         dialogueCount: 8,
         avgSentenceLength: 14.2,
-        sentenceLengthVariance: 3.8,
+        sentenceLengthStdDev: 3.8,
         typeTokenRatio: 0.61,
       },
     ],

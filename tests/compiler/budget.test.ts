@@ -107,6 +107,41 @@ describe("enforceBudget", () => {
     expect(r3Names).toContain("VOICE_MARCUS");
   });
 
+  it("Ring 2 sections under budget pass through unchanged", () => {
+    const r1 = [makeSection("KILL_LIST", 5, 0, true)];
+    const r2 = [makeSection("CHAPTER_ARC", 10, 2, false), makeSection("CHAR_STATES", 10, 3, false)];
+    const r3 = [makeSection("CONTRACT", 5, 0, true)];
+    const result = enforceBudget(r1, r3, 1000, config, r2);
+    expect(result.wasCompressed).toBe(false);
+    expect(result.r2Sections).toHaveLength(2);
+    expect(result.r2Sections!.map((s) => s.name)).toEqual(["CHAPTER_ARC", "CHAR_STATES"]);
+  });
+
+  it("Ring 2 compressed when Ring 1 compression insufficient (all R1 immune)", () => {
+    const r1 = [makeSection("KILL_LIST", 10, 0, true)];
+    const r2 = [makeSection("CHAPTER_ARC", 20, 2, false), makeSection("CHAR_STATES", 20, 3, false)];
+    const r3 = [makeSection("CONTRACT", 10, 0, true)];
+    const result = enforceBudget(r1, r3, 45, config, r2);
+    expect(result.wasCompressed).toBe(true);
+    const r2Names = result.r2Sections?.map((s) => s.name) ?? [];
+    expect(r2Names).not.toContain("CHAR_STATES");
+  });
+
+  it("Ring 3 compressed when Ring 1 + Ring 2 compression insufficient (all R1+R2 immune)", () => {
+    const r1 = [makeSection("KILL_LIST", 10, 0, true)];
+    const r2 = [makeSection("CHAPTER_ARC", 10, 0, true)];
+    const r3 = [
+      makeSection("CONTRACT", 5, 0, true),
+      makeSection("SENSORY", 30, 4, false),
+      makeSection("BRIDGE", 20, 3, false),
+    ];
+    const result = enforceBudget(r1, r3, 35, config, r2);
+    expect(result.wasCompressed).toBe(true);
+    const r3Names = result.r3Sections.map((s) => s.name);
+    expect(r3Names).toContain("CONTRACT");
+    expect(r3Names.length).toBeLessThan(3);
+  });
+
   it("Ring 1 hard cap enforced regardless of total budget", () => {
     const bigSection = makeSection("METAPHORS", 200, 5, false);
     const r1 = [makeSection("KILL_LIST", 5, 0, true), bigSection];

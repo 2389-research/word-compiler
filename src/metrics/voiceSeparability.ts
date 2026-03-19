@@ -110,7 +110,7 @@ function computeDialogueStats(blocks: DialogueBlock[]): Array<{
   characterName: string;
   dialogueCount: number;
   avgSentenceLength: number;
-  sentenceLengthVariance: number;
+  sentenceLengthStdDev: number;
   typeTokenRatio: number;
 }> {
   // Group by character
@@ -141,7 +141,7 @@ function computeDialogueStats(blocks: DialogueBlock[]): Array<{
       characterName: name,
       dialogueCount: texts.length,
       avgSentenceLength: mean,
-      sentenceLengthVariance: variance,
+      sentenceLengthStdDev: variance,
       typeTokenRatio: allWords.length > 0 ? uniqueWords.size / allWords.length : 0,
     });
   }

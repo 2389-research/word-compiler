@@ -139,6 +139,9 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.put("/chapters/:id", (req, res) => {
+    if (req.body.id && req.body.id !== req.params.id) {
+      return res.status(400).json({ error: "URL id and body id do not match" });
+    }
     const arc = chapterArcs.updateChapterArc(db, req.body);
     console.log(`[data] Updated chapter arc: ${req.params.id}`);
     res.json(arc);
@@ -167,6 +170,9 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.put("/scenes/:id", (req, res) => {
+    if (req.body.id && req.body.id !== req.params.id) {
+      return res.status(400).json({ error: "URL id and body id do not match" });
+    }
     const updated = scenePlans.updateScenePlan(db, req.body);
     console.log(`[data] Updated scene plan: ${req.params.id}`);
     res.json(updated);
@@ -203,6 +209,9 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.put("/chunks/:id", (req, res) => {
+    if (req.body.id && req.body.id !== req.params.id) {
+      return res.status(400).json({ error: "URL id and body id do not match" });
+    }
     const chunk = chunks.updateChunk(db, req.body);
     console.log(`[data] Updated chunk: ${req.params.id} (fields: ${Object.keys(req.body).join(", ")})`);
     res.json(chunk);
@@ -267,6 +276,9 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.put("/scenes/:sceneId/ir", (req, res) => {
+    if (req.body.sceneId && req.body.sceneId !== req.params.sceneId) {
+      return res.status(400).json({ error: "URL sceneId and body sceneId do not match" });
+    }
     const ir = narrativeIRs.updateNarrativeIR(db, req.body);
     console.log(`[data] Updated narrative IR: scene=${req.params.sceneId}`);
     res.json(ir);
@@ -487,7 +499,13 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
       const projectGuide = projectVoiceGuideRepo.getProjectVoiceGuide(db, projectId);
       const allStatements = preferenceStatementsRepo.listAllPreferenceStatements(db);
       const cipherPrefs = allStatements.map((s) => s.statement);
-      const ring1Injection = await distillVoice(authorGuide, cipherPrefs, projectGuide, authorGuide?.ring1Injection ?? null, anthropicClient);
+      const ring1Injection = await distillVoice(
+        authorGuide,
+        cipherPrefs,
+        projectGuide,
+        authorGuide?.ring1Injection ?? null,
+        anthropicClient,
+      );
       if (authorGuide) {
         authorGuide.ring1Injection = ring1Injection;
         voiceGuideRepo.saveVoiceGuide(db, authorGuide);
@@ -525,7 +543,13 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
         return res.json({ ring1Injection: "", skipped: true });
       }
 
-      const ring1Injection = await distillVoice(authorGuide, cipherPrefs, projectGuide, authorGuide?.ring1Injection ?? null, anthropicClient);
+      const ring1Injection = await distillVoice(
+        authorGuide,
+        cipherPrefs,
+        projectGuide,
+        authorGuide?.ring1Injection ?? null,
+        anthropicClient,
+      );
 
       if (authorGuide) {
         authorGuide.ring1Injection = ring1Injection;
@@ -558,7 +582,13 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
       const authorGuide = voiceGuideRepo.getVoiceGuide(db);
       const statements = preferenceStatementsRepo.listAllPreferenceStatements(db);
       const cipherPrefs = statements.map((s) => s.statement);
-      const ring1Injection = await distillVoice(authorGuide, cipherPrefs, projectGuide, authorGuide?.ring1Injection ?? null, anthropicClient);
+      const ring1Injection = await distillVoice(
+        authorGuide,
+        cipherPrefs,
+        projectGuide,
+        authorGuide?.ring1Injection ?? null,
+        anthropicClient,
+      );
 
       // 3. Store the distilled injection on the author guide (if it exists)
       if (authorGuide) {

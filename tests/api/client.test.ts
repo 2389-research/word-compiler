@@ -406,7 +406,9 @@ describe("Audit Flags", () => {
       resolved: 5,
       actionable: 3,
       dismissed: 2,
-      signalToNoise: 0.6,
+      pending: 5,
+      nonActionable: 2,
+      signalToNoiseRatio: 0.6,
       byCategory: { prose: { total: 4, actionable: 2 } },
     };
     const fn = mockFetch(200, stats);

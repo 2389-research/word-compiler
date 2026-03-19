@@ -6,7 +6,6 @@ import { countTokens } from "../tokens/index.js";
 import { generateId, getCanonicalText } from "../types/index.js";
 import GlossaryPanel from "./components/GlossaryPanel.svelte";
 import ProjectList from "./components/ProjectList.svelte";
-import VoiceProfilePanel from "./components/VoiceProfilePanel.svelte";
 import StageCTA from "./components/StageCTA.svelte";
 import AuditStage from "./components/stages/AuditStage.svelte";
 import BootstrapStage from "./components/stages/BootstrapStage.svelte";
@@ -15,6 +14,7 @@ import DraftStage from "./components/stages/DraftStage.svelte";
 import EditStage from "./components/stages/EditStage.svelte";
 import ExportStage from "./components/stages/ExportStage.svelte";
 import PlanStage from "./components/stages/PlanStage.svelte";
+import VoiceProfilePanel from "./components/VoiceProfilePanel.svelte";
 import WorkflowRail from "./components/WorkflowRail.svelte";
 import { Button, ErrorBanner, Input, Select } from "./primitives/index.js";
 import {

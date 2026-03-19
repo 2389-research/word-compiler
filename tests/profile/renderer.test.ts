@@ -7,7 +7,6 @@ import {
   renderVoiceGuideMd,
 } from "@/profile/renderer.js";
 import { createEmptyVoiceGuide } from "@/profile/types.js";
-import type { FilteredFeature, VoiceGuideVersion } from "@/profile/types.js";
 
 describe("renderGenerationFragment", () => {
   it("includes generation instructions and framing", () => {

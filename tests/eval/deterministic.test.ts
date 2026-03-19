@@ -83,7 +83,7 @@ function makeMetrics(overrides: Partial<ProseMetrics> = {}): ProseMetrics {
     wordCount: 500,
     sentenceCount: 30,
     avgSentenceLength: 16.7,
-    sentenceLengthVariance: 5.2,
+    sentenceLengthStdDev: 5.2,
     typeTokenRatio: 0.65,
     paragraphCount: 8,
     avgParagraphLength: 3.75,
@@ -185,7 +185,7 @@ describe("checkLintCompliance", () => {
 describe("checkSentenceDistribution", () => {
   it("passes with good variance", () => {
     const result = checkSentenceDistribution(
-      makeMetrics({ sentenceLengthVariance: 5.0, sentenceCount: 20 }),
+      makeMetrics({ sentenceLengthStdDev: 5.0, sentenceCount: 20 }),
       makeCharacter(),
     );
     expect(result.passed).toBe(true);
@@ -193,7 +193,7 @@ describe("checkSentenceDistribution", () => {
 
   it("fails with low variance", () => {
     const result = checkSentenceDistribution(
-      makeMetrics({ sentenceLengthVariance: 1.5, sentenceCount: 20 }),
+      makeMetrics({ sentenceLengthStdDev: 1.5, sentenceCount: 20 }),
       makeCharacter(),
     );
     expect(result.passed).toBe(false);
@@ -202,7 +202,7 @@ describe("checkSentenceDistribution", () => {
 
   it("skips variance check for short prose (< 5 sentences)", () => {
     const result = checkSentenceDistribution(
-      makeMetrics({ sentenceLengthVariance: 1.0, sentenceCount: 3 }),
+      makeMetrics({ sentenceLengthStdDev: 1.0, sentenceCount: 3 }),
       makeCharacter(),
     );
     expect(result.passed).toBe(true);
@@ -210,7 +210,7 @@ describe("checkSentenceDistribution", () => {
 
   it("fails when avg sentence length far outside character range", () => {
     const result = checkSentenceDistribution(
-      makeMetrics({ sentenceLengthVariance: 5.0, sentenceCount: 20, avgSentenceLength: 40 }),
+      makeMetrics({ sentenceLengthStdDev: 5.0, sentenceCount: 20, avgSentenceLength: 40 }),
       makeCharacter(), // range [4, 18] → max tolerance 36
     );
     expect(result.passed).toBe(false);
@@ -218,10 +218,7 @@ describe("checkSentenceDistribution", () => {
   });
 
   it("passes with no character defined", () => {
-    const result = checkSentenceDistribution(
-      makeMetrics({ sentenceLengthVariance: 5.0, sentenceCount: 20 }),
-      undefined,
-    );
+    const result = checkSentenceDistribution(makeMetrics({ sentenceLengthStdDev: 5.0, sentenceCount: 20 }), undefined);
     expect(result.passed).toBe(true);
   });
 });

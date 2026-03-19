@@ -146,6 +146,13 @@ describe("lintPayload", () => {
     expect(result.issues.some((i) => i.code === "MISSING_LOCATION")).toBe(true);
   });
 
+  it("R2_OVER_CAP when ring2 exceeds its fraction cap", () => {
+    const bible = makeBible({ characters: [{ ...createEmptyCharacterDossier("M"), id: "marcus" }] });
+    const config = makeConfig({ ring2MaxFraction: 0.25, modelContextWindow: 200000, reservedForOutput: 2000 });
+    const result = lintPayload(makeR1(100), makeR3(100000), makePlan(), bible, config, 50000);
+    expect(result.issues.some((i) => i.code === "R2_OVER_CAP")).toBe(true);
+  });
+
   it("TOTAL_OVER_BUDGET when total exceeds available", () => {
     const bible = makeBible({ characters: [{ ...createEmptyCharacterDossier("M"), id: "marcus" }] });
     // Available = 200000 - 2000 = 198000

@@ -69,11 +69,11 @@ export function checkLintCompliance(lintResult: LintResult): CheckResult {
 
 export function checkSentenceDistribution(metrics: ProseMetrics, character: CharacterDossier | undefined): CheckResult {
   // Variance check — prose should have rhythm variety
-  if (metrics.sentenceLengthVariance < 3.0 && metrics.sentenceCount >= 5) {
+  if (metrics.sentenceLengthStdDev < 3.0 && metrics.sentenceCount >= 5) {
     return {
       name: "sentence_distribution",
       passed: false,
-      detail: `Sentence variance ${metrics.sentenceLengthVariance.toFixed(1)} below minimum 3.0 — rhythmically flat.`,
+      detail: `Sentence variance ${metrics.sentenceLengthStdDev.toFixed(1)} below minimum 3.0 — rhythmically flat.`,
     };
   }
 
@@ -92,7 +92,7 @@ export function checkSentenceDistribution(metrics: ProseMetrics, character: Char
   return {
     name: "sentence_distribution",
     passed: true,
-    detail: `Sentence variance ${metrics.sentenceLengthVariance.toFixed(1)}, avg length ${metrics.avgSentenceLength.toFixed(1)}.`,
+    detail: `Sentence variance ${metrics.sentenceLengthStdDev.toFixed(1)}, avg length ${metrics.avgSentenceLength.toFixed(1)}.`,
   };
 }
 

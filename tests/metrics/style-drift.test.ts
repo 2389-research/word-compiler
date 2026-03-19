@@ -7,7 +7,7 @@ function makeMetrics(overrides: Partial<ProseMetrics> = {}): ProseMetrics {
     wordCount: 500,
     sentenceCount: 40,
     avgSentenceLength: 12.5,
-    sentenceLengthVariance: 4.2,
+    sentenceLengthStdDev: 4.2,
     typeTokenRatio: 0.65,
     paragraphCount: 10,
     avgParagraphLength: 4.0,

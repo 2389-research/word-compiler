@@ -81,17 +81,18 @@ type SSEEvent =
 function parseSSELine(line: string, callbacks: StreamCallbacks): void {
   if (!line.startsWith("data: ")) return;
   const json = line.slice(6);
+  let event: SSEEvent;
   try {
-    const event = JSON.parse(json) as SSEEvent;
-    if (event.type === "delta") {
-      callbacks.onToken(event.text);
-    } else if (event.type === "done") {
-      callbacks.onDone(event.usage, event.stopReason);
-    } else if (event.type === "error") {
-      callbacks.onError(event.error);
-    }
+    event = JSON.parse(json) as SSEEvent;
   } catch {
-    // skip malformed SSE line
+    return; // skip malformed SSE line
+  }
+  if (event.type === "delta") {
+    callbacks.onToken(event.text);
+  } else if (event.type === "done") {
+    callbacks.onDone(event.usage, event.stopReason);
+  } else if (event.type === "error") {
+    callbacks.onError(event.error);
   }
 }
 

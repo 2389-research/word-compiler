@@ -8,7 +8,7 @@ function makeMetrics(overrides: Partial<ProseMetrics> = {}): ProseMetrics {
     wordCount: 500,
     sentenceCount: 40,
     avgSentenceLength: 12.5,
-    sentenceLengthVariance: 4.2,
+    sentenceLengthStdDev: 4.2,
     typeTokenRatio: 0.65,
     paragraphCount: 10,
     avgParagraphLength: 4.0,
@@ -26,7 +26,7 @@ function makeReport(currentSceneId: string, flagged = false): StyleDriftReport {
     currentMetrics: current,
     driftPercent: {
       avgSentenceLength: flagged ? 0.6 : 0,
-      sentenceLengthVariance: 0,
+      sentenceLengthStdDev: 0,
       typeTokenRatio: 0,
       avgParagraphLength: flagged ? 0.375 : 0,
     },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chunkDocument, splitParagraphs, splitSentences } from "../../src/profile/chunker.js";
-import { createDefaultPipelineConfig, createWritingSample } from "../../src/profile/types.js";
 import type { PipelineConfig, WritingSample } from "../../src/profile/types.js";
+import { createDefaultPipelineConfig, createWritingSample } from "../../src/profile/types.js";
 
 function makeSample(text: string, domain = "fiction"): WritingSample {
   return createWritingSample(null, domain, text);
@@ -71,10 +71,7 @@ describe("chunkDocument", () => {
 
   it("produces multiple chunks with overlap for long documents", () => {
     // Generate a long document that exceeds chunkTargetTokens
-    const paragraphs = Array.from(
-      { length: 50 },
-      (_, i) => `Paragraph ${i + 1}. ` + "word ".repeat(80),
-    );
+    const paragraphs = Array.from({ length: 50 }, (_, i) => `Paragraph ${i + 1}. ${"word ".repeat(80)}`);
     const text = paragraphs.join("\n\n");
     const config = makeConfig({ chunkTargetTokens: 500, chunkOverlapTokens: 50 });
     const sample = makeSample(text);
@@ -83,10 +80,7 @@ describe("chunkDocument", () => {
   });
 
   it("multi-chunk: first has isFirst=true, last has isLast=true", () => {
-    const paragraphs = Array.from(
-      { length: 50 },
-      (_, i) => `Paragraph ${i + 1}. ` + "word ".repeat(80),
-    );
+    const paragraphs = Array.from({ length: 50 }, (_, i) => `Paragraph ${i + 1}. ${"word ".repeat(80)}`);
     const text = paragraphs.join("\n\n");
     const config = makeConfig({ chunkTargetTokens: 500, chunkOverlapTokens: 50 });
     const sample = makeSample(text);
@@ -99,10 +93,7 @@ describe("chunkDocument", () => {
   });
 
   it("interior chunks have non-null overlapPrev", () => {
-    const paragraphs = Array.from(
-      { length: 50 },
-      (_, i) => `Paragraph ${i + 1}. ` + "word ".repeat(80),
-    );
+    const paragraphs = Array.from({ length: 50 }, (_, i) => `Paragraph ${i + 1}. ${"word ".repeat(80)}`);
     const text = paragraphs.join("\n\n");
     const config = makeConfig({ chunkTargetTokens: 500, chunkOverlapTokens: 50 });
     const sample = makeSample(text);
@@ -116,10 +107,7 @@ describe("chunkDocument", () => {
   });
 
   it("each chunk has tokenCount > 0", () => {
-    const paragraphs = Array.from(
-      { length: 50 },
-      (_, i) => `Paragraph ${i + 1}. ` + "word ".repeat(80),
-    );
+    const paragraphs = Array.from({ length: 50 }, (_, i) => `Paragraph ${i + 1}. ${"word ".repeat(80)}`);
     const text = paragraphs.join("\n\n");
     const config = makeConfig({ chunkTargetTokens: 500, chunkOverlapTokens: 50 });
     const sample = makeSample(text);

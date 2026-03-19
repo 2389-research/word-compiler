@@ -162,7 +162,7 @@ export interface StyleDriftReport {
   currentMetrics: ProseMetrics;
   driftPercent: {
     avgSentenceLength: number;
-    sentenceLengthVariance: number;
+    sentenceLengthStdDev: number;
     typeTokenRatio: number;
     avgParagraphLength: number;
   };
@@ -176,7 +176,7 @@ export interface VoiceSeparabilityReport {
     characterName: string;
     dialogueCount: number;
     avgSentenceLength: number;
-    sentenceLengthVariance: number;
+    sentenceLengthStdDev: number;
     typeTokenRatio: number;
   }>;
   interCharacterVariance: number;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createWritingSample, createDefaultPipelineConfig, createEmptyVoiceGuide } from "@/profile/types.js";
 import { chunkDocument } from "@/profile/chunker.js";
-import { renderGenerationFragment, renderEditingFragment, extractCoreSensibility } from "@/profile/renderer.js";
 import { buildStage1Prompt, STAGE1_SYSTEM } from "@/profile/prompts.js";
+import { extractCoreSensibility, renderEditingFragment, renderGenerationFragment } from "@/profile/renderer.js";
+import { createDefaultPipelineConfig, createEmptyVoiceGuide, createWritingSample } from "@/profile/types.js";
 
 describe("profile pipeline integration", () => {
   it("chunking → prompts → types chain produces valid data", () => {

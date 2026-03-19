@@ -20,13 +20,19 @@ export async function runPipeline(
   const chunkAnalysesPerDoc = [];
   for (const sample of samples) {
     const chunks = chunkDocument(sample, config);
-    console.log(`[profile] Stage 1: analyzing ${chunks.length} chunks for "${sample.filename ?? sample.id}" (${sample.wordCount} words)`);
+    console.log(
+      `[profile] Stage 1: analyzing ${chunks.length} chunks for "${sample.filename ?? sample.id}" (${sample.wordCount} words)`,
+    );
     const analyses = await analyzeChunks(sample.id, chunks, config, client);
     const highDriftCount = analyses.filter((a) => a.contentDriftScore >= 0.5).length;
-    console.log(`[profile] Stage 1 done: ${analyses.length} chunks analyzed, ${highDriftCount} with drift score >= 0.5`);
+    console.log(
+      `[profile] Stage 1 done: ${analyses.length} chunks analyzed, ${highDriftCount} with drift score >= 0.5`,
+    );
     for (const a of analyses) {
       if (a.contentDriftScore > 0) {
-        console.log(`[profile]   chunk ${a.chunkIndex} drift=${a.contentDriftScore.toFixed(2)}: ${a.contentDriftNote ?? "no note"}`);
+        console.log(
+          `[profile]   chunk ${a.chunkIndex} drift=${a.contentDriftScore.toFixed(2)}: ${a.contentDriftNote ?? "no note"}`,
+        );
       }
     }
     chunkAnalysesPerDoc.push({ sample, analyses });
@@ -37,7 +43,9 @@ export async function runPipeline(
   for (const { sample, analyses } of chunkAnalysesPerDoc) {
     console.log(`[profile] Stage 2: synthesizing "${sample.filename ?? sample.id}"`);
     const docAnalysis = await synthesizeDocument(sample, analyses, config, client);
-    console.log(`[profile] Stage 2 done: driftRatio=${docAnalysis.driftRatio.toFixed(2)}, ${docAnalysis.consistentFeatures?.length ?? 0} consistent features, ${docAnalysis.avoidancePatterns?.length ?? 0} avoidance patterns`);
+    console.log(
+      `[profile] Stage 2 done: driftRatio=${docAnalysis.driftRatio.toFixed(2)}, ${docAnalysis.consistentFeatures?.length ?? 0} consistent features, ${docAnalysis.avoidancePatterns?.length ?? 0} avoidance patterns`,
+    );
     docAnalyses.push(docAnalysis);
   }
 

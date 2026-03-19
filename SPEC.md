@@ -1279,7 +1279,7 @@ class AuditorLite {
       wordCount: words,
       sentenceCount: sentences.length,
       averageSentenceLength: words / sentences.length,
-      sentenceLengthVariance: computeVariance(sentences.map(s => countWords(s))),
+      sentenceLengthStdDev: computeVariance(sentences.map(s => countWords(s))),
       typeTokenRatio: uniqueWords.size / allWords.length,
       paragraphCount: prose.split(/\n\n+/).length,
       averageParagraphLength: sentences.length / prose.split(/\n\n+/).length
@@ -1291,7 +1291,7 @@ interface ProseMetrics {
   wordCount: number;
   sentenceCount: number;
   averageSentenceLength: number;
-  sentenceLengthVariance: number;
+  sentenceLengthStdDev: number;
   typeTokenRatio: number;
   paragraphCount: number;
   averageParagraphLength: number;
