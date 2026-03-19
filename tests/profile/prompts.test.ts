@@ -3,7 +3,6 @@ import {
   buildStage1Prompt,
   buildStage4Prompt,
   buildStage5Prompt,
-  DELTA_SYSTEM,
   STAGE1_SYSTEM,
   STAGE2_SYSTEM,
   STAGE3_SYSTEM,
@@ -28,7 +27,7 @@ function makeChunk(overrides: Partial<DocumentChunk> = {}): DocumentChunk {
 
 describe("system prompts", () => {
   it("all system prompts are non-empty strings", () => {
-    for (const prompt of [STAGE1_SYSTEM, STAGE2_SYSTEM, STAGE3_SYSTEM, STAGE4_SYSTEM, STAGE5_SYSTEM, DELTA_SYSTEM]) {
+    for (const prompt of [STAGE1_SYSTEM, STAGE2_SYSTEM, STAGE3_SYSTEM, STAGE4_SYSTEM, STAGE5_SYSTEM]) {
       expect(typeof prompt).toBe("string");
       expect(prompt.length).toBeGreaterThan(0);
     }

@@ -1,20 +1,18 @@
-import type Anthropic from "@anthropic-ai/sdk";
-import type { PreferenceStatement } from "../../src/profile/types.js";
-import { generateId } from "../../src/types/index.js";
-import { countTokens, truncateToTokens } from "../../src/tokens/index.js";
-import { textCall } from "./llm.js";
+# CIPHER Batch Prompt — Iteration 3
 
-export const CIPHER_BATCH_SIZE = 10;
-const EDIT_TOKEN_LIMIT = 2000;
+## CIPHER_SYSTEM
 
-export const CIPHER_SYSTEM =
-  "You are a writing style analyst specializing in extracting actionable voice preferences from author edits. Given a batch of edits an author made to LLM-generated prose, identify the recurring stylistic patterns these edits reveal. Your output will be injected into an LLM system prompt to condition future prose generation — write preferences as direct commands.";
+```
+You are a writing style analyst specializing in extracting actionable voice preferences from author edits. Given a batch of edits an author made to LLM-generated prose, identify the recurring stylistic patterns these edits reveal. Your output will be injected into an LLM system prompt to condition future prose generation — write preferences as direct commands.
+```
 
+## buildBatchCipherPrompt
+
+```typescript
 export function buildBatchCipherPrompt(edits: Array<{ original: string; edited: string }>): string {
   const editBlocks = edits
     .map(
-      (e, i) =>
-        `Edit ${i + 1}:\nORIGINAL: ${truncateToTokens(e.original, EDIT_TOKEN_LIMIT)}\nEDITED: ${truncateToTokens(e.edited, EDIT_TOKEN_LIMIT)}`,
+      (e, i) => `Edit ${i + 1}:\nORIGINAL: ${e.original.slice(0, 500)}\nEDITED: ${e.edited.slice(0, 500)}`,
     )
     .join("\n\n");
 
@@ -42,21 +40,4 @@ Produce exactly 5 writing preferences. Each preference MUST:
 
 Format: numbered list. No headers, explanations, or examples.`;
 }
-
-const CIPHER_MODEL = "claude-haiku-4-5-20251001";
-
-export async function inferBatchPreferences(
-  client: Anthropic,
-  projectId: string,
-  edits: Array<{ original: string; edited: string }>,
-): Promise<PreferenceStatement> {
-  const statement = await textCall(client, CIPHER_MODEL, CIPHER_SYSTEM, buildBatchCipherPrompt(edits));
-
-  return {
-    id: generateId(),
-    projectId,
-    statement,
-    editCount: edits.length,
-    createdAt: new Date().toISOString(),
-  };
-}
+```

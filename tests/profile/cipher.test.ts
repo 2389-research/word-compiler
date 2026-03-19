@@ -14,8 +14,9 @@ describe("buildBatchCipherPrompt", () => {
     expect(prompt).toContain("Edit 2");
   });
 
-  it("truncates long texts to 500 chars", () => {
-    const longText = "x".repeat(1000);
+  it("truncates long texts to token limit", () => {
+    // 2000 tokens ≈ 8000 chars, so a 20000-char string should be truncated
+    const longText = "word ".repeat(4000);
     const edits = [{ original: longText, edited: "short" }];
     const prompt = buildBatchCipherPrompt(edits);
     expect(prompt.length).toBeLessThan(longText.length);

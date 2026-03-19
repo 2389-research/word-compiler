@@ -154,33 +154,6 @@ export interface VoiceGuide {
   updatedAt: string;
 }
 
-// ─── Delta Types ──────────────────────────────────────
-
-export interface ConfirmedFeature {
-  featureName: string;
-  evidence: string;
-}
-
-export interface ContradictedFeature {
-  featureName: string;
-  strength: "weak" | "strong";
-  evidence: string;
-}
-
-export interface TransferValidation {
-  featureName: string;
-  outcome: "correct" | "incorrect" | "partial";
-  note: string;
-}
-
-export interface DeltaResponse {
-  confirmed: ConfirmedFeature[];
-  contradicted: ContradictedFeature[];
-  newFeatures: StyleFeature[];
-  transferValidated: TransferValidation[];
-  evolutionSignals: string | null;
-}
-
 // ─── CIPHER Edit Learning ────────────────────────────
 
 export interface SignificantEdit {
@@ -209,7 +182,6 @@ export interface PipelineConfig {
   stage3ClusterModel: string;
   stage4FilterModel: string;
   stage5GuideModel: string;
-  deltaUpdateModel: string;
   chunkTargetTokens: number;
   chunkOverlapTokens: number;
   minChunkTokens: number;
@@ -221,9 +193,6 @@ export interface PipelineConfig {
   driftDownweightFactor: number;
   driftDownweightThreshold: number;
   driftExclusionThreshold: number;
-  fullRegenStrongContradictions: number;
-  fullRegenNewFeatures: number;
-  fullRegenTransferValidations: number;
 }
 
 // ─── Factory Functions ────────────────────────────────
@@ -269,7 +238,6 @@ export function createDefaultPipelineConfig(): PipelineConfig {
     stage3ClusterModel: "claude-sonnet-4-5-20250929",
     stage4FilterModel: "claude-sonnet-4-5-20250929",
     stage5GuideModel: "claude-sonnet-4-5-20250929",
-    deltaUpdateModel: "claude-sonnet-4-5-20250929",
     chunkTargetTokens: 10000,
     chunkOverlapTokens: 1000,
     minChunkTokens: 100,
@@ -281,8 +249,5 @@ export function createDefaultPipelineConfig(): PipelineConfig {
     driftDownweightFactor: 0.5,
     driftDownweightThreshold: 0.5,
     driftExclusionThreshold: 0.8,
-    fullRegenStrongContradictions: 1,
-    fullRegenNewFeatures: 2,
-    fullRegenTransferValidations: 1,
   };
 }

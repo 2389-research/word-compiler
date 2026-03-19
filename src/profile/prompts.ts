@@ -17,9 +17,6 @@ export const STAGE4_SYSTEM =
 export const STAGE5_SYSTEM =
   "You are writing a comprehensive voice guide for a writer. Write in clear, direct prose. The guide should be pleasant to read. Follow the exact section structure requested.";
 
-export const DELTA_SYSTEM =
-  "You are comparing new writing analysis against an existing voice guide. Identify confirmations, contradictions, new features, and evolution signals. Return structured JSON.";
-
 // ─── Stage 1: Per-Chunk Analysis ─────────────────────────
 
 export function buildStage1Prompt(chunk: DocumentChunk): string {
@@ -270,49 +267,3 @@ ${featuresJson}
   return parts.join("\n\n");
 }
 
-// ─── Delta Update ────────────────────────────────────────
-
-export function buildDeltaUpdatePrompt(
-  existingNarrative: string,
-  existingCoreFeaturesJson: string,
-  existingAvoidanceJson: string,
-  newAnalysesJson: string,
-  newDocsDomain: string,
-  existingDomains: string[],
-): string {
-  return `Compare new writing analysis against an existing voice guide.
-
-<existing_narrative>
-${existingNarrative}
-</existing_narrative>
-
-<existing_core_features>
-${existingCoreFeaturesJson}
-</existing_core_features>
-
-<existing_avoidance_patterns>
-${existingAvoidanceJson}
-</existing_avoidance_patterns>
-
-<new_analyses>
-${newAnalysesJson}
-</new_analyses>
-
-New documents domain: ${newDocsDomain}
-Existing domains in the guide: ${existingDomains.join(", ")}
-
-For each feature in the new analysis, classify it:
-- CONFIRMED — The new writing shows the same pattern already documented. Strengthens confidence.
-- CONTRADICTED (weak) — The new writing shows a mild departure from a documented pattern. Might be format-variant or evolution.
-- CONTRADICTED (strong) — The new writing directly contradicts a documented pattern. Requires attention.
-- NEW — A pattern not present in the existing guide. Could be newly detected or newly developed.
-- TRANSFER_VALIDATED — If the new documents are in a different domain, this validates (or invalidates) a transferability prediction.
-- EVOLUTION — The pattern exists but has shifted in a meaningful way. Track the direction.
-
-Return a JSON object with:
-- confirmed: Array<{ featureName: string, evidence: string }>
-- contradicted: Array<{ featureName: string, strength: "weak" | "strong", evidence: string }>
-- newFeatures: Array<{ name: string, description: string, evidence: string, confidence: "high" | "medium" | "low" }>
-- transferValidated: Array<{ featureName: string, outcome: "correct" | "incorrect" | "partial", note: string }>
-- evolutionSignals: string | null`;
-}
