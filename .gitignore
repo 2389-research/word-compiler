@@ -10,3 +10,15 @@ storybook-static/
 test-results/
 playwright-report/
 .worktrees/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# SQLite (extra safety beyond data/)
+*.db
+*.db-shm
+*.db-wal
