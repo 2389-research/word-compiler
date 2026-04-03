@@ -116,15 +116,13 @@ Full architecture documentation lives in [docs/architecture/](docs/architecture/
 
 ## Security Model
 
-Word Compiler is designed as a **self-hosted, single-user, localhost application**. The API server binds to `127.0.0.1` by default and CORS is restricted to the Vite dev origin (`localhost:5173`).
+Word Compiler is designed as a **self-hosted, single-user, localhost application**. The API server binds to `127.0.0.1` by default and CORS is restricted to `http://localhost:5173` and `http://127.0.0.1:5173`.
 
 **Do not expose the server to the public internet or untrusted networks.** The API endpoints include an unauthenticated proxy to the Anthropic API using your configured API key. There is no authentication, no rate limiting, and no input validation — this is by design for a local tool.
 
 To override the defaults (not recommended for untrusted networks):
 - `HOST=0.0.0.0` — bind to all interfaces
 - `CORS_ORIGIN=http://example.com` — allow a different origin
-
-See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 
