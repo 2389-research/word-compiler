@@ -272,7 +272,8 @@ function exportState() {
   navigator.clipboard
     .writeText(json)
     .then(() => {
-      store.setError("State snapshot copied to clipboard.");
+      // Intentionally no-op: clipboard copy succeeded silently.
+      // A proper toast notification system would be better here (see #1).
     })
     .catch(() => {
       store.saveFile(snapshot, `wc-state-${Date.now()}.json`);

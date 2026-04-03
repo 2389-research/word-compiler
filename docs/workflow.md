@@ -27,7 +27,7 @@ A task-oriented guide to writing fiction with Word Compiler. For technical inter
 
 6. **Edit** — Navigate to the Edit stage (unlocked when all critical flags are resolved). Revise prose with editorial review annotations — squiggly underlines for local checks and LLM-suggested improvements. Accept, dismiss, or refine suggestions inline.
 
-7. **Complete** — Navigate to the Complete stage (unlocked when editing is complete). Mark scenes as complete, extract Scene IR for cross-scene analysis.
+7. **Complete** — Navigate to the Complete stage (available after the Edit stage). Mark scenes as complete, extract Scene IR for cross-scene analysis.
 
 8. **Export** — Navigate to the Export stage (unlocked after at least 1 scene is marked complete). Choose markdown or plaintext format. Copy to clipboard or download.
 
@@ -44,7 +44,7 @@ The app uses a 7-stage workflow. Navigate between stages via the **WorkflowRail*
 | Draft | >= 1 scene plan exists | Generate and review prose chunks |
 | Audit | >= 1 chunk generated | Quality checks, flag resolution |
 | Edit | All critical flags resolved | Revise prose with editorial review annotations |
-| Complete | Editing complete | Mark scenes done, extract IR |
+| Complete | Always (after Edit unlocks) | Mark scenes done, extract IR |
 | Export | >= 1 scene marked complete | Export prose to markdown/plaintext |
 
 **Keyboard shortcuts:** `Ctrl+1` through `Ctrl+7` navigate to each stage (if unlocked). `Ctrl+Enter` advances to the next unlocked stage.
