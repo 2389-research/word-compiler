@@ -166,6 +166,7 @@ function handleBackToProjects() {
 let newProjectTitle = $state("");
 let editingTitle = $state(false);
 let editTitleValue = $state("");
+let boundaryErrorMsg = "";
 
 // ─── Prose word count ───────────────────────────
 let totalWordCount = $derived(
@@ -383,7 +384,7 @@ function exportState() {
 
   <div class="stage-workspace">
     {#key workflow.activeStage}
-      <svelte:boundary onerror={(err) => { console.error("[boundary] Stage crash:", err); store.setError(`Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Try switching stages or refreshing.`); }}>
+      <svelte:boundary onerror={(err) => { console.error("[boundary] Stage crash:", err); boundaryErrorMsg = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Try switching stages or refreshing.`; store.setError(boundaryErrorMsg); }}>
         <div class="stage-content" in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
           {#if workflow.activeStage === "bootstrap"}
             <BootstrapStage {store} {commands} />
@@ -426,7 +427,7 @@ function exportState() {
           <div class="stage-crash">
             <h3>Something went wrong</h3>
             <p>{err instanceof Error ? err.message : "An unexpected error occurred."}</p>
-            <Button onclick={() => { store.setError(null); reset(); }}>Try Again</Button>
+            <Button onclick={() => { if (store.error === boundaryErrorMsg) store.setError(null); reset(); }}>Try Again</Button>
           </div>
         {/snippet}
       </svelte:boundary>
