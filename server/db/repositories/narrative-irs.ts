@@ -12,9 +12,9 @@ interface NarrativeIRRow {
   verified_at: string | null;
 }
 
-function rowToIR(row: NarrativeIRRow): NarrativeIR {
+function rowToIR(row: NarrativeIRRow): NarrativeIR | null {
   const data = safeJsonParse<Omit<NarrativeIR, "sceneId" | "verified">>(row.data, "narrative_irs.rowToIR");
-  if (!data) return { sceneId: row.scene_id, verified: row.verified === 1 } as NarrativeIR;
+  if (!data) return null;
   return {
     ...data,
     sceneId: row.scene_id,
@@ -69,7 +69,7 @@ export function listVerifiedIRsForChapter(db: Database.Database, chapterId: stri
        ORDER BY sp.scene_order`,
     )
     .all(chapterId) as NarrativeIRRow[];
-  return rows.map(rowToIR);
+  return rows.map(rowToIR).filter((ir): ir is NarrativeIR => ir !== null);
 }
 
 export function listAllIRsForChapter(db: Database.Database, chapterId: string): NarrativeIR[] {
@@ -81,5 +81,5 @@ export function listAllIRsForChapter(db: Database.Database, chapterId: string): 
        ORDER BY sp.scene_order`,
     )
     .all(chapterId) as NarrativeIRRow[];
-  return rows.map(rowToIR);
+  return rows.map(rowToIR).filter((ir): ir is NarrativeIR => ir !== null);
 }

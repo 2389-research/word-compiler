@@ -63,6 +63,9 @@ export function deleteProject(db: Database.Database, id: string): boolean {
       .all(projectId)
       .map((r) => (r as { id: string }).id);
 
+    // Delete edit_patterns first — they reference both chunks and scenes via FK
+    db.prepare("DELETE FROM edit_patterns WHERE project_id = ?").run(projectId);
+
     for (const sceneId of sceneIds) {
       // Delete logs/payloads before chunks (they reference chunk IDs but have no FK constraint)
       const chunkIds = db
@@ -78,7 +81,6 @@ export function deleteProject(db: Database.Database, id: string): boolean {
       db.prepare("DELETE FROM narrative_irs WHERE scene_id = ?").run(sceneId);
     }
 
-    db.prepare("DELETE FROM edit_patterns WHERE project_id = ?").run(projectId);
     db.prepare("DELETE FROM significant_edits WHERE project_id = ?").run(projectId);
     db.prepare("DELETE FROM preference_statements WHERE project_id = ?").run(projectId);
     db.prepare("DELETE FROM scene_plans WHERE project_id = ?").run(projectId);

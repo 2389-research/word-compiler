@@ -1,6 +1,6 @@
 /**
  * Safely parse a JSON string from a database column.
- * Returns null and logs a warning instead of throwing on malformed data.
+ * Returns null and logs an error instead of throwing on malformed data.
  */
 export function safeJsonParse<T>(json: string, context: string): T | null {
   try {

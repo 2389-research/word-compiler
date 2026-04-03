@@ -55,21 +55,19 @@ export function listVoiceGuideVersions(db: Database.Database): VoiceGuideVersion
   const rows = db
     .prepare("SELECT * FROM voice_guide_versions ORDER BY created_at DESC")
     .all() as VoiceGuideVersionRow[];
-  return rows
-    .map((row) => {
-      const guide = safeJsonParse<VoiceGuide>(row.data, "voice_guide.listVoiceGuideVersions");
-      if (!guide) return null;
-      const version = guide.versionHistory.find((v) => v.version === row.version);
-      if (version) return version;
-      return {
-        version: row.version,
-        updatedAt: row.created_at,
-        changeReason: row.change_reason,
-        changeSummary: row.change_summary,
-        confirmedFeatures: [],
-        contradictedFeatures: [],
-        newFeatures: [],
-      };
-    })
-    .filter((v): v is VoiceGuideVersion => v !== null);
+  return rows.map((row) => {
+    const guide = safeJsonParse<VoiceGuide>(row.data, "voice_guide.listVoiceGuideVersions");
+    const versionHistory = Array.isArray(guide?.versionHistory) ? guide.versionHistory : [];
+    const version = versionHistory.find((v) => v.version === row.version);
+    if (version) return version;
+    return {
+      version: row.version,
+      updatedAt: row.created_at,
+      changeReason: row.change_reason,
+      changeSummary: row.change_summary,
+      confirmedFeatures: [],
+      contradictedFeatures: [],
+      newFeatures: [],
+    };
+  });
 }
