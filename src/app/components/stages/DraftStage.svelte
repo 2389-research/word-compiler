@@ -430,10 +430,10 @@ function handleUpdateChunk(index: number, changes: Partial<Chunk>) {
   }
 }
 
-function handleRemoveChunk(index: number) {
+async function handleRemoveChunk(index: number) {
   const sceneId = store.activeScenePlan?.id;
   if (!sceneId) return;
-  commands.removeChunk(sceneId, index);
+  await commands.removeChunk(sceneId, index);
 }
 
 async function handleDestroyChunk(index: number) {
