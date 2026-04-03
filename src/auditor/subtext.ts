@@ -1,5 +1,5 @@
 import type { AuditFlag, ScenePlan } from "../types/index.js";
-import { generateId } from "../types/index.js";
+import { DEFAULT_FAST_MODEL, generateId } from "../types/index.js";
 
 // ─── Subtext Compliance ──────────────────────────────────
 //
@@ -51,7 +51,7 @@ export async function checkSubtext(
   prose: string,
   plan: ScenePlan,
   client: SubtextClient,
-  model = "claude-haiku-4-5-20251001",
+  model = DEFAULT_FAST_MODEL,
 ): Promise<AuditFlag[]> {
   if (!plan.subtext) return [];
 

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import cors from "cors";
 import express from "express";
+import { DEFAULT_MODEL } from "../src/types/metadata.js";
 import { createApiRouter } from "./api/routes.js";
 import { getDatabase } from "./db/connection.js";
 import { errorHandler, requestLogger } from "./middleware.js";
@@ -59,7 +60,7 @@ app.post("/api/generate", async (req, res) => {
   try {
     const { systemMessage, userMessage, temperature, topP, maxTokens, model, outputSchema } = req.body;
 
-    const effectiveModel = model || "claude-sonnet-4-6";
+    const effectiveModel = model || DEFAULT_MODEL;
     const effectiveMaxTokens = maxTokens || 2000;
     console.log(`[generate] Starting: model=${effectiveModel}, max_tokens=${effectiveMaxTokens}`);
 
@@ -125,7 +126,7 @@ app.post("/api/generate/stream", async (req, res) => {
   }
 
   try {
-    const effectiveModel = model || "claude-sonnet-4-6";
+    const effectiveModel = model || DEFAULT_MODEL;
     const effectiveMaxTokens = maxTokens || 2000;
     console.log(`[stream] Starting generation: model=${effectiveModel}, max_tokens=${effectiveMaxTokens}`);
 

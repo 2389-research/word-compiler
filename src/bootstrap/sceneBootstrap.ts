@@ -1,5 +1,5 @@
 import type { CompiledPayload, ScenePlan } from "../types/index.js";
-import { createEmptyScenePlan, generateId } from "../types/index.js";
+import { createEmptyScenePlan, DEFAULT_MODEL, generateId } from "../types/index.js";
 import { extractJsonFromText } from "./index.js";
 
 // ─── Types ─────────────────────────────────────────────
@@ -547,7 +547,7 @@ CRITICAL: Maintain reader state continuity across scenes. Scene 2's readerStateE
     temperature: 0.7,
     topP: 0.92,
     maxTokens: params.sceneCount === 1 ? 8192 : 16384,
-    model: "claude-sonnet-4-6",
+    model: DEFAULT_MODEL,
   };
 }
 

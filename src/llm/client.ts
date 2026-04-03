@@ -96,7 +96,11 @@ function parseSSELine(line: string, callbacks: StreamCallbacks): void {
   }
 }
 
-export async function generateStream(payload: CompiledPayload, callbacks: StreamCallbacks): Promise<void> {
+export async function generateStream(
+  payload: CompiledPayload,
+  callbacks: StreamCallbacks,
+  signal?: AbortSignal,
+): Promise<void> {
   const response = await fetch("/api/generate/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -108,6 +112,7 @@ export async function generateStream(payload: CompiledPayload, callbacks: Stream
       maxTokens: payload.maxTokens,
       model: payload.model,
     }),
+    signal,
   });
 
   if (!response.ok) {

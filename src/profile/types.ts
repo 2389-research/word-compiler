@@ -1,3 +1,4 @@
+import { DEFAULT_ANALYSIS_MODEL, DEFAULT_FAST_MODEL } from "../types/metadata.js";
 import { generateId } from "../types/utils.js";
 
 // ─── Input Types ───────────────────────────────────────
@@ -233,11 +234,11 @@ export function createWritingSample(filename: string | null, domain: string, tex
 
 export function createDefaultPipelineConfig(): PipelineConfig {
   return {
-    stage1ChunkModel: "claude-haiku-4-5-20251001",
-    stage2DocumentModel: "claude-haiku-4-5-20251001",
-    stage3ClusterModel: "claude-sonnet-4-5-20250929",
-    stage4FilterModel: "claude-sonnet-4-5-20250929",
-    stage5GuideModel: "claude-sonnet-4-5-20250929",
+    stage1ChunkModel: DEFAULT_FAST_MODEL,
+    stage2DocumentModel: DEFAULT_FAST_MODEL,
+    stage3ClusterModel: DEFAULT_ANALYSIS_MODEL,
+    stage4FilterModel: DEFAULT_ANALYSIS_MODEL,
+    stage5GuideModel: DEFAULT_ANALYSIS_MODEL,
     chunkTargetTokens: 10000,
     chunkOverlapTokens: 1000,
     minChunkTokens: 100,

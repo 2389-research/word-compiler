@@ -54,6 +54,7 @@ export class ProjectStore {
   isGenerating = $state(false);
   isAutopilot = $state(false);
   autopilotCancelled = $state(false);
+  generationAbortController: AbortController | null = null;
   isAuditing = $state(false);
   reviewingChunks = $state<Set<number>>(new Set());
   extractingIRSceneId = $state<string | null>(null);
@@ -233,6 +234,17 @@ export class ProjectStore {
 
   setGenerating(value: boolean) {
     this.isGenerating = value;
+    if (value) {
+      this.generationAbortController = new AbortController();
+    } else {
+      this.generationAbortController = null;
+    }
+  }
+
+  cancelGeneration() {
+    this.generationAbortController?.abort();
+    this.generationAbortController = null;
+    this.isGenerating = false;
   }
 
   setAuditing(value: boolean) {

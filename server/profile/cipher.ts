@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { PreferenceStatement } from "../../src/profile/types.js";
 import { truncateToTokens } from "../../src/tokens/index.js";
-import { generateId } from "../../src/types/index.js";
+import { DEFAULT_FAST_MODEL, generateId } from "../../src/types/index.js";
 import { textCall } from "./llm.js";
 
 export const CIPHER_BATCH_SIZE = 10;
@@ -43,7 +43,7 @@ Produce exactly 5 writing preferences. Each preference MUST:
 Format: numbered list. No headers, explanations, or examples.`;
 }
 
-const CIPHER_MODEL = "claude-haiku-4-5-20251001";
+const CIPHER_MODEL = DEFAULT_FAST_MODEL;
 
 export async function inferBatchPreferences(
   client: Anthropic,

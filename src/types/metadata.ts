@@ -104,6 +104,8 @@ export const MODEL_REGISTRY: Record<string, ModelSpec> = {
 };
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_FAST_MODEL = "claude-haiku-4-5-20251001";
+export const DEFAULT_ANALYSIS_MODEL = "claude-sonnet-4-5-20250929";
 
 export function getModelSpec(modelId: string): ModelSpec {
   return (

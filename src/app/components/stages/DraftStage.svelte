@@ -19,7 +19,7 @@ import {
   trimSuggestionOverlap,
 } from "../../../review/index.js";
 import type { Chunk, NarrativeIR, StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
-import { getCanonicalText } from "../../../types/index.js";
+import { DEFAULT_MODEL, getCanonicalText } from "../../../types/index.js";
 import { Tabs } from "../../primitives/index.js";
 import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
@@ -51,7 +51,7 @@ let {
 } = $props();
 
 // ─── Editorial Review ───────────────────────────
-const REVIEW_MODEL = "claude-sonnet-4-6";
+const REVIEW_MODEL = DEFAULT_MODEL;
 const REVIEW_MAX_TOKENS = 2048;
 
 const llmReviewClient: LLMReviewClient = {

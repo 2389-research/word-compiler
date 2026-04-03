@@ -1,5 +1,5 @@
 import type { Bible, CompiledPayload } from "../types/index.js";
-import { generateId } from "../types/index.js";
+import { DEFAULT_MODEL, generateId } from "../types/index.js";
 
 export type { ParsedSceneBootstrap, SceneBootstrapParams } from "./sceneBootstrap.js";
 // Re-export scene bootstrap
@@ -120,7 +120,7 @@ Be specific but FUNCTIONAL. Every detail should anchor the reader in the space o
     temperature: 0.7,
     topP: 0.92,
     maxTokens: 16384,
-    model: "claude-sonnet-4-6",
+    model: DEFAULT_MODEL,
   };
 }
 

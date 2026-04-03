@@ -1,4 +1,5 @@
 import type { Bible, NarrativeIR, ScenePlan } from "../types/index.js";
+import { DEFAULT_MODEL } from "../types/index.js";
 import { parseIRResponse } from "./parser.js";
 
 // ─── LLM Client Interface ────────────────────────────────
@@ -83,7 +84,7 @@ export async function extractIR(
   plan: ScenePlan,
   bible: Bible,
   llmClient: IRLLMClient,
-  model = "claude-sonnet-4-6",
+  model = DEFAULT_MODEL,
 ): Promise<NarrativeIR> {
   const userMessage = buildIRExtractionPrompt(prose, plan, bible);
   const responseText = await llmClient.call(IR_SYSTEM_MESSAGE, userMessage, model, 4096);

@@ -13,7 +13,7 @@ import {
 } from "../../review/refine.js";
 import type { RefinementRequest, RefinementResult } from "../../review/refineTypes.js";
 import type { Chunk, NarrativeIR } from "../../types/index.js";
-import { generateId, getCanonicalText } from "../../types/index.js";
+import { DEFAULT_MODEL, generateId, getCanonicalText } from "../../types/index.js";
 import type { Commands } from "./commands.js";
 import type { ProjectStore } from "./project.svelte.js";
 
@@ -49,41 +49,17 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     await commands.saveAuditFlags(flags);
   }
 
-  async function generateChunk(pinnedSceneId?: string) {
-    const plan = store.activeScenePlan;
-    if (!store.compiledPayload || !store.bible || !plan) {
-      store.setError("Cannot generate: missing compiled payload, bible, or scene plan");
-      return;
-    }
-
-    const sceneId = pinnedSceneId ?? plan.id;
-
-    store.setGenerating(true);
-    store.setError(null);
-
-    try {
-      const chunkId = generateId();
-      const chunkIndex = chunksForScene(sceneId).length;
-      const pendingChunk: Chunk = {
-        id: chunkId,
-        sceneId,
-        sequenceNumber: chunkIndex,
-        generatedText: "",
-        payloadHash: generateId(),
-        model: store.compiledPayload.model,
-        temperature: store.compiledPayload.temperature,
-        topP: store.compiledPayload.topP,
-        generatedAt: new Date().toISOString(),
-        status: "pending",
-        editedText: null,
-        humanNotes: null,
-      };
-      store.addChunk(pendingChunk);
-
-      let fullText = "";
-      let streamFailed = false;
-      let stopReason = "";
-      await generateStream(store.compiledPayload, {
+  /** Stream a chunk and return the result, or null if the stream failed or was cancelled. */
+  async function streamChunk(
+    sceneId: string,
+    chunkIndex: number,
+  ): Promise<{ text: string; stopReason: string } | null> {
+    let fullText = "";
+    let streamFailed = false;
+    let stopReason = "";
+    await generateStream(
+      store.compiledPayload!,
+      {
         onToken: (text) => {
           fullText += text;
           store.updateChunkForScene(sceneId, chunkIndex, { generatedText: fullText });
@@ -97,19 +73,62 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
           streamFailed = true;
           store.setError(`Generation failed: ${err}`);
         },
-      });
+      },
+      store.generationAbortController?.signal,
+    );
+    if (streamFailed) return null;
+    if (handleEmptyGeneration(fullText, stopReason, sceneId, chunkIndex)) return null;
+    return { text: fullText, stopReason };
+  }
 
-      // Abort if stream errored — don't persist partial/invalid prose
-      if (streamFailed) return;
+  function makePendingChunk(sceneId: string, chunkIndex: number): Chunk {
+    return {
+      id: generateId(),
+      sceneId,
+      sequenceNumber: chunkIndex,
+      generatedText: "",
+      payloadHash: generateId(),
+      model: store.compiledPayload!.model,
+      temperature: store.compiledPayload!.temperature,
+      topP: store.compiledPayload!.topP,
+      generatedAt: new Date().toISOString(),
+      status: "pending",
+      editedText: null,
+      humanNotes: null,
+    };
+  }
 
-      if (handleEmptyGeneration(fullText, stopReason, sceneId, chunkIndex)) return;
+  function canGenerate(): boolean {
+    return !!(store.compiledPayload && store.bible && store.activeScenePlan);
+  }
 
-      await persistChunkAndAudit(sceneId, chunkIndex, pendingChunk, fullText);
+  async function generateChunk(pinnedSceneId?: string) {
+    if (!canGenerate()) {
+      store.setError("Cannot generate: missing compiled payload, bible, or scene plan");
+      return;
+    }
+
+    const sceneId = pinnedSceneId ?? store.activeScenePlan!.id;
+    const chunkIndex = chunksForScene(sceneId).length;
+    const pendingChunk = makePendingChunk(sceneId, chunkIndex);
+
+    store.setGenerating(true);
+    store.setError(null);
+    store.addChunk(pendingChunk);
+
+    try {
+      const result = await streamChunk(sceneId, chunkIndex);
+      if (result) await persistChunkAndAudit(sceneId, chunkIndex, pendingChunk, result.text);
     } catch (err) {
-      store.setError(err instanceof Error ? err.message : "Generation failed");
+      handleGenerationError(err);
     } finally {
       store.setGenerating(false);
     }
+  }
+
+  function handleGenerationError(err: unknown) {
+    if (err instanceof DOMException && err.name === "AbortError") return;
+    store.setError(err instanceof Error ? err.message : "Generation failed");
   }
 
   async function runAuditManual(pinnedSceneId?: string) {
@@ -339,7 +358,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
       const { text: sceneText } = buildContinuousText(chunks);
       const userPrompt = buildRefinementUserPrompt(sceneText, request, scenePlan.title, scenePlan.narrativeGoal);
 
-      const raw = await callLLM(systemPrompt, userPrompt, "claude-sonnet-4-6", 4096, REFINEMENT_OUTPUT_SCHEMA);
+      const raw = await callLLM(systemPrompt, userPrompt, DEFAULT_MODEL, 4096, REFINEMENT_OUTPUT_SCHEMA);
       const { variants, parseError } = parseRefinementResponse(raw, store.bible.styleGuide.killList);
 
       if (variants.length === 0) {
