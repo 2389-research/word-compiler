@@ -272,8 +272,10 @@ function exportState() {
   navigator.clipboard
     .writeText(json)
     .then(() => {
+      // Clear any stale error on success. A proper toast/notification
+      // system would be better here, but this at least avoids leaving
+      // an old error banner visible after a successful action.
       store.setError(null);
-      alert("State snapshot copied to clipboard. Paste it into Claude for debugging.");
     })
     .catch(() => {
       store.saveFile(snapshot, `wc-state-${Date.now()}.json`);

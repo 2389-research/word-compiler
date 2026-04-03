@@ -1,4 +1,11 @@
-eval "$(mise activate bash --shims)"
+#!/usr/bin/env sh
+set -e
+
+# Activate mise if available (optional — install from https://mise.jdx.dev)
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate bash --shims)"
+fi
+
 pnpm lint-staged
 pnpm typecheck
 pnpm test

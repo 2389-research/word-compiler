@@ -1,6 +1,17 @@
 {
   "name": "word-compiler",
   "version": "0.1.0",
+  "description": "A context compiler for long-form fiction. Compiles structured creative intent into optimized LLM context payloads for gated prose generation.",
+  "license": "Apache-2.0",
+  "author": "2389 Research",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2389-research/word-compiler.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.12.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

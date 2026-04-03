@@ -193,6 +193,15 @@ export { app };
 
 const PORT = process.env.PORT || 3001;
 if (process.env.NODE_ENV !== "test") {
+  process.on("uncaughtException", (err) => {
+    console.error("[fatal] Uncaught exception:", err);
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (reason) => {
+    console.error("[fatal] Unhandled rejection:", reason);
+    process.exit(1);
+  });
+
   app.listen(PORT, () => {
     console.log(`Proxy listening on http://localhost:${PORT}`);
   });
