@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { ScenePlan } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 type SceneStatus = "planned" | "drafting" | "complete";
 
@@ -26,7 +27,9 @@ export function getScenePlan(
     | { data: string; status: SceneStatus; scene_order: number }
     | undefined;
   if (!row) return null;
-  return { plan: JSON.parse(row.data) as ScenePlan, status: row.status, sceneOrder: row.scene_order };
+  const plan = safeJsonParse<ScenePlan>(row.data, "scene_plans.getScenePlan");
+  if (!plan) return null;
+  return { plan, status: row.status, sceneOrder: row.scene_order };
 }
 
 export function listScenePlans(
@@ -36,11 +39,13 @@ export function listScenePlans(
   const rows = db
     .prepare(`SELECT data, status, scene_order FROM scene_plans WHERE chapter_id = ? ORDER BY scene_order`)
     .all(chapterId) as Array<{ data: string; status: SceneStatus; scene_order: number }>;
-  return rows.map((r) => ({
-    plan: JSON.parse(r.data) as ScenePlan,
-    status: r.status,
-    sceneOrder: r.scene_order,
-  }));
+  return rows
+    .map((r) => {
+      const plan = safeJsonParse<ScenePlan>(r.data, "scene_plans.listScenePlans");
+      if (!plan) return null;
+      return { plan, status: r.status, sceneOrder: r.scene_order };
+    })
+    .filter((r): r is { plan: ScenePlan; status: SceneStatus; sceneOrder: number } => r !== null);
 }
 
 export function updateScenePlan(db: Database.Database, plan: ScenePlan): ScenePlan {

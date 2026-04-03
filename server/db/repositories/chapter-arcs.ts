@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { ChapterArc } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 export function createChapterArc(db: Database.Database, arc: ChapterArc): ChapterArc {
   const now = new Date().toISOString();
@@ -21,7 +22,7 @@ export function createChapterArc(db: Database.Database, arc: ChapterArc): Chapte
 export function getChapterArc(db: Database.Database, id: string): ChapterArc | null {
   const row = db.prepare("SELECT data FROM chapter_arcs WHERE id = ?").get(id) as { data: string } | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as ChapterArc;
+  return safeJsonParse<ChapterArc>(row.data, "chapter_arcs.getChapterArc");
 }
 
 export function getChapterArcByProject(
@@ -33,7 +34,7 @@ export function getChapterArcByProject(
     .prepare(`SELECT data FROM chapter_arcs WHERE project_id = ? AND chapter_number = ?`)
     .get(projectId, chapterNumber) as { data: string } | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as ChapterArc;
+  return safeJsonParse<ChapterArc>(row.data, "chapter_arcs.getChapterArcByProject");
 }
 
 export function updateChapterArc(db: Database.Database, arc: ChapterArc): ChapterArc {
@@ -46,5 +47,7 @@ export function listChapterArcs(db: Database.Database, projectId: string): Chapt
   const rows = db
     .prepare(`SELECT data FROM chapter_arcs WHERE project_id = ? ORDER BY chapter_number`)
     .all(projectId) as Array<{ data: string }>;
-  return rows.map((r) => JSON.parse(r.data) as ChapterArc);
+  return rows
+    .map((r) => safeJsonParse<ChapterArc>(r.data, "chapter_arcs.listChapterArcs"))
+    .filter((a): a is ChapterArc => a !== null);
 }

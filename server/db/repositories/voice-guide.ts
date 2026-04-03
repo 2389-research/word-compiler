@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { VoiceGuide, VoiceGuideVersion } from "../../../src/profile/types.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface VoiceGuideRow {
   id: string;
@@ -22,7 +23,7 @@ interface VoiceGuideVersionRow {
 export function getVoiceGuide(db: Database.Database): VoiceGuide | null {
   const row = db.prepare("SELECT * FROM voice_guide LIMIT 1").get() as VoiceGuideRow | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as VoiceGuide;
+  return safeJsonParse<VoiceGuide>(row.data, "voice_guide.getVoiceGuide");
 }
 
 export function saveVoiceGuide(db: Database.Database, guide: VoiceGuide): void {
@@ -55,8 +56,9 @@ export function listVoiceGuideVersions(db: Database.Database): VoiceGuideVersion
     .prepare("SELECT * FROM voice_guide_versions ORDER BY created_at DESC")
     .all() as VoiceGuideVersionRow[];
   return rows.map((row) => {
-    const guide = JSON.parse(row.data) as VoiceGuide;
-    const version = guide.versionHistory.find((v) => v.version === row.version);
+    const guide = safeJsonParse<VoiceGuide>(row.data, "voice_guide.listVoiceGuideVersions");
+    const versionHistory = Array.isArray(guide?.versionHistory) ? guide.versionHistory : [];
+    const version = versionHistory.find((v) => v.version === row.version);
     if (version) return version;
     return {
       version: row.version,

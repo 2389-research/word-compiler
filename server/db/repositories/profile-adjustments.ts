@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { TuningEvidence, TuningProposal } from "../../../src/learner/tuning.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface ProfileAdjustmentRow {
   id: string;
@@ -16,7 +17,10 @@ interface ProfileAdjustmentRow {
   updated_at: string;
 }
 
-function rowToProposal(row: ProfileAdjustmentRow): TuningProposal {
+function rowToProposal(row: ProfileAdjustmentRow): TuningProposal | null {
+  const evidence = safeJsonParse<TuningEvidence>(row.evidence, "profile_adjustments.rowToProposal");
+  if (!evidence) return null;
+
   return {
     id: row.id,
     projectId: row.project_id,
@@ -25,7 +29,7 @@ function rowToProposal(row: ProfileAdjustmentRow): TuningProposal {
     suggestedValue: row.suggested_value,
     rationale: row.rationale,
     confidence: row.confidence,
-    evidence: JSON.parse(row.evidence) as TuningEvidence,
+    evidence,
     status: row.status as TuningProposal["status"],
     createdAt: row.created_at,
   };
@@ -65,12 +69,12 @@ export function listProfileAdjustments(db: Database.Database, projectId: string,
     const rows = db
       .prepare("SELECT * FROM profile_adjustments WHERE project_id = ? AND status = ? ORDER BY created_at DESC")
       .all(projectId, status) as ProfileAdjustmentRow[];
-    return rows.map(rowToProposal);
+    return rows.map(rowToProposal).filter((p): p is TuningProposal => p !== null);
   }
   const rows = db
     .prepare("SELECT * FROM profile_adjustments WHERE project_id = ? ORDER BY created_at DESC")
     .all(projectId) as ProfileAdjustmentRow[];
-  return rows.map(rowToProposal);
+  return rows.map(rowToProposal).filter((p): p is TuningProposal => p !== null);
 }
 
 export function updateProfileAdjustmentStatus(

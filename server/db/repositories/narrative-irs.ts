@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { NarrativeIR } from "../../../src/types/index.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface NarrativeIRRow {
   id: string;
@@ -11,8 +12,9 @@ interface NarrativeIRRow {
   verified_at: string | null;
 }
 
-function rowToIR(row: NarrativeIRRow): NarrativeIR {
-  const data = JSON.parse(row.data) as Omit<NarrativeIR, "sceneId" | "verified">;
+function rowToIR(row: NarrativeIRRow): NarrativeIR | null {
+  const data = safeJsonParse<Omit<NarrativeIR, "sceneId" | "verified">>(row.data, "narrative_irs.rowToIR");
+  if (!data) return null;
   return {
     ...data,
     sceneId: row.scene_id,
@@ -67,7 +69,7 @@ export function listVerifiedIRsForChapter(db: Database.Database, chapterId: stri
        ORDER BY sp.scene_order`,
     )
     .all(chapterId) as NarrativeIRRow[];
-  return rows.map(rowToIR);
+  return rows.map(rowToIR).filter((ir): ir is NarrativeIR => ir !== null);
 }
 
 export function listAllIRsForChapter(db: Database.Database, chapterId: string): NarrativeIR[] {
@@ -79,5 +81,5 @@ export function listAllIRsForChapter(db: Database.Database, chapterId: string): 
        ORDER BY sp.scene_order`,
     )
     .all(chapterId) as NarrativeIRRow[];
-  return rows.map(rowToIR);
+  return rows.map(rowToIR).filter((ir): ir is NarrativeIR => ir !== null);
 }
