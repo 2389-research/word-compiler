@@ -23,12 +23,15 @@ src/
   auditor/      Kill list, sentence variance, epistemic leaks, subtext
   bootstrap/    Synopsis → draft bible, scene generation, genre templates
   learner/      Diff analysis, pattern accumulation, bible proposals, tuning
+  linter/       Compilation linter (priming risk, missing voice, budget health)
   ir/           Narrative IR extraction and parsing
   metrics/      Style drift, voice separability
-  gates/        6 workflow gates
+  gates/        13 workflow gates (6 content + 7 stage-transition)
   simulator/    Reader epistemic state accumulator
+  profile/      Author voice profiling pipeline types and rendering
+  review/       Editorial review orchestration, annotations, refinement
   export/       Markdown and plaintext export
-  types/        All interfaces + factory functions (single file)
+  types/        All interfaces + factory functions (7 files, ~680 lines via barrel)
   tokens/       Token counting
   bible/        Bible versioning
   llm/          Anthropic SDK wrapper
@@ -42,8 +45,10 @@ src/
 
 server/
   proxy.ts      Express entry point
-  api/          REST routes (40+ endpoints under /api/data)
+  middleware.ts Request logging and error handling
+  api/          REST routes (55+ endpoints under /api/data)
   db/           SQLite schema + repository modules
+  profile/      Voice profiling pipeline (CIPHER, distillation, stages 1-5)
 ```
 
 ## Key Conventions
@@ -92,10 +97,10 @@ Bible + ScenePlan + PreviousChunks + Config
 ## Important Files
 
 - `SPEC.md` — The full build plan (Phases 0-3, data model, compiler pseudocode)
-- `docs/architecture/` — 14 detailed architecture docs (00-overview through 13-protocols)
+- `docs/architecture/` — 15 detailed architecture docs (00-overview through 14-personalization)
 - `docs/plans/` — Phase 2.5/3 design decisions
 - `docs/workflow.md` — User-facing workflow guide
-- `src/types/index.ts` — All TypeScript interfaces (641 lines, single source of truth)
+- `src/types/index.ts` — All TypeScript interfaces (barrel re-export of 7 files, ~680 lines total)
 - `src/app/store/project.svelte.ts` — Main application state
 - `src/app/store/commands.ts` — User-facing actions (generate, audit, complete)
 - `src/app/stories/factories.ts` — Mock data factories for tests and stories

@@ -4,6 +4,8 @@
 
 *Synthesizes: Original system design, kernel memo, software architecture, and build critique.*
 
+> **Note:** This is a historical design document from the project's planning phase. The implementation has diverged in several areas — notably the app is browser-based (Vite + Express) rather than Tauri/Electron, uses TipTap and CodeMirror 6 rather than Monaco, and has 7 workflow stages (including Edit) rather than the 6 described here. See `docs/architecture/` for current architecture documentation.
+
 ---
 
 ## 0. Foundational Decisions

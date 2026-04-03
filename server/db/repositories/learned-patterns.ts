@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { LearnedPattern, PatternData, ProposedAction } from "../../../src/learner/patterns.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface LearnedPatternRow {
   id: string;
@@ -15,16 +16,21 @@ interface LearnedPatternRow {
   updated_at: string;
 }
 
-function rowToPattern(row: LearnedPatternRow): LearnedPattern {
+function rowToPattern(row: LearnedPatternRow): LearnedPattern | null {
+  const patternData = safeJsonParse<PatternData>(row.pattern_data, "learned_patterns.rowToPattern.pattern_data");
+  if (!patternData) return null;
+
   return {
     id: row.id,
     projectId: row.project_id,
     patternType: row.pattern_type as LearnedPattern["patternType"],
-    patternData: JSON.parse(row.pattern_data) as PatternData,
+    patternData,
     occurrences: row.occurrences,
     confidence: row.confidence,
     status: row.status as LearnedPattern["status"],
-    proposedAction: row.proposed_action ? (JSON.parse(row.proposed_action) as ProposedAction) : null,
+    proposedAction: row.proposed_action
+      ? safeJsonParse<ProposedAction>(row.proposed_action, "learned_patterns.rowToPattern.proposed_action")
+      : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -64,12 +70,12 @@ export function listLearnedPatterns(db: Database.Database, projectId: string, st
     const rows = db
       .prepare("SELECT * FROM learned_patterns WHERE project_id = ? AND status = ? ORDER BY confidence DESC")
       .all(projectId, status) as LearnedPatternRow[];
-    return rows.map(rowToPattern);
+    return rows.map(rowToPattern).filter((p): p is LearnedPattern => p !== null);
   }
   const rows = db
     .prepare("SELECT * FROM learned_patterns WHERE project_id = ? ORDER BY confidence DESC")
     .all(projectId) as LearnedPatternRow[];
-  return rows.map(rowToPattern);
+  return rows.map(rowToPattern).filter((p): p is LearnedPattern => p !== null);
 }
 
 export function updateLearnedPatternStatus(

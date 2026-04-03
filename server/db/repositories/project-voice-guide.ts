@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { VoiceGuide } from "../../../src/profile/types.js";
 import { generateId } from "../../../src/types/utils.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface ProjectVoiceGuideRow {
   id: string;
@@ -16,7 +17,7 @@ export function getProjectVoiceGuide(db: Database.Database, projectId: string): 
     | ProjectVoiceGuideRow
     | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as VoiceGuide;
+  return safeJsonParse<VoiceGuide>(row.data, "project_voice_guide.getProjectVoiceGuide");
 }
 
 export function saveProjectVoiceGuide(db: Database.Database, projectId: string, guide: VoiceGuide): void {

@@ -199,6 +199,15 @@ export { app };
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || "127.0.0.1";
 if (process.env.NODE_ENV !== "test") {
+  process.on("uncaughtException", (err) => {
+    console.error("[fatal] Uncaught exception:", err);
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (reason) => {
+    console.error("[fatal] Unhandled rejection:", reason);
+    process.exit(1);
+  });
+
   app.listen(Number(PORT), HOST, () => {
     const displayHost = HOST === "0.0.0.0" || HOST === "::" ? "localhost" : HOST;
     console.log(`Proxy listening on http://${displayHost}:${PORT}`);

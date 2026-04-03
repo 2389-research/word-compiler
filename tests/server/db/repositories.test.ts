@@ -72,6 +72,52 @@ describe("projects repository", () => {
   it("returns false when deleting nonexistent project", () => {
     expect(projects.deleteProject(db, "nope")).toBe(false);
   });
+
+  it("cascade-deletes all child records", () => {
+    const p = makeProject();
+    projects.createProject(db, p);
+
+    // Create bible
+    const bible = createEmptyBible(p.id);
+    bibles.createBible(db, bible);
+
+    // Create chapter + scene + chunk
+    const chapter = makeChapterArc(p.id);
+    chapterArcs.createChapterArc(db, chapter);
+    const scene = { ...createEmptyScenePlan(p.id), chapterId: chapter.id };
+    scenePlans.createScenePlan(db, scene, 0);
+    const chunk = makeChunk(scene.id, 0);
+    chunks.createChunk(db, chunk);
+
+    // Create audit flag
+    const flag = makeAuditFlag(scene.id);
+    auditFlagsRepo.createAuditFlags(db, [flag]);
+
+    // Create compilation log
+    const log: CompilationLog = {
+      id: generateId(),
+      chunkId: chunk.id,
+      payloadHash: "test",
+      ring1Tokens: 0,
+      ring2Tokens: 0,
+      ring3Tokens: 0,
+      totalTokens: 0,
+      availableBudget: 1000,
+      ring1Contents: [],
+      ring2Contents: [],
+      ring3Contents: [],
+      lintWarnings: [],
+      lintErrors: [],
+      timestamp: new Date().toISOString(),
+    };
+    compilationLogs.createCompilationLog(db, log);
+
+    // Delete should succeed despite child records
+    expect(projects.deleteProject(db, p.id)).toBe(true);
+    expect(projects.getProject(db, p.id)).toBeNull();
+    expect(bibles.getLatestBible(db, p.id)).toBeNull();
+    expect(chunks.getChunk(db, chunk.id)).toBeNull();
+  });
 });
 
 // ─── Bibles ──────────────────────────────────────────
