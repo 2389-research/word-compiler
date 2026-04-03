@@ -272,8 +272,10 @@ function exportState() {
   navigator.clipboard
     .writeText(json)
     .then(() => {
-      // Intentionally no-op: clipboard copy succeeded silently.
-      // A proper toast notification system would be better here (see #1).
+      // Clear any stale error on success. A proper toast/notification
+      // system would be better here, but this at least avoids leaving
+      // an old error banner visible after a successful action.
+      store.setError(null);
     })
     .catch(() => {
       store.saveFile(snapshot, `wc-state-${Date.now()}.json`);
