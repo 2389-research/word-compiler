@@ -382,8 +382,8 @@ function exportState() {
   <StageCTA nextStage={workflow.nextStageCTA} onclick={(stage) => workflow.goToStage(stage.id)} />
 
   <div class="stage-workspace">
-    <svelte:boundary onerror={(err) => { console.error("[boundary] Stage crash:", err); store.setError(`Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Try switching stages or refreshing.`); }}>
-      {#key workflow.activeStage}
+    {#key workflow.activeStage}
+      <svelte:boundary onerror={(err) => { console.error("[boundary] Stage crash:", err); store.setError(`Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Try switching stages or refreshing.`); }}>
         <div class="stage-content" in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
           {#if workflow.activeStage === "bootstrap"}
             <BootstrapStage {store} {commands} />
@@ -422,15 +422,15 @@ function exportState() {
             <ExportStage {store} />
           {/if}
         </div>
-      {/key}
-      {#snippet failed(err, reset)}
-        <div class="stage-crash">
-          <h3>Something went wrong</h3>
-          <p>{err instanceof Error ? err.message : "An unexpected error occurred."}</p>
-          <Button onclick={() => { store.setError(null); reset(); }}>Try Again</Button>
-        </div>
-      {/snippet}
-    </svelte:boundary>
+        {#snippet failed(err, reset)}
+          <div class="stage-crash">
+            <h3>Something went wrong</h3>
+            <p>{err instanceof Error ? err.message : "An unexpected error occurred."}</p>
+            <Button onclick={() => { store.setError(null); reset(); }}>Try Again</Button>
+          </div>
+        {/snippet}
+      </svelte:boundary>
+    {/key}
   </div>
 
   <GlossaryPanel />
