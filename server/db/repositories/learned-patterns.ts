@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { LearnedPattern, PatternData, ProposedAction } from "../../../src/learner/patterns.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface LearnedPatternRow {
   id: string;
@@ -20,11 +21,13 @@ function rowToPattern(row: LearnedPatternRow): LearnedPattern {
     id: row.id,
     projectId: row.project_id,
     patternType: row.pattern_type as LearnedPattern["patternType"],
-    patternData: JSON.parse(row.pattern_data) as PatternData,
+    patternData: safeJsonParse<PatternData>(row.pattern_data, "learned_patterns.rowToPattern") as PatternData,
     occurrences: row.occurrences,
     confidence: row.confidence,
     status: row.status as LearnedPattern["status"],
-    proposedAction: row.proposed_action ? (JSON.parse(row.proposed_action) as ProposedAction) : null,
+    proposedAction: row.proposed_action
+      ? safeJsonParse<ProposedAction>(row.proposed_action, "learned_patterns.rowToPattern")
+      : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

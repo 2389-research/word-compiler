@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Chunk } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 export function createChunk(db: Database.Database, chunk: Chunk): Chunk {
   const now = new Date().toISOString();
@@ -18,14 +19,16 @@ export function createChunk(db: Database.Database, chunk: Chunk): Chunk {
 export function getChunk(db: Database.Database, id: string): Chunk | null {
   const row = db.prepare("SELECT data FROM chunks WHERE id = ?").get(id) as { data: string } | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as Chunk;
+  return safeJsonParse<Chunk>(row.data, "chunks.getChunk");
 }
 
 export function listChunksForScene(db: Database.Database, sceneId: string): Chunk[] {
   const rows = db.prepare(`SELECT data FROM chunks WHERE scene_id = ? ORDER BY sequence_number`).all(sceneId) as Array<{
     data: string;
   }>;
-  return rows.map((r) => JSON.parse(r.data) as Chunk);
+  return rows
+    .map((r) => safeJsonParse<Chunk>(r.data, "chunks.listChunksForScene"))
+    .filter((c): c is Chunk => c !== null);
 }
 
 export function updateChunk(db: Database.Database, chunk: Chunk): Chunk {

@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { NarrativeIR } from "../../../src/types/index.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface NarrativeIRRow {
   id: string;
@@ -12,7 +13,8 @@ interface NarrativeIRRow {
 }
 
 function rowToIR(row: NarrativeIRRow): NarrativeIR {
-  const data = JSON.parse(row.data) as Omit<NarrativeIR, "sceneId" | "verified">;
+  const data = safeJsonParse<Omit<NarrativeIR, "sceneId" | "verified">>(row.data, "narrative_irs.rowToIR");
+  if (!data) return { sceneId: row.scene_id, verified: row.verified === 1 } as NarrativeIR;
   return {
     ...data,
     sceneId: row.scene_id,

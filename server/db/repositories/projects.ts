@@ -55,6 +55,42 @@ export function updateProject(
 }
 
 export function deleteProject(db: Database.Database, id: string): boolean {
-  const result = db.prepare("DELETE FROM projects WHERE id = ?").run(id);
-  return result.changes > 0;
+  const deleteAll = db.transaction((projectId: string) => {
+    // Delete leaf records first, then parents
+    // Chunks, compilation logs, compiled payloads, audit flags, narrative IRs reference scene_plans
+    const sceneIds = db
+      .prepare("SELECT id FROM scene_plans WHERE project_id = ?")
+      .all(projectId)
+      .map((r) => (r as { id: string }).id);
+
+    for (const sceneId of sceneIds) {
+      // Delete logs/payloads before chunks (they reference chunk IDs but have no FK constraint)
+      const chunkIds = db
+        .prepare("SELECT id FROM chunks WHERE scene_id = ?")
+        .all(sceneId)
+        .map((r) => (r as { id: string }).id);
+      for (const chunkId of chunkIds) {
+        db.prepare("DELETE FROM compilation_logs WHERE chunk_id = ?").run(chunkId);
+        db.prepare("DELETE FROM compiled_payloads WHERE chunk_id = ?").run(chunkId);
+      }
+      db.prepare("DELETE FROM chunks WHERE scene_id = ?").run(sceneId);
+      db.prepare("DELETE FROM audit_flags WHERE scene_id = ?").run(sceneId);
+      db.prepare("DELETE FROM narrative_irs WHERE scene_id = ?").run(sceneId);
+    }
+
+    db.prepare("DELETE FROM edit_patterns WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM significant_edits WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM preference_statements WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM scene_plans WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM chapter_arcs WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM bibles WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM learned_patterns WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM profile_adjustments WHERE project_id = ?").run(projectId);
+    db.prepare("DELETE FROM project_voice_guide WHERE project_id = ?").run(projectId);
+
+    const result = db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
+    return result.changes > 0;
+  });
+
+  return deleteAll(id);
 }

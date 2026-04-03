@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { Bible } from "../../../src/types/index.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 export function createBible(db: Database.Database, bible: Bible): Bible {
   const id = generateId();
@@ -19,7 +20,7 @@ export function getLatestBible(db: Database.Database, projectId: string): Bible 
     | { data: string }
     | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as Bible;
+  return safeJsonParse<Bible>(row.data, "bibles.getLatest");
 }
 
 export function getBibleVersion(db: Database.Database, projectId: string, version: number): Bible | null {
@@ -27,7 +28,7 @@ export function getBibleVersion(db: Database.Database, projectId: string, versio
     | { data: string }
     | undefined;
   if (!row) return null;
-  return JSON.parse(row.data) as Bible;
+  return safeJsonParse<Bible>(row.data, "bibles.getBibleVersion");
 }
 
 export function listBibleVersions(

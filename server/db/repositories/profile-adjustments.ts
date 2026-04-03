@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { TuningEvidence, TuningProposal } from "../../../src/learner/tuning.js";
 import { generateId } from "../../../src/types/index.js";
+import { safeJsonParse } from "../helpers.js";
 
 interface ProfileAdjustmentRow {
   id: string;
@@ -25,7 +26,7 @@ function rowToProposal(row: ProfileAdjustmentRow): TuningProposal {
     suggestedValue: row.suggested_value,
     rationale: row.rationale,
     confidence: row.confidence,
-    evidence: JSON.parse(row.evidence) as TuningEvidence,
+    evidence: safeJsonParse<TuningEvidence>(row.evidence, "profile_adjustments.rowToProposal") as TuningEvidence,
     status: row.status as TuningProposal["status"],
     createdAt: row.created_at,
   };
