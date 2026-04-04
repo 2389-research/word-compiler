@@ -53,7 +53,7 @@ Express server serving two roles:
 
 ### 2. REST API
 - Mounted at `/api/data` via `createApiRouter(db)`
-- Delegates to 11 repository modules
+- Delegates to 16 repository modules
 - `ensureProject()` auto-creates project rows on first Bible save
 
 ## Database
@@ -66,7 +66,7 @@ Express server serving two roles:
 
 ### Schema (`server/db/schema.ts`)
 
-12 tables with indexes:
+18 tables with indexes:
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
@@ -82,12 +82,18 @@ Express server serving two roles:
 | `edit_patterns` | Raw diff-classified edits | project_id, edit_type, sub_type |
 | `profile_adjustments` | Auto-tuning proposals | project_id, parameter, status |
 | `learned_patterns` | Accumulated edit patterns | project_id, pattern_type, status |
+| `voice_guide` | Singleton voice guide (version-controlled) | id, version, data (JSON) |
+| `voice_guide_versions` | Voice guide version history | version, data (JSON), change_reason |
+| `writing_samples` | Uploaded writing samples | filename, domain, word_count, data (JSON) |
+| `significant_edits` | Raw edit pairs awaiting batch CIPHER | project_id, chunk_id, processed |
+| `preference_statements` | CIPHER preference statements | project_id, statement, edit_count |
+| `project_voice_guide` | Per-project voice guide from edits + manuscript analysis | project_id, version, data (JSON) |
 
 Complex domain objects (Bible, ChapterArc, Chunk, NarrativeIR) are stored as JSON in `data` columns. Scalar fields (status, severity, resolved) are stored as native columns for indexing and querying.
 
 ### Repositories (`server/db/repositories/`)
 
-11 repository modules, one per resource:
+16 repository modules, one per resource:
 
 | Repository | Table |
 |------------|-------|
@@ -102,6 +108,11 @@ Complex domain objects (Bible, ChapterArc, Chunk, NarrativeIR) are stored as JSO
 | `edit-patterns.ts` | edit_patterns |
 | `learned-patterns.ts` | learned_patterns |
 | `profile-adjustments.ts` | profile_adjustments |
+| `voice-guide.ts` | voice_guide |
+| `writing-samples.ts` | writing_samples |
+| `significant-edits.ts` | significant_edits |
+| `preference-statements.ts` | preference_statements |
+| `project-voice-guide.ts` | project_voice_guide |
 
 Each repository exports CRUD functions that take a `Database` instance as the first argument. JSON columns are parsed on read and stringified on write.
 
@@ -111,7 +122,7 @@ Each repository exports CRUD functions that take a `Database` instance as the fi
 |------|---------|
 | `src/api/client.ts` | Typed browser REST client |
 | `server/proxy.ts` | Express server: LLM proxy + REST API |
-| `server/api/routes.ts` | REST router with 11 repository bindings |
+| `server/api/routes.ts` | REST router with 16 repository bindings |
 | `server/db/connection.ts` | SQLite singleton with WAL mode |
-| `server/db/schema.ts` | 12-table schema with indexes |
-| `server/db/repositories/` | 11 repository modules |
+| `server/db/schema.ts` | 18-table schema with indexes |
+| `server/db/repositories/` | 16 repository modules |

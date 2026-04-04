@@ -11,12 +11,18 @@ The identity and rules layer. Built entirely from the Bible and compilation conf
 **Sections** (in priority order):
 | Section | Content | Immune |
 |---------|---------|--------|
-| `HEADER` | Model identity + preamble | Yes |
-| `BIBLE_VOICE` | Voice profile, sentence architecture, paragraph policy | No |
-| `BIBLE_CHARACTERS` | Character dossiers with voice notes | No |
-| `BIBLE_LOCATIONS` | Location palettes with sensory details | No |
-| `BIBLE_RULES` | Narrative rules (POV, subtext, exposition) | No |
-| `BIBLE_KILLLIST` | Avoid list (exact + structural bans) | No |
+| `HEADER` | Project voice preamble | Yes |
+| `METAPHORS` | Metaphoric register (approved/prohibited domains) | No |
+| `VOCABULARY` | Vocabulary preferences (preferred vs. avoided words) | No |
+| `SENTENCES` | Sentence architecture (variance, fragment policy) | No |
+| `PARAGRAPHS` | Paragraph policy (max sentences, single-sentence frequency) | No |
+| `NEVER_WRITE` | Kill list — exact word bans | Yes |
+| `STRUCTURAL_RULES` | Structural bans | Yes |
+| `NEGATIVE_EXEMPLARS` | Anti-voice examples ("do not sound like this") | No |
+| `POSITIVE_EXEMPLARS` | Voice examples ("the voice sounds like this") | No |
+| `POV` | POV rules (default, distance, interiority, reliability) | Yes |
+| `NARRATIVE_RULES` | Narrative rules (subtext, exposition, scene endings) | Yes |
+| `AUTHOR_VOICE` | Voice guide injection (when available) | No |
 
 `buildRing1(bible, config)` returns `{ sections: RingSection[], totalTokens }`.
 
@@ -27,10 +33,11 @@ The chapter-level continuity layer. Carries context between scenes.
 **Sections**:
 | Section | Content | Source |
 |---------|---------|--------|
-| `CHAPTER_ARC` | Working title, narrative function, pacing target | `ChapterArc` |
-| `PREVIOUS_SCENE_SUMMARY` | Events and deltas from completed scenes | Verified `NarrativeIR` |
-| `READER_STATE` | What the reader knows, suspects, is wrong about | `ChapterArc.readerStateEntering` |
-| `NARRATIVE_IR_CONTEXT` | Cross-scene facts and unresolved tensions | Accumulated IR |
+| `CHAPTER_BRIEF` | Working title, narrative function, register, pacing, ending posture | `ChapterArc` |
+| `READER_STATE_ENTRY` | What the reader knows, suspects, is wrong about, active tensions | `ChapterArc.readerStateEntering` |
+| `ACTIVE_SETUPS` | Planned/planted setups from the Bible | `Bible.narrativeRules.setups` |
+| `CHAR_STATE_{id}` | Per-character cumulative state from IR deltas (one section per character) | Verified `NarrativeIR` |
+| `UNRESOLVED_TENSIONS` | Unresolved tensions from last verified scene IR | Verified `NarrativeIR` |
 
 `buildRing2(chapterArc, completedScenes, sceneIRs, config)` returns `{ sections, totalTokens }`.
 
@@ -41,11 +48,18 @@ The scene-specific layer. Contains the immediate writing context.
 **Sections**:
 | Section | Content |
 |---------|---------|
-| `SCENE_PLAN` | Scene contract (goal, beats, POV, constraints) |
-| `ANTI_ABLATION` | Failure modes and anchor lines |
-| `PROSE_SO_FAR` | Canonical text from all prior chunks in this scene |
-| `CONTINUITY_BRIDGE` | Last chunk from previous scene (cross-scene continuity) |
+| `SCENE_CONTRACT` | Scene contract (goal, beats, POV, constraints) |
+| `VOICE_{name}` | Per-character voice fingerprints for speaking characters (immune) |
+| `POV_INTERIORITY` | POV character interiority guidance (immune for intimate/close) |
 | `SENSORY_PALETTE` | Location-specific sensory details (if location set) |
+| `SENSORY_GUARDRAIL` | Sensory invention guardrail (immune) |
+| `SCENE_CAST_GUARDRAIL` | Only listed characters may appear (immune) |
+| `SCENE_CAST` | Non-speaking present characters |
+| `ANCHOR_LINES` | Human-authored anchor lines with placement (immune) |
+| `CONTINUITY_BRIDGE` | Last chunk verbatim text (within-scene or cross-scene) |
+| `CONTINUITY_BRIDGE_STATE` | IR state bullets at scene entry (cross-scene only) |
+| `ANTI_ABLATION` | Failure modes and anchor lines (immune) |
+| `MICRO_DIRECTIVE` | Human notes from previous chunk (immune) |
 
 `buildRing3(scenePlan, chunks, previousSceneLastChunk, bible, config)` returns `{ sections, totalTokens }`.
 

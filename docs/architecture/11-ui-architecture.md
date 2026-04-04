@@ -69,7 +69,7 @@ Manages SSE streaming for chunk generation:
 
 ## Component Architecture
 
-### 23 Components (`src/app/components/`)
+### 40 Components (`src/app/components/`)
 
 | Component | Purpose |
 |-----------|---------|
@@ -92,14 +92,36 @@ Manages SSE streaming for chunk generation:
 | `BibleAuthoringModal.svelte` | Guided Bible editing with stepper |
 | `SceneAuthoringModal.svelte` | AI scene plan bootstrap |
 | `ExportModal.svelte` | Export with format selection |
+| `GlossaryPanel.svelte` | Glossary management |
+| `CharacterCard.svelte` | Character display card |
+| `CharacterFormFields.svelte` | Character editing form fields |
+| `LocationCard.svelte` | Location display card |
+| `LocationFormFields.svelte` | Location editing form fields |
+| `ProseEditor.svelte` | Rich prose editing |
+| `AnnotatedEditor.svelte` | Editor with inline annotations |
+| `AnnotationTooltip.svelte` | Tooltip for annotations |
+| `ReaderStateCard.svelte` | Reader epistemic state display |
+| `ReaderStateFields.svelte` | Reader state form fields |
+| `RefinementPopover.svelte` | Inline refinement popover |
+| `AtlasArcTab.svelte` | Atlas pane — chapter arc tab |
+| `AtlasBibleTab.svelte` | Atlas pane — Bible tab |
+| `AtlasJsonTab.svelte` | Atlas pane — JSON inspector tab |
+| `AtlasSceneTab.svelte` | Atlas pane — scene tab |
+| `BibleBootstrapTab.svelte` | Bible bootstrap tab |
+| `BibleGuidedFormTab.svelte` | Bible guided form tab |
+| `SceneBootstrapTab.svelte` | Scene bootstrap tab |
+| `SceneGuidedFormTab.svelte` | Scene guided form tab |
+| `StageCTA.svelte` | Stage call-to-action |
+| `VoiceProfilePanel.svelte` | Voice profile display and editing |
+| `WorkflowRail.svelte` | Workflow stage navigation rail |
 
-### 32 Primitives (`src/app/primitives/`)
+### 26 Primitives (`src/app/primitives/`)
 
 Reusable UI building blocks:
 
 - **Layout**: Pane, SectionPanel, CollapsibleSection, Modal, Tabs
-- **Input**: Button, Input, TextArea, Select, RadioGroup, TagInput, NumberRange, FormField
-- **Display**: Badge, MetricCard, Table, DiagnosticItem, ProgressBar, SegmentedBar, Spinner, CardList
+- **Input**: Button, Input, TextArea, Select, RadioGroup, TagInput, NumberRange, FormField, AdvancedToggle
+- **Display**: Badge, MetricCard, Table, DiagnosticItem, ProgressBar, SegmentedBar, Spinner, CardList, ErrorBanner, ExamplesDrawer, TruncatedProse
 - **Navigation**: Stepper
 
 ### Styling
@@ -129,6 +151,6 @@ initializeApp()
 | `src/app/store/generation.svelte.ts` | SSE streaming + autopilot |
 | `src/app/store/startup.ts` | `initializeApp`, `loadProject` |
 | `src/app/App.svelte` | Root component |
-| `src/app/components/` | 23 feature components |
-| `src/app/primitives/` | 32 reusable UI primitives |
+| `src/app/components/` | 40 feature components |
+| `src/app/primitives/` | 26 reusable UI primitives |
 | `src/app/styles/index.css` | Global CSS variables and shared classes |

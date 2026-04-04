@@ -1,5 +1,7 @@
 # Editorial Review Engine — Design Document
 
+> **Historical document.** This design document was written during active development and references AI-assisted adversarial review sessions used during the design process.
+
 **Goal:** Provide real-time inline editorial feedback (squiggly underlines with hover tooltips) for prose chunks, using a two-tier system: instant deterministic checks plus on-save LLM-powered judgment-based review.
 
 **Architecture:** Three layers — Review Engine (types, LLM prompt, anchor resolution), Review Orchestrator (on-save pipeline, abort/retry, suppression), Annotated Editor (TipTap/ProseMirror + Svelte 5 decorations). Deterministic checks (kill list, rhythm, paragraph length) run instantly from existing auditor functions. LLM review adds tone, voice, grammar, POV, show-don't-tell, and other judgment-based categories.

@@ -105,7 +105,7 @@ Analyzes edit *intensity* (not content) to propose parameter adjustments.
 
 | File | Purpose |
 |------|---------|
-| `src/learner/diff.ts` | Edit classification (39 tests) |
-| `src/learner/patterns.ts` | Wilson score accumulation (31 tests) |
-| `src/learner/proposals.ts` | Bible proposal generation (14 tests) |
+| `src/learner/diff.ts` | Edit classification (47 tests) |
+| `src/learner/patterns.ts` | Wilson score accumulation (86 tests) |
+| `src/learner/proposals.ts` | Bible proposal generation (19 tests) |
 | `src/learner/tuning.ts` | Parameter tuning proposals (20 tests) |

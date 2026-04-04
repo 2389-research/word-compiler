@@ -1,5 +1,7 @@
 # Context Expansion Implementation Plan
 
+> **Historical document.** This implementation plan was written during active development and references AI model consultations used during the design review process.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Wire existing character/location data through the context compiler (Phase A) and add scene cast support (Phase B), closing 7 of 8 context gaps identified in the design doc.

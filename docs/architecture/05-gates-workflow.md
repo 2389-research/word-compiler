@@ -2,14 +2,14 @@
 
 Gates are pure validation functions that enforce workflow discipline. They answer the question: "Is this step ready to proceed?" Each gate returns `{ passed: boolean, messages: string[] }`.
 
-## Six Gates (`src/gates/index.ts`)
+## 13 Gates (`src/gates/index.ts`)
 
 ### 1. ScenePlan Gate — `checkScenePlanGate(plan)`
 **When**: Before generation can begin.
 **Checks**:
 - Scene plan has a title
 - Scene plan has a narrative goal
-- Scene plan has at least one chunk description
+- Scene plan has a failure mode to avoid
 - POV character is set
 
 ### 2. Compile Gate — `checkCompileGate(lintResult)`
@@ -20,8 +20,7 @@ Gates are pure validation functions that enforce workflow discipline. They answe
 ### 3. ChunkReview Gate — `checkChunkReviewGate(chunk)`
 **When**: Before accepting a chunk into the scene.
 **Checks**:
-- Chunk has a non-empty generated text
-- Chunk status is not "rejected"
+- Chunk status is "accepted" or "edited"
 
 ### 4. SceneCompletion Gate — `checkSceneCompletionGate(chunks, plan)`
 **When**: Before marking a scene as complete.
@@ -33,14 +32,12 @@ Gates are pure validation functions that enforce workflow discipline. They answe
 ### 5. AuditResolution Gate — `checkAuditResolutionGate(flags)`
 **When**: Before marking a scene as complete.
 **Checks**:
-- All critical audit flags are resolved
-- All warning flags are either resolved or dismissed
+- All critical audit flags are resolved (warnings are ignored)
 
 ### 6. BibleVersioning Gate — `checkBibleVersioningGate(bible, latestVersion)`
-**When**: Before saving a Bible update.
+**When**: Before generation, to ensure the compiled payload uses the current Bible.
 **Checks**:
-- Bible has at least one character
-- Bible has a non-empty voice profile section
+- Bible version is greater than or equal to the latest available version
 
 ## Scene Status Transitions
 
@@ -56,9 +53,45 @@ Gates are pure validation functions that enforce workflow discipline. They answe
 - **drafting → complete**: Manual — requires all gates to pass (SceneCompletion + AuditResolution)
 - Backward transitions are not permitted
 
-## Scene Workflow (`src/gates/scene-workflow.ts`)
+### 7. BootstrapToPlan Gate — `checkBootstrapToPlanGate(bible)`
+**When**: Before transitioning from bootstrap to planning stage.
+**Checks**:
+- Bible exists
+- Bible has at least 1 character
 
-The scene workflow module coordinates the full per-scene lifecycle:
+### 8. PlanToDraft Gate — `checkPlanToDraftGate(scenePlans)`
+**When**: Before transitioning from planning to drafting stage.
+**Checks**:
+- At least 1 scene plan with a title and narrative goal
+
+### 9. DraftToAudit Gate — `checkDraftToAuditGate(sceneChunks)`
+**When**: Before transitioning from drafting to audit stage.
+**Checks**:
+- At least 1 chunk generated in any scene
+
+### 10. AuditToEdit Gate — `checkAuditToEditGate(flags)`
+**When**: Before transitioning from audit to edit stage.
+**Checks**:
+- No unresolved critical audit flags
+
+### 11. EditToComplete Gate — `checkEditToCompleteGate()`
+**When**: Before transitioning from edit to complete stage.
+**Checks**:
+- Soft gate — always passes (editing is subjective)
+
+### 12. AuditToComplete Gate — `checkAuditToCompleteGate(flags)`
+**When**: Before transitioning from audit to complete stage.
+**Checks**:
+- No unresolved critical audit flags
+
+### 13. CompleteToExport Gate — `checkCompleteToExportGate(scenes)`
+**When**: Before transitioning from complete to export stage.
+**Checks**:
+- At least 1 scene marked "complete"
+
+## Scene Workflow
+
+The scene workflow coordinates the full per-scene lifecycle:
 
 1. **Plan** — Author defines the scene plan (ScenePlan gate must pass)
 2. **Compile** — System builds the prompt (Compile gate must pass)
