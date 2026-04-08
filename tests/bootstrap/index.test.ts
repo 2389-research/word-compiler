@@ -8,10 +8,10 @@ import {
 import { createEmptyBible, createEmptyChapterArc } from "../../src/types/index.js";
 
 describe("buildBootstrapPrompt", () => {
-  it("includes synopsis in user message", () => {
-    const payload = buildBootstrapPrompt("A story about two old friends meeting in a bar.");
-    expect(payload.userMessage).toContain("A story about two old friends meeting in a bar.");
-    expect(payload.systemMessage).toContain("literary analyst");
+  it("includes brief in user message", () => {
+    const payload = buildBootstrapPrompt("Why AI writing tools fail at voice matching");
+    expect(payload.userMessage).toContain("Why AI writing tools fail at voice matching");
+    expect(payload.systemMessage).toContain("editorial analyst");
     expect(payload.temperature).toBe(0.7);
     expect(payload.maxTokens).toBe(16384);
   });
@@ -24,29 +24,30 @@ describe("buildBootstrapPrompt", () => {
 
 describe("parseBootstrapResponse", () => {
   const validJson: ParsedBootstrap = {
-    characters: [{ name: "Marcus", role: "protagonist" }],
-    locations: [{ name: "The Bar" }],
+    thesis: "AI writing tools fail because they treat voice as a prompt, not a learning problem.",
+    sections: [{ heading: "The Problem", purpose: "Establish the failure mode", keyPoints: ["voice drift"] }],
     suggestedKillList: ["a sense of"],
+    structuralBans: ["Never open with a rhetorical question"],
   };
 
   it("parses clean JSON", () => {
     const result = parseBootstrapResponse(JSON.stringify(validJson));
     expect("error" in result).toBe(false);
-    expect((result as ParsedBootstrap).characters[0]!.name).toBe("Marcus");
+    expect((result as ParsedBootstrap).thesis).toContain("AI writing tools");
   });
 
   it("parses markdown-wrapped JSON", () => {
     const wrapped = `Here's the result:\n\`\`\`json\n${JSON.stringify(validJson)}\n\`\`\`\nDone.`;
     const result = parseBootstrapResponse(wrapped);
     expect("error" in result).toBe(false);
-    expect((result as ParsedBootstrap).characters[0]!.name).toBe("Marcus");
+    expect((result as ParsedBootstrap).thesis).toContain("AI writing tools");
   });
 
   it("parses JSON embedded in prose (brace depth)", () => {
-    const embedded = `I analyzed the synopsis. ${JSON.stringify(validJson)} Hope this helps!`;
+    const embedded = `I analyzed the brief. ${JSON.stringify(validJson)} Hope this helps!`;
     const result = parseBootstrapResponse(embedded);
     expect("error" in result).toBe(false);
-    expect((result as ParsedBootstrap).characters[0]!.name).toBe("Marcus");
+    expect((result as ParsedBootstrap).thesis).toContain("AI writing tools");
   });
 
   it("returns error for completely invalid input", () => {
@@ -58,99 +59,76 @@ describe("parseBootstrapResponse", () => {
 
 describe("bootstrapToBible", () => {
   const parsed: ParsedBootstrap = {
-    characters: [
-      {
-        name: "Marcus",
-        role: "protagonist",
-        physicalDescription: "Weathered hands, crooked nose",
-        backstory: "Former boxer turned bartender",
-        voiceNotes: "Short sentences, never uses fancy words",
-        emotionPhysicality: "Jaw tightens, hands go to pockets",
-      },
-      {
-        name: "Elena",
-        role: "supporting",
-      },
-    ],
-    locations: [
-      {
-        name: "The Bar",
-        sensoryPalette: {
-          sounds: ["ice in glass", "low murmur"],
-          smells: ["old wood"],
-          textures: ["sticky bar top"],
-          lightQuality: "amber neon",
-          prohibitedDefaults: ["dim lighting"],
-        },
-      },
+    thesis: "AI writing tools fail because they treat voice as a prompt, not a learning problem.",
+    sections: [
+      { heading: "The Problem", purpose: "Establish the failure mode", keyPoints: ["voice drift", "context loss"] },
+      { heading: "The Solution", purpose: "Introduce the compiler approach", keyPoints: ["three-ring architecture"] },
     ],
     suggestedTone: {
-      metaphoricDomains: ["machinery", "water"],
-      prohibitedDomains: ["flowers", "sunshine"],
-      interiority: "filtered",
+      register: "conversational-authoritative",
+      audience: "tech-savvy writers",
+      pacingNotes: "Build slowly, hit hard at the end",
     },
     suggestedKillList: ["a sense of", "palpable tension"],
+    structuralBans: ["Never open with a dictionary definition"],
   };
 
-  it("produces Bible with generated IDs", () => {
+  it("produces Bible with author persona", () => {
     const bible = bootstrapToBible(parsed, "proj-1");
     expect(bible.projectId).toBe("proj-1");
-    expect(bible.characters).toHaveLength(2);
+    expect(bible.characters).toHaveLength(1);
+    expect(bible.characters[0]!.name).toBe("Author");
     expect(bible.characters[0]!.id).toBeTruthy();
-    expect(bible.characters[0]!.id).not.toBe(bible.characters[1]!.id);
   });
 
-  it("maps character fields correctly", () => {
+  it("maps tone to author persona voice notes", () => {
     const bible = bootstrapToBible(parsed, "proj-1");
-    const marcus = bible.characters[0]!;
-    expect(marcus.name).toBe("Marcus");
-    expect(marcus.physicalDescription).toBe("Weathered hands, crooked nose");
-    expect(marcus.voice.vocabularyNotes).toBe("Short sentences, never uses fancy words");
-    expect(marcus.behavior?.emotionPhysicality).toBe("Jaw tightens, hands go to pockets");
+    expect(bible.characters[0]!.voice.vocabularyNotes).toBe("conversational-authoritative");
   });
 
-  it("dialogue samples are empty (human must author)", () => {
+  it("stores thesis in narrativeRules.subtextPolicy", () => {
     const bible = bootstrapToBible(parsed, "proj-1");
-    expect(bible.characters[0]!.voice.dialogueSamples).toEqual([]);
-    expect(bible.characters[1]!.voice.dialogueSamples).toEqual([]);
+    expect(bible.narrativeRules.subtextPolicy).toContain("AI writing tools fail");
   });
 
-  it("maps locations with sensory palettes", () => {
+  it("merges default and bootstrap kill lists", () => {
     const bible = bootstrapToBible(parsed, "proj-1");
-    expect(bible.locations).toHaveLength(1);
-    expect(bible.locations[0]!.name).toBe("The Bar");
-    expect(bible.locations[0]!.sensoryPalette.sounds).toContain("ice in glass");
-    expect(bible.locations[0]!.sensoryPalette.prohibitedDefaults).toContain("dim lighting");
+    // Should have default kills + bootstrap kills, deduplicated
+    expect(bible.styleGuide.killList.length).toBeGreaterThan(40);
+    expect(bible.styleGuide.killList.some((k) => k.pattern === "delve")).toBe(true);
+    expect(bible.styleGuide.killList.some((k) => k.pattern === "palpable tension")).toBe(true);
+    expect(bible.styleGuide.killList.every((k) => k.type === "exact")).toBe(true);
   });
 
-  it("maps kill list as exact entries", () => {
+  it("merges default and bootstrap structural bans", () => {
     const bible = bootstrapToBible(parsed, "proj-1");
-    expect(bible.styleGuide.killList).toHaveLength(2);
-    expect(bible.styleGuide.killList[0]).toEqual({ pattern: "a sense of", type: "exact" });
+    expect(bible.styleGuide.structuralBans.length).toBeGreaterThan(7);
+    expect(bible.styleGuide.structuralBans).toContain("Never open with a dictionary definition");
+    expect(bible.styleGuide.structuralBans.some((b) => b.includes("However"))).toBe(true);
   });
 
-  it("maps suggested tone to metaphoric register", () => {
+  it("has no locations", () => {
     const bible = bootstrapToBible(parsed, "proj-1");
-    expect(bible.styleGuide.metaphoricRegister).toEqual({
-      approvedDomains: ["machinery", "water"],
-      prohibitedDomains: ["flowers", "sunshine"],
-    });
-  });
-
-  it("handles minimal parsed input", () => {
-    const minimal: ParsedBootstrap = {
-      characters: [],
-      locations: [],
-    };
-    const bible = bootstrapToBible(minimal, "proj-1");
-    expect(bible.characters).toEqual([]);
     expect(bible.locations).toEqual([]);
-    expect(bible.styleGuide.killList).toEqual([]);
+  });
+
+  it("defaults to first-person POV for essays", () => {
+    const bible = bootstrapToBible(parsed, "proj-1");
+    expect(bible.narrativeRules.pov.default).toBe("first");
+  });
+
+  it("handles minimal parsed input with default kills", () => {
+    const minimal: ParsedBootstrap = {};
+    const bible = bootstrapToBible(minimal, "proj-1");
+    expect(bible.characters).toHaveLength(1);
+    expect(bible.locations).toEqual([]);
+    // Default kill list should still be populated
+    expect(bible.styleGuide.killList.length).toBeGreaterThan(40);
   });
 
   it("sets sourcePrompt when provided", () => {
-    const bible = bootstrapToBible(parsed, "proj-1", "A noir detective story in a jazz bar.");
-    expect(bible.sourcePrompt).toBe("A noir detective story in a jazz bar.");
+    const bible = bootstrapToBible(parsed, "proj-1", "Why AI writing tools fail at voice matching");
+    expect(bible.sourcePrompt).toBe("Why AI writing tools fail at voice matching");
   });
 
   it("defaults sourcePrompt to null when omitted", () => {

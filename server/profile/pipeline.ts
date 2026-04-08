@@ -7,6 +7,30 @@ import { clusterDocuments } from "./stage3.js";
 import { filterFeatures } from "./stage4.js";
 import { generateVoiceGuide } from "./stage5.js";
 
+/** Select representative excerpts from writing samples for Ring 1 few-shot voice matching. */
+function selectRepresentativeExcerpts(samples: WritingSample[]): string | undefined {
+  const excerptTarget = 1500; // tokens (~1100 words)
+  const sortedSamples = [...samples].sort((a, b) => b.wordCount - a.wordCount);
+  const excerpts: string[] = [];
+  let excerptTokens = 0;
+  for (const sample of sortedSamples.slice(0, 3)) {
+    const paragraphs = sample.text.split(/\n\n+/).filter((p) => p.trim().length > 50);
+    const firstParagraph = paragraphs[0];
+    if (firstParagraph) {
+      const tokens = firstParagraph.split(/\s+/).length * 1.3;
+      if (excerptTokens + tokens <= excerptTarget) {
+        excerpts.push(firstParagraph.trim());
+        excerptTokens += tokens;
+      }
+    }
+  }
+  if (excerpts.length > 0) {
+    console.log(`[profile] Selected ${excerpts.length} representative excerpts (${Math.round(excerptTokens)} tokens)`);
+    return excerpts.join("\n\n---\n\n");
+  }
+  return undefined;
+}
+
 export async function runPipeline(
   samples: WritingSample[],
   config: PipelineConfig,
@@ -60,6 +84,11 @@ export async function runPipeline(
   // Stage 5: Generate voice guide
   console.log(`[profile] Stage 5: generating voice guide`);
   const voiceGuide = await generateVoiceGuide(filterResult, crossDoc, samples.length, config, client);
+
+  const excerpts = selectRepresentativeExcerpts(samples);
+  if (excerpts) {
+    voiceGuide.representativeExcerpts = excerpts;
+  }
 
   console.log(`[profile] Pipeline complete`);
   return voiceGuide;

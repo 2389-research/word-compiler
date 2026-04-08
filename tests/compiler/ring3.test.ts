@@ -204,8 +204,8 @@ describe("buildRing3", () => {
     const guardrail = result.sections.find((s) => s.name === "SENSORY_GUARDRAIL");
 
     expect(guardrail).toBeDefined();
-    expect(guardrail!.text).toContain("SENSORY DETAIL RULES");
-    expect(guardrail!.text).toContain("narrative job");
+    expect(guardrail!.text).toContain("DETAIL RULES");
+    expect(guardrail!.text).toContain("support a claim");
     expect(guardrail!.immune).toBe(true);
     expect(guardrail!.priority).toBe(0);
   });

@@ -431,10 +431,10 @@ describe("POST /api/generate (sampling & defaults)", () => {
     expect(callArgs.top_p).toBeUndefined();
   });
 
-  it("uses default model (claude-sonnet-4-6) and maxTokens (2000) when not provided", async () => {
+  it("uses default model (claude-opus-4-6) and maxTokens (2000) when not provided", async () => {
     const { callArgs } = await generate({});
 
-    expect(callArgs.model).toBe("claude-sonnet-4-6");
+    expect(callArgs.model).toBe("claude-opus-4-6");
     expect(callArgs.max_tokens).toBe(2000);
   });
 

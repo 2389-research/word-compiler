@@ -84,16 +84,16 @@ export function compilePayload(
 
   const continuationNote =
     chunkNumber > 0
-      ? `Continue directly from where the preceding text ends — do not repeat, summarize, or re-establish what was already written. Pick up mid-scene. `
+      ? `Continue directly from where the preceding text ends — do not repeat, summarize, or re-establish what was already written. Pick up mid-argument. `
       : "";
 
   const genInstruction =
-    `Write the next section of this scene (~${wordTarget} words). ` +
+    `Continue this essay (~${wordTarget} words). ` +
     `This is section ${chunkNumber + 1} of ${plan.chunkCount}${chunkDesc ? `: ${chunkDesc}` : ""}. ` +
     continuationNote +
-    `Follow all constraints in the scene contract and voice specifications. ` +
-    `Do not summarize. Do not resolve tension unless the plan calls for it. ` +
-    `Do not make subtext into text. Do not explain what characters are feeling — show it.`;
+    `Follow all constraints in the voice specifications and section contract. ` +
+    `Support claims with reasoning. Maintain argumentative coherence with prior sections. ` +
+    `Match the author's voice.`;
 
   // 5. Assemble
   const userMessage = [budgetResult.r2, budgetResult.r3, genInstruction].filter(Boolean).join("\n\n---\n\n");

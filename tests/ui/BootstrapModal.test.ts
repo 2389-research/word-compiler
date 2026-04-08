@@ -232,8 +232,9 @@ describe("BootstrapModal", () => {
     });
 
     vi.mocked(parseBootstrapResponse).mockReturnValue({
-      characters: [{ name: "Alice", role: "protagonist" }],
-      locations: [{ name: "The Tavern" }],
+      thesis: "A great argument",
+      sections: [{ heading: "Intro", purpose: "Set up", keyPoints: ["point 1"] }],
+      suggestedKillList: ["delve"],
     });
 
     vi.mocked(bootstrapToBible).mockReturnValue(fakeBible as any);

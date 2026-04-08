@@ -183,7 +183,7 @@ describe("extractIR", () => {
     const client = makeMockClient(VALID_IR_JSON);
     await extractIR("prose", makePlan(), makeBible(), client);
     const callArgs = (client.call as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    expect(callArgs[2]).toBe("claude-sonnet-4-6");
+    expect(callArgs[2]).toBe("claude-opus-4-6");
   });
 
   it("uses specified model", async () => {

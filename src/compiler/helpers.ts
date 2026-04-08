@@ -211,16 +211,18 @@ export function formatAntiAblation(plan: ScenePlan): string {
   }
 
   lines.push(`\nGENERAL:`);
-  lines.push(`- Do not summarize what just happened.`);
-  lines.push(`- Do not have characters explain their own motivations.`);
-  lines.push(`- Do not resolve tension unless the scene contract calls for it.`);
-  lines.push(`- Subtext must remain sub. If a character states the theme, you have failed.`);
+  lines.push(`- Do not hedge unless warranted by genuine uncertainty.`);
+  lines.push(`- Do not over-explain conclusions the evidence already supports.`);
   lines.push(
-    `- Ground scenes in concrete sensory detail ONLY when it serves a narrative purpose (revealing character, advancing plot, establishing mood).`,
+    `- Do not use throat-clearing transitions (However, Moreover, Furthermore, Additionally, It's worth noting).`,
   );
+  lines.push(`- Do not restate what a previous section already established.`);
+  lines.push(`- Vary paragraph length deliberately. Three consecutive similar-length paragraphs is failure.`);
+  lines.push(`- Break the rule of three. Use two points or four, not three.`);
   lines.push(
-    `- NEVER write performative specificity — no "the X you stop noticing until Y" constructions, no hyper-technical sensory descriptions, no poetic twists on mundane infrastructure. The reader should experience the detail, not admire the description.`,
+    `- Avoid elegant variation — repeat a word naturally rather than cycling through synonyms (dog, canine, four-legged companion).`,
   );
+  lines.push(`- Allow grammatical imperfection: fragments, sentences starting with 'And' or 'But', contractions.`);
   lines.push(`- Vary sentence length. Monotony is failure.`);
 
   return lines.join("\n");
@@ -228,10 +230,10 @@ export function formatAntiAblation(plan: ScenePlan): string {
 
 export function formatSensoryGuardrail(): string {
   return [
-    "=== SENSORY DETAIL RULES ===",
-    "Use location details as raw material — deploy them naturally in service of the scene.",
-    "Every sensory detail must have a narrative job: build tension, ground the reader, or reveal character.",
-    "AVOID: overwrought specificity, temporal-twist observations, technically precise descriptions of mundane infrastructure, and any detail that exists to demonstrate the writer's powers of observation rather than serve the story.",
+    "=== DETAIL RULES ===",
+    "Use concrete details as raw material — deploy them naturally in service of the argument.",
+    "Every detail must have a job: ground the reader, support a claim, or make an abstraction tangible.",
+    "AVOID: overwrought specificity, details that exist to demonstrate the writer's powers of observation rather than serve the piece.",
   ].join("\n");
 }
 

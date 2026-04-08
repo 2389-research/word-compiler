@@ -84,17 +84,13 @@ describe("createWritingSample", () => {
 });
 
 describe("createDefaultPipelineConfig", () => {
-  it("uses haiku for stage 1 and 2 models", () => {
+  it("uses DEFAULT_MODEL for all pipeline stages", () => {
     const config = createDefaultPipelineConfig();
-    expect(config.stage1ChunkModel).toBe("claude-haiku-4-5-20251001");
-    expect(config.stage2DocumentModel).toBe("claude-haiku-4-5-20251001");
-  });
-
-  it("uses sonnet for stage 3-5 models", () => {
-    const config = createDefaultPipelineConfig();
-    expect(config.stage3ClusterModel).toBe("claude-sonnet-4-5-20250929");
-    expect(config.stage4FilterModel).toBe("claude-sonnet-4-5-20250929");
-    expect(config.stage5GuideModel).toBe("claude-sonnet-4-5-20250929");
+    expect(config.stage1ChunkModel).toBe("claude-opus-4-6");
+    expect(config.stage2DocumentModel).toBe("claude-opus-4-6");
+    expect(config.stage3ClusterModel).toBe("claude-opus-4-6");
+    expect(config.stage4FilterModel).toBe("claude-opus-4-6");
+    expect(config.stage5GuideModel).toBe("claude-opus-4-6");
   });
 
   it("returns correct chunking defaults", () => {
@@ -114,7 +110,7 @@ describe("createDefaultPipelineConfig", () => {
   it("returns correct domain defaults", () => {
     const config = createDefaultPipelineConfig();
     expect(config.sourceDomain).toBe("");
-    expect(config.targetDomain).toBe("literary_fiction");
+    expect(config.targetDomain).toBe("essay");
   });
 
   it("returns correct drift defaults", () => {

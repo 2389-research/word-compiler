@@ -1,4 +1,4 @@
-import { DEFAULT_ANALYSIS_MODEL, DEFAULT_FAST_MODEL } from "../types/metadata.js";
+import { DEFAULT_MODEL } from "../types/metadata.js";
 import { generateId } from "../types/utils.js";
 
 // ─── Input Types ───────────────────────────────────────
@@ -152,6 +152,7 @@ export interface VoiceGuide {
   editingInstructions: string;
   confidenceNotes: string;
   ring1Injection: string;
+  representativeExcerpts?: string;
   updatedAt: string;
 }
 
@@ -234,11 +235,11 @@ export function createWritingSample(filename: string | null, domain: string, tex
 
 export function createDefaultPipelineConfig(): PipelineConfig {
   return {
-    stage1ChunkModel: DEFAULT_FAST_MODEL,
-    stage2DocumentModel: DEFAULT_FAST_MODEL,
-    stage3ClusterModel: DEFAULT_ANALYSIS_MODEL,
-    stage4FilterModel: DEFAULT_ANALYSIS_MODEL,
-    stage5GuideModel: DEFAULT_ANALYSIS_MODEL,
+    stage1ChunkModel: DEFAULT_MODEL,
+    stage2DocumentModel: DEFAULT_MODEL,
+    stage3ClusterModel: DEFAULT_MODEL,
+    stage4FilterModel: DEFAULT_MODEL,
+    stage5GuideModel: DEFAULT_MODEL,
     chunkTargetTokens: 10000,
     chunkOverlapTokens: 1000,
     minChunkTokens: 100,
@@ -246,7 +247,7 @@ export function createDefaultPipelineConfig(): PipelineConfig {
     batchSize: 10,
     firstLastChunkWeight: 1.5,
     sourceDomain: "",
-    targetDomain: "literary_fiction",
+    targetDomain: "essay",
     driftDownweightFactor: 0.5,
     driftDownweightThreshold: 0.5,
     driftExclusionThreshold: 0.8,

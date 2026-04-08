@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { EvalRunArtifact } from "./types.js";
 
-const DEFAULT_DIR = path.resolve(import.meta.dirname ?? ".", "runs");
+const DEFAULT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "runs");
 
 export function saveArtifact(artifact: EvalRunArtifact, dir: string = DEFAULT_DIR): string {
   fs.mkdirSync(dir, { recursive: true });

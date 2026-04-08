@@ -163,14 +163,14 @@ describe("formatAntiAblation", () => {
   it("includes universal directives", () => {
     const text = formatAntiAblation(makePlan());
     expect(text).toContain("=== ANTI-ABLATION ===");
-    expect(text).toContain("Do not summarize");
+    expect(text).toContain("Do not hedge");
     expect(text).toContain("Vary sentence length");
   });
 
-  it("includes sensory guardrail language in anti-ablation", () => {
+  it("includes essay-specific guardrails", () => {
     const text = formatAntiAblation(makePlan());
-    expect(text).toContain("serves a narrative purpose");
-    expect(text).toContain("performative specificity");
+    expect(text).toContain("Vary paragraph length");
+    expect(text).toContain("elegant variation");
   });
 
   it("includes scene-specific prohibitions", () => {
@@ -184,10 +184,10 @@ describe("formatAntiAblation", () => {
 });
 
 describe("formatSensoryGuardrail", () => {
-  it("returns sensory detail rules", () => {
+  it("returns detail rules for essay context", () => {
     const text = formatSensoryGuardrail();
-    expect(text).toContain("=== SENSORY DETAIL RULES ===");
-    expect(text).toContain("narrative job");
+    expect(text).toContain("=== DETAIL RULES ===");
+    expect(text).toContain("support a claim");
     expect(text).toContain("overwrought specificity");
   });
 });

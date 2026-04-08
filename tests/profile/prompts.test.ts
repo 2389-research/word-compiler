@@ -78,15 +78,15 @@ describe("buildStage1Prompt", () => {
 
 describe("buildStage4Prompt", () => {
   it("includes source and target domain names", () => {
-    const result = buildStage4Prompt("[]", "newsletter", "literary_fiction");
+    const result = buildStage4Prompt("[]", "newsletter", "essay");
     expect(result).toContain("newsletter");
-    expect(result).toContain("literary_fiction");
+    expect(result).toContain("essay");
   });
 });
 
 describe("buildStage5Prompt", () => {
   it("includes document count and confidence counts", () => {
-    const result = buildStage5Prompt("[]", 12, "newsletter", "literary_fiction", 5, 3, 2, []);
+    const result = buildStage5Prompt("[]", 12, "newsletter", "essay", 5, 3, 2, []);
     expect(result).toContain("12");
     expect(result).toContain("5");
     expect(result).toContain("3");

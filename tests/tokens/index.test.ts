@@ -91,7 +91,7 @@ describe("factory functions", () => {
   it("createDefaultCompilationConfig has expected defaults", () => {
     const config = createDefaultCompilationConfig();
     expect(config.modelContextWindow).toBe(200000);
-    expect(config.ring1HardCap).toBe(2000);
+    expect(config.ring1HardCap).toBe(4000);
     expect(config.defaultTemperature).toBe(0.8);
     expect(config.maxNegativeExemplars).toBe(2);
   });

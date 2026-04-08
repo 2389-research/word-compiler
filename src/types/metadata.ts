@@ -103,7 +103,7 @@ export const MODEL_REGISTRY: Record<string, ModelSpec> = {
   },
 };
 
-export const DEFAULT_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_MODEL = "claude-opus-4-6";
 export const DEFAULT_FAST_MODEL = "claude-haiku-4-5-20251001";
 export const DEFAULT_ANALYSIS_MODEL = "claude-sonnet-4-5-20250929";
 
@@ -126,7 +126,7 @@ export function createDefaultCompilationConfig(modelId: string = DEFAULT_MODEL):
     ring1MaxFraction: 0.15,
     ring2MaxFraction: 0.25,
     ring3MinFraction: 0.6,
-    ring1HardCap: 2000,
+    ring1HardCap: 4000,
     bridgeVerbatimTokens: 200,
     bridgeIncludeStateBullets: true,
     maxNegativeExemplarTokens: 80,

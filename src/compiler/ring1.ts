@@ -177,15 +177,25 @@ export function buildRing1(bible: Bible, config: CompilationConfig, voiceGuide?:
     });
   }
 
+  if (voiceGuide?.representativeExcerpts) {
+    candidateSections.push({
+      name: "REFERENCE_PROSE",
+      text: `=== REFERENCE PROSE (match this voice) ===\n${voiceGuide.representativeExcerpts}`,
+      priority: 2,
+      immune: false,
+    });
+  }
+
   const sections = candidateSections.filter((s): s is RingSection => s !== null);
 
   // Assemble
   let text = sections.map((s) => s.text).join("\n\n");
 
-  // Hard cap enforcement
-  const effectiveCap = voiceGuide?.ring1Injection
-    ? config.ring1HardCap + countTokens(voiceGuide.ring1Injection) + 20
-    : config.ring1HardCap;
+  // Hard cap enforcement — bump cap by voice injection + reference prose tokens
+  let voiceTokenBump = 0;
+  if (voiceGuide?.ring1Injection) voiceTokenBump += countTokens(voiceGuide.ring1Injection) + 20;
+  if (voiceGuide?.representativeExcerpts) voiceTokenBump += countTokens(voiceGuide.representativeExcerpts) + 20;
+  const effectiveCap = config.ring1HardCap + voiceTokenBump;
   let wasTruncated = false;
   const tokens = countTokens(text);
   if (tokens > effectiveCap) {

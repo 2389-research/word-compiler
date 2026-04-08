@@ -15,104 +15,67 @@ export const bootstrapSchema: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
   properties: {
-    characters: {
+    thesis: { type: "string" },
+    sections: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
         properties: {
-          name: { type: "string" },
-          role: { type: "string" },
-          physicalDescription: { type: "string" },
-          backstory: { type: "string" },
-          voiceNotes: { type: "string" },
-          emotionPhysicality: { type: "string" },
+          heading: { type: "string" },
+          purpose: { type: "string" },
+          keyPoints: { type: "array", items: { type: "string" } },
         },
-        required: ["name", "role", "physicalDescription", "backstory", "voiceNotes", "emotionPhysicality"],
-      },
-    },
-    locations: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          name: { type: "string" },
-          sensoryPalette: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              sounds: { type: "array", items: { type: "string" } },
-              smells: { type: "array", items: { type: "string" } },
-              textures: { type: "array", items: { type: "string" } },
-              lightQuality: { type: "string" },
-              prohibitedDefaults: { type: "array", items: { type: "string" } },
-            },
-            required: ["sounds", "smells", "textures", "lightQuality", "prohibitedDefaults"],
-          },
-        },
-        required: ["name", "sensoryPalette"],
+        required: ["heading", "purpose", "keyPoints"],
       },
     },
     suggestedTone: {
       type: "object",
       additionalProperties: false,
       properties: {
-        metaphoricDomains: { type: "array", items: { type: "string" } },
-        prohibitedDomains: { type: "array", items: { type: "string" } },
+        register: { type: "string" },
+        audience: { type: "string" },
         pacingNotes: { type: "string" },
-        interiority: { type: "string" },
       },
-      required: ["metaphoricDomains", "prohibitedDomains", "pacingNotes", "interiority"],
+      required: ["register", "audience", "pacingNotes"],
     },
     suggestedKillList: { type: "array", items: { type: "string" } },
+    structuralBans: { type: "array", items: { type: "string" } },
   },
-  required: ["characters", "locations", "suggestedTone", "suggestedKillList"],
+  required: ["thesis", "sections", "suggestedTone", "suggestedKillList", "structuralBans"],
 };
 
 export function buildBootstrapPrompt(synopsis: string): CompiledPayload {
-  const systemMessage = `You are a literary analyst. Given a synopsis, extract structured elements for a story bible. Be specific and opinionated — generic descriptions are useless.`;
+  const systemMessage = `You are an editorial analyst. Given an essay brief or idea, extract a structured essay plan. Be specific and opinionated — generic structure is useless.`;
 
-  const userMessage = `SYNOPSIS:
+  const userMessage = `ESSAY BRIEF:
 ${synopsis}
 
 Extract the following as JSON:
 
 {
-  "characters": [
+  "thesis": "The essay's central argument in one clear sentence. Not a topic — an argument. Not 'AI writing tools' but 'AI writing tools fail because they treat voice as a prompt, not a learning problem.'",
+  "sections": [
     {
-      "name": "...",
-      "role": "protagonist|antagonist|supporting|minor",
-      "physicalDescription": "Specific. Not 'tall and handsome.' What does the reader SEE?",
-      "backstory": "Brief but specific.",
-      "voiceNotes": "How does this person TALK? Short sentences or long? Formal or casual? What words would they never use?",
-      "emotionPhysicality": "How does their body show emotion? Not 'she felt sad' — what does sad LOOK like on this person?"
-    }
-  ],
-  "locations": [
-    {
-      "name": "...",
-      "sensoryPalette": {
-        "sounds": ["ambient sounds that define the space + foreground sounds that could punctuate a scene — raw observations, not poetic descriptions"],
-        "smells": ["functional smells that tell you WHERE you are, not prose-ready descriptions"],
-        "textures": ["surfaces and temperatures characters physically contact"],
-        "lightQuality": "Neutral description of light conditions — not a metaphor",
-        "prohibitedDefaults": ["generic sensory details to avoid for this location"]
-      }
+      "heading": "Section heading — sharp, not generic",
+      "purpose": "What this section argues or establishes. One sentence.",
+      "keyPoints": ["Specific points this section must make — not vague themes, concrete claims"]
     }
   ],
   "suggestedTone": {
-    "metaphoricDomains": ["where do this story's metaphors come from?"],
-    "prohibitedDomains": ["what metaphoric territory is too generic for this story?"],
-    "pacingNotes": "Fast? Slow? Variable?",
-    "interiority": "How deep in characters' heads are we?"
+    "register": "The voice register: conversational, formal-academic, casual-authoritative, etc. Be specific about diction level.",
+    "audience": "Who is reading this and what do they already know?",
+    "pacingNotes": "How should the argument unfold? Build slowly? Hit hard from the start?"
   },
   "suggestedKillList": [
-    "genre-appropriate banned phrases — the clichés this specific story must avoid"
+    "Topic-specific cliches and phrases this essay must avoid — the tired language of this particular subject"
+  ],
+  "structuralBans": [
+    "Structural patterns to avoid — e.g. 'Do not open with a dictionary definition', 'Do not end with a call to action'"
   ]
 }
 
-Be specific but FUNCTIONAL. Every detail should anchor the reader in the space or reveal something about the world. AVOID performative specificity: no temporal twists ("the hum you stop hearing after day three"), no poetic observations about mundane infrastructure, no details that exist to demonstrate the writer's powers of observation. A sensory palette is raw material for a writer, not finished prose. If the synopsis doesn't give you enough to be specific, make a strong opinionated choice and flag it as [ASSUMPTION] so the author can override.`;
+Be OPINIONATED. A good essay plan takes a strong position and structures an argument to support it. If the brief is vague, sharpen it — make a specific argumentative choice and flag it as [ASSUMPTION] so the author can override. Every section should advance the argument, not just cover a topic.`;
 
   return {
     systemMessage,
@@ -182,31 +145,19 @@ export function extractJsonFromText(text: string): unknown | null {
 // ─── Parse Bootstrap Response ───────────────────────────
 
 export interface ParsedBootstrap {
-  characters: Array<{
-    name: string;
-    role: string;
-    physicalDescription?: string;
-    backstory?: string;
-    voiceNotes?: string;
-    emotionPhysicality?: string;
-  }>;
-  locations: Array<{
-    name: string;
-    sensoryPalette?: {
-      sounds?: string[];
-      smells?: string[];
-      textures?: string[];
-      lightQuality?: string;
-      prohibitedDefaults?: string[];
-    };
+  thesis?: string;
+  sections?: Array<{
+    heading: string;
+    purpose: string;
+    keyPoints?: string[];
   }>;
   suggestedTone?: {
-    metaphoricDomains?: string[];
-    prohibitedDomains?: string[];
+    register?: string;
+    audience?: string;
     pacingNotes?: string;
-    interiority?: string;
   };
   suggestedKillList?: string[];
+  structuralBans?: string[];
 }
 
 export function parseBootstrapResponse(response: string): ParsedBootstrap | { error: string; rawText: string } {
@@ -217,90 +168,140 @@ export function parseBootstrapResponse(response: string): ParsedBootstrap | { er
 
 // ─── Bootstrap → Bible ──────────────────────────────────
 
+// Default kill list: AI slop words and phrases that mark text as machine-generated
+const DEFAULT_KILL_LIST: string[] = [
+  "delve",
+  "tapestry",
+  "nuanced",
+  "multifaceted",
+  "landscape",
+  "robust",
+  "comprehensive",
+  "furthermore",
+  "moreover",
+  "utilize",
+  "leverage",
+  "facilitate",
+  "elucidate",
+  "embark",
+  "endeavor",
+  "encompass",
+  "paradigm",
+  "synergy",
+  "holistic",
+  "catalyze",
+  "juxtapose",
+  "realm",
+  "myriad",
+  "plethora",
+  "meticulous",
+  "interplay",
+  "intricate",
+  "garner",
+  "underscore",
+  "vibrant",
+  "nestled",
+  "groundbreaking",
+  "renowned",
+  "pivotal",
+  "cornerstone",
+  "foster",
+  "showcase",
+  "it's important to note",
+  "it's worth noting",
+  "in today's world",
+  "in today's fast-paced",
+  "let's dive in",
+  "let's explore",
+  "without further ado",
+  "at the end of the day",
+  "first and foremost",
+  "game-changer",
+  "a testament to",
+  "serves as a reminder",
+  "the power of",
+  "needless to say",
+  "in conclusion",
+  "it goes without saying",
+  "when it comes to",
+  "in the realm of",
+  "at its core",
+];
+
+const DEFAULT_STRUCTURAL_BANS: string[] = [
+  "Never open a paragraph with However, Moreover, Furthermore, Additionally, or In fact",
+  "Never use 'This is not just X — it's Y' framing",
+  "Never write 'This matters because' or 'This is significant because' immediately after a claim",
+  "Never end a section by restating what it just said",
+  "Never use three consecutive sentences with the same grammatical structure",
+  "Never start with a rhetorical question then immediately answer it",
+  "Limit em dashes to 2 per 500 words",
+];
+
 export function bootstrapToBible(parsed: ParsedBootstrap, projectId: string, sourcePrompt?: string): Bible {
-  const characters = (parsed.characters || []).map((c) => ({
+  const tone = parsed.suggestedTone;
+
+  // Create a single "character" representing the author persona
+  const authorPersona = {
     id: generateId(),
-    name: c.name,
-    role: (c.role || "supporting") as "protagonist" | "antagonist" | "supporting" | "minor",
-    physicalDescription: c.physicalDescription || null,
-    backstory: c.backstory || null,
+    name: "Author",
+    role: "protagonist" as const,
+    physicalDescription: null,
+    backstory: null,
     selfNarrative: null,
     contradictions: null,
     voice: {
       sentenceLengthRange: null,
-      vocabularyNotes: c.voiceNotes || null,
+      vocabularyNotes: tone?.register || null,
       verbalTics: [],
       metaphoricRegister: null,
       prohibitedLanguage: [],
-      dialogueSamples: [], // Human must author these
+      dialogueSamples: [],
     },
-    behavior: c.emotionPhysicality
-      ? {
-          stressResponse: null,
-          socialPosture: null,
-          noticesFirst: null,
-          lyingStyle: null,
-          emotionPhysicality: c.emotionPhysicality,
-        }
-      : null,
-  }));
+    behavior: null,
+  };
 
-  const locations = (parsed.locations || []).map((l) => ({
-    id: generateId(),
-    name: l.name,
-    description: null,
-    sensoryPalette: {
-      sounds: l.sensoryPalette?.sounds || [],
-      smells: l.sensoryPalette?.smells || [],
-      textures: l.sensoryPalette?.textures || [],
-      lightQuality: l.sensoryPalette?.lightQuality || null,
-      atmosphere: null,
-      prohibitedDefaults: l.sensoryPalette?.prohibitedDefaults || [],
-    },
-  }));
+  // Merge default kill list with bootstrap-generated additions (deduplicated)
+  const bootstrapKills = parsed.suggestedKillList || [];
+  const allKills = [...new Set([...DEFAULT_KILL_LIST, ...bootstrapKills])];
 
-  const tone = parsed.suggestedTone;
+  // Merge default structural bans with bootstrap-generated additions
+  const bootstrapBans = parsed.structuralBans || [];
+  const allBans = [...new Set([...DEFAULT_STRUCTURAL_BANS, ...bootstrapBans])];
 
   return {
     projectId,
     version: 1,
-    characters,
+    characters: [authorPersona],
     styleGuide: {
-      metaphoricRegister: tone
-        ? {
-            approvedDomains: tone.metaphoricDomains || [],
-            prohibitedDomains: tone.prohibitedDomains || [],
-          }
-        : null,
+      metaphoricRegister: null,
       vocabularyPreferences: [],
       sentenceArchitecture: null,
       paragraphPolicy: null,
-      killList: (parsed.suggestedKillList || []).map((phrase) => ({
+      killList: allKills.map((phrase) => ({
         pattern: phrase,
         type: "exact" as const,
       })),
       negativeExemplars: [],
       positiveExemplars: [],
-      structuralBans: [],
+      structuralBans: allBans,
     },
     narrativeRules: {
       pov: {
-        default: "close-third",
+        default: "first",
         distance: "close",
-        interiority:
-          tone?.interiority === "stream"
-            ? "stream"
-            : tone?.interiority === "behavioral-only"
-              ? "behavioral-only"
-              : "filtered",
+        interiority: "filtered",
         reliability: "reliable",
+        notes: tone
+          ? `Register: ${tone.register || "editorial"}. Audience: ${tone.audience || "general"}. ${tone.pacingNotes || ""}`
+          : undefined,
       },
-      subtextPolicy: null,
+      subtextPolicy: parsed.thesis || null,
       expositionPolicy: null,
       sceneEndingPolicy: null,
       setups: [],
     },
-    locations,
+    locations: [],
     createdAt: new Date().toISOString(),
     sourcePrompt: sourcePrompt ?? null,
   };

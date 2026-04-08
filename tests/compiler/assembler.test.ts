@@ -107,7 +107,7 @@ describe("compilePayload", () => {
     const result = compilePayload(makeBible(), makePlan(), [], 0, config);
 
     expect(result.payload.userMessage).not.toContain("PRECEDING TEXT");
-    expect(result.payload.userMessage).toContain("Write the next section");
+    expect(result.payload.userMessage).toContain("Continue this essay");
     expect(result.payload.userMessage).toContain("section 1 of 3: arrival/setup");
   });
 

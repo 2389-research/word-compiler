@@ -252,6 +252,32 @@ describe("buildRing1", () => {
     expect(names).not.toContain("AUTHOR_VOICE");
   });
 
+  it("with representativeExcerpts includes REFERENCE_PROSE section", () => {
+    const guide: VoiceGuide = {
+      ...createEmptyVoiceGuide(),
+      ring1Injection: "Test voice.",
+      representativeExcerpts: "Here is a sample paragraph from the author's writing. It demonstrates their voice.",
+    };
+    const result = buildRing1(makeBible(), makeConfig(), guide);
+    const refProse = result.sections.find((s) => s.name === "REFERENCE_PROSE");
+    expect(refProse).toBeDefined();
+    expect(refProse!.text).toContain("match this voice");
+    expect(refProse!.text).toContain("sample paragraph");
+    expect(refProse!.priority).toBe(2);
+    expect(refProse!.immune).toBe(false);
+  });
+
+  it("empty representativeExcerpts does not add REFERENCE_PROSE section", () => {
+    const guide: VoiceGuide = {
+      ...createEmptyVoiceGuide(),
+      ring1Injection: "Test voice.",
+      representativeExcerpts: "",
+    };
+    const result = buildRing1(makeBible(), makeConfig(), guide);
+    const names = result.sections.map((s) => s.name);
+    expect(names).not.toContain("REFERENCE_PROSE");
+  });
+
   it("tokenCount is larger when voice guide is present", () => {
     const guide: VoiceGuide = {
       ...createEmptyVoiceGuide(),

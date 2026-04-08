@@ -33,7 +33,7 @@ describe("buildSceneBootstrapPrompt", () => {
       locations,
       includeChapterArc: false,
     });
-    expect(payload.model).toBe("claude-sonnet-4-6");
+    expect(payload.model).toBe("claude-opus-4-6");
     expect(payload.temperature).toBe(0.7);
     expect(payload.topP).toBe(0.92);
     expect(payload.systemMessage).toContain("3 scene plans");
