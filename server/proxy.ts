@@ -16,7 +16,10 @@ app.use(
 app.use(express.json({ limit: "5mb" }));
 app.use(requestLogger);
 
-const client = new Anthropic();
+const client = new Anthropic({
+  baseURL: process.env.LLM_BASE_URL || "https://api.anthropic.com",
+  apiKey: process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY || "",
+});
 
 // Initialize database and mount REST API
 const db = getDatabase();
@@ -32,18 +35,32 @@ app.get("/api/models", async (_req, res) => {
       res.json({ models: modelsCache });
       return;
     }
-    console.log("[models] Fetching models from Anthropic API");
+    console.log("[models] Fetching models list");
 
-    const response = await client.models.list({ limit: 100 });
-    const models = response.data
-      .filter((m: { type: string }) => m.type === "model")
-      .map((m: any) => ({
+    let models: Array<{ id: string; displayName: string; contextWindow: number; maxOutput: number }>;
+    try {
+      const response = await client.models.list({ limit: 100 });
+      models = response.data
+        .filter((m: { type: string }) => m.type === "model")
+        .map((m: any) => ({
+          id: m.id,
+          displayName: m.display_name ?? m.id,
+          contextWindow: m.context_window ?? 200000,
+          maxOutput: m.max_output ?? 64000,
+        }))
+        .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+    } catch {
+      // Non-Anthropic backends (OpenRouter, etc.) may not support models.list.
+      // Fall back to the built-in model registry.
+      const { MODEL_REGISTRY } = await import("../src/types/metadata.js");
+      models = Object.values(MODEL_REGISTRY).map((m) => ({
         id: m.id,
-        displayName: m.display_name ?? m.id,
-        contextWindow: m.context_window ?? 200000,
-        maxOutput: m.max_output ?? 64000,
-      }))
-      .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+        displayName: m.label,
+        contextWindow: m.contextWindow,
+        maxOutput: m.maxOutput,
+      }));
+      console.log(`[models] API models.list unavailable, using ${models.length} built-in models`);
+    }
 
     modelsCache = models;
     console.log(`[models] Cached ${models.length} models`);

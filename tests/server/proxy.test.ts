@@ -373,9 +373,11 @@ describe("GET /api/models (error path)", () => {
 
     try {
       const res = await fetch(`${freshBaseUrl!}/api/models`);
-      expect(res.status).toBe(401);
-      const body = await res.json();
-      expect(body).toEqual({ error: "Authentication failed" });
+      // When models.list fails (e.g. auth error, non-Anthropic backend),
+      // the endpoint falls back to the built-in model registry instead of erroring.
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { models: Array<{ id: string }> };
+      expect(body.models.length).toBeGreaterThan(0);
     } finally {
       freshServer.close();
     }
