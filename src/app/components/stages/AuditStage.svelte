@@ -70,7 +70,7 @@ let styleDriftReports = $derived.by((): StyleDriftReport[] => {
   return reports;
 });
 
-let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Scene 1");
+let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Section 1");
 
 let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {
   if (!store.bible || store.bible.characters.length < 2) return null;
@@ -141,7 +141,7 @@ async function handleAcceptProposal(proposal: BibleProposal) {
         <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
         <path d="M8 7v4M8 5.5v-.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
-      <span id="audit-deep-tip" class="info-tip-text" role="tooltip">Sends prose to Claude to check whether characters explicitly state what should remain subtext. Requires a scene plan with subtext defined.</span>
+      <span id="audit-deep-tip" class="info-tip-text" role="tooltip">Sends prose to Claude to check whether the writing states what should remain implicit. Requires a section plan with subtext defined.</span>
     </button>
     {#if unresolvedFlags.length > 0}
       <Badge variant="warning">{unresolvedFlags.length} unresolved flag{unresolvedFlags.length !== 1 ? "s" : ""}</Badge>
@@ -168,7 +168,7 @@ async function handleAcceptProposal(proposal: BibleProposal) {
           {/each}
         </div>
       {:else}
-        <div class="audit-empty">No prose generated for this scene yet.</div>
+        <div class="audit-empty">No prose generated for this section yet.</div>
       {/if}
 
       {#if unresolvedFlags.length > 0}

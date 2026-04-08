@@ -22,29 +22,29 @@ let nextGate = $derived(checkBootstrapToPlanGate(bible));
 <div class="bootstrap-stage">
   {#if !bible}
     <div class="bootstrap-welcome">
-      <h2 class="bootstrap-heading">Create Your Story Bible</h2>
-      <p class="bootstrap-subtitle">A bible defines your characters, voice rules, and narrative constraints. Choose how to start.</p>
+      <h2 class="bootstrap-heading">Create Your Essay Brief</h2>
+      <p class="bootstrap-subtitle">An essay brief defines your voice, style rules, and structural plan. Choose how to start.</p>
 
       <div class="bootstrap-cards">
         <button class="bootstrap-card" onclick={() => store.setBootstrapOpen(true)}>
           <span class="card-icon">AI</span>
-          <span class="card-title">Start from Synopsis</span>
-          <span class="card-desc">Paste a synopsis and let the AI extract characters, locations, tone, and style rules.</span>
+          <span class="card-title">Start from Description</span>
+          <span class="card-desc">Paste your essay idea and let the AI extract your thesis, section structure, tone, and style rules.</span>
         </button>
 
         <button class="bootstrap-card" onclick={() => store.setBibleAuthoringOpen(true)}>
           <span class="card-icon">+</span>
           <span class="card-title">Build Manually</span>
-          <span class="card-desc">Use the guided form to define characters, voice rules, and narrative constraints step by step.</span>
+          <span class="card-desc">Use the guided form to define your voice, style rules, and essay structure step by step.</span>
         </button>
       </div>
     </div>
   {:else}
     <div class="bootstrap-bible-view">
       <div class="bible-header-bar">
-        <h3 class="bible-title">Story Bible <span class="bible-version">v{bible.version}</span></h3>
+        <h3 class="bible-title">Essay Brief <span class="bible-version">v{bible.version}</span></h3>
         <div class="bible-actions">
-          <Button size="sm" onclick={() => store.setBibleAuthoringOpen(true)}>Edit Bible</Button>
+          <Button size="sm" onclick={() => store.setBibleAuthoringOpen(true)}>Edit Brief</Button>
           <Button size="sm" onclick={() => store.setBootstrapOpen(true)}>Re-bootstrap</Button>
         </div>
       </div>

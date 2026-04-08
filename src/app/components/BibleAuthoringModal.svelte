@@ -40,7 +40,7 @@ async function handleFormSave(bible: Bible) {
 </script>
 
 <Modal open={store.bibleAuthoringOpen} onClose={handleClose} width="wide">
-  {#snippet header()}Bible Authoring{/snippet}
+  {#snippet header()}Essay Brief Editor{/snippet}
 
   <BibleGuidedFormTab
     bind:this={formRef}
@@ -58,7 +58,7 @@ async function handleFormSave(bible: Bible) {
       {/if}
       <Button onclick={() => formRef?.save()}>Save & Close</Button>
       {#if formFooter.isLastStep}
-        <Button variant="primary" onclick={() => formRef?.save()}>Save Bible</Button>
+        <Button variant="primary" onclick={() => formRef?.save()}>Save Brief</Button>
       {:else}
         <Button variant="primary" onclick={() => formRef?.next()}>Next</Button>
       {/if}

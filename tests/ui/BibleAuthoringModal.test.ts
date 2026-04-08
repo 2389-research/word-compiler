@@ -49,17 +49,17 @@ describe("BibleAuthoringModal", () => {
   it("renders guided form directly with stepper steps", () => {
     render(BibleAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
     expect(screen.getByText("Foundations")).toBeInTheDocument();
-    expect(screen.getByText("Characters")).toBeInTheDocument();
+    expect(screen.getByText("Author Voice")).toBeInTheDocument();
     expect(screen.getByText("Locations")).toBeInTheDocument();
     expect(screen.getByText("Style Guide")).toBeInTheDocument();
     expect(screen.getByText("Review")).toBeInTheDocument();
   });
 
-  it('Characters step shows "Add Character" button and empty message', async () => {
+  it('Author Voice step shows "Add Voice Profile" button and empty message', async () => {
     render(BibleAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
-    await fireEvent.click(screen.getByText("Characters"));
-    expect(screen.getByText("Add Character")).toBeInTheDocument();
-    expect(screen.getByText("No characters yet. Add one to get started.")).toBeInTheDocument();
+    await fireEvent.click(screen.getByText("Author Voice"));
+    expect(screen.getByText("Add Voice Profile")).toBeInTheDocument();
+    expect(screen.getByText("No author voice yet. Add one to get started.")).toBeInTheDocument();
   });
 
   it("Review step shows summary counts", async () => {

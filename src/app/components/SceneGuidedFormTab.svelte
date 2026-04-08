@@ -108,18 +108,18 @@ export function save() {
   {#if formStep === "core"}
     <div class="form-step">
       <FormField label="Title" required>
-        <Input bind:value={formPlan.title} autofocus placeholder="Scene title" />
+        <Input bind:value={formPlan.title} autofocus placeholder="Section title" />
       </FormField>
-      <FormField label="POV Character">
+      <FormField label="Author Voice">
         {#if characters.length > 0}
           <select class="select" value={formPlan.povCharacterId} onchange={(e) => updatePlan({ povCharacterId: (e.target as HTMLSelectElement).value })}>
-            <option value="">Select character...</option>
+            <option value="">Select voice...</option>
             {#each characters as char (char.id)}
               <option value={char.id}>{char.name} ({char.role})</option>
             {/each}
           </select>
         {:else}
-          <Input bind:value={formPlan.povCharacterId} placeholder="Character ID or name" />
+          <Input bind:value={formPlan.povCharacterId} placeholder="Voice profile" />
         {/if}
       </FormField>
       <FormField label="POV Distance">
@@ -130,7 +130,7 @@ export function save() {
           { value: "distant", label: "Distant" },
         ]} onchange={(v) => updatePlan({ povDistance: v as "intimate" | "close" | "moderate" | "distant" })} />
       </FormField>
-      <FormField label="Narrative Goal" fieldId="narrativeGoal" required hint="What must this scene accomplish?">
+      <FormField label="Section Goal" fieldId="narrativeGoal" required hint="What must this section accomplish?">
         <TextArea value={formPlan.narrativeGoal} variant="compact" rows={2} oninput={(e) => updatePlan({ narrativeGoal: (e.target as HTMLTextAreaElement).value })} />
         <ExamplesDrawer fieldId="narrativeGoal" examples={getExamples("narrativeGoal")} onApplyTemplate={(content) => updatePlan({ narrativeGoal: content })} />
       </FormField>
@@ -176,7 +176,7 @@ export function save() {
         ]} onchange={(v) => updatePlan({ density: v as "sparse" | "moderate" | "dense" })} />
       </FormField>
       <FormField label="Sensory Notes">
-        <TextArea value={formPlan.sensoryNotes ?? ""} variant="compact" rows={2} oninput={(e) => updatePlan({ sensoryNotes: (e.target as HTMLTextAreaElement).value || null })} placeholder="Rain on cobblestones, neon reflecting in puddles" />
+        <TextArea value={formPlan.sensoryNotes ?? ""} variant="compact" rows={2} oninput={(e) => updatePlan({ sensoryNotes: (e.target as HTMLTextAreaElement).value || null })} placeholder="The fluorescent-lit open office, coffee rings on printouts" />
       </FormField>
       <FormField label="Location">
         {#if locations.length > 0}
@@ -191,7 +191,7 @@ export function save() {
         {/if}
       </FormField>
       {#if characters.length > 0}
-        <FormField label="Present Characters" hint="Characters physically in this scene (POV + speaking characters are always included)">
+        <FormField label="Referenced Voices" hint="Voices referenced in this section">
           <div class="character-checklist">
             {#each characters as char (char.id)}
               <label class="checkbox-option">

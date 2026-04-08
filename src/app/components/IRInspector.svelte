@@ -27,7 +27,7 @@ function hasDeltaData(delta: CharacterDelta): boolean {
 }
 </script>
 
-<Pane title="Scene Blueprint — {sceneTitle}" extraClass="ir-inspector">
+<Pane title="Section Blueprint — {sceneTitle}" extraClass="ir-inspector">
   {#snippet headerRight()}
     <div class="pane-actions">
       {#if !ir}

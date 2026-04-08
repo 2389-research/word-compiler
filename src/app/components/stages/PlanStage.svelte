@@ -45,11 +45,11 @@ let nextGate = $derived(checkPlanToDraftGate(store.scenes.map((s) => s.plan)));
   <div class="plan-columns">
     <div class="plan-main">
       <div class="plan-main-header">
-        <h3 class="plan-section-title">Scene Details</h3>
+        <h3 class="plan-section-title">Section Details</h3>
         <div class="plan-actions">
-          <Button size="sm" onclick={() => store.setSceneAuthoringOpen(true)}>+ New Scene</Button>
+          <Button size="sm" onclick={() => store.setSceneAuthoringOpen(true)}>+ New Section</Button>
           {#if store.chapterArc}
-            <Button size="sm" onclick={() => { showArcEditor = true; }}>Chapter Arc</Button>
+            <Button size="sm" onclick={() => { showArcEditor = true; }}>Essay Arc</Button>
           {/if}
         </div>
       </div>
@@ -58,8 +58,8 @@ let nextGate = $derived(checkPlanToDraftGate(store.scenes.map((s) => s.plan)));
           <AtlasSceneTab {store} {commands} />
         {:else}
           <div class="plan-empty">
-            <p>No scene selected. Create a scene plan to get started.</p>
-            <Button onclick={() => store.setSceneAuthoringOpen(true)}>Create Scene Plan</Button>
+            <p>No section selected. Create a section plan to get started.</p>
+            <Button onclick={() => store.setSceneAuthoringOpen(true)}>Create Section Plan</Button>
           </div>
         {/if}
       </div>
@@ -87,7 +87,7 @@ let nextGate = $derived(checkPlanToDraftGate(store.scenes.map((s) => s.plan)));
               </div>
             {/if}
             {#if characters.length === 0 && locations.length === 0}
-              <div class="plan-empty">No characters or locations in bible.</div>
+              <div class="plan-empty">No author voice or references in brief.</div>
             {/if}
           </div>
         {:else if sidebarTab === "setups"}

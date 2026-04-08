@@ -68,7 +68,7 @@ function handleDownload() {
     {/if}
 
     <div class="export-stats">
-      <span>{sceneSummary.complete}/{sceneSummary.total} scenes complete</span>
+      <span>{sceneSummary.complete}/{sceneSummary.total} sections complete</span>
       <span>{wordCount.toLocaleString()} words</span>
     </div>
 
@@ -96,7 +96,7 @@ function handleDownload() {
         <pre class="export-preview">{exported}</pre>
       </div>
     {:else}
-      <div class="export-empty">No prose to export. Generate and complete scenes first.</div>
+      <div class="export-empty">No prose to export. Generate and complete sections first.</div>
     {/if}
   </div>
 </div>

@@ -38,7 +38,7 @@ let {
 
 const stepDefs = [
   { id: "foundations", label: "Foundations" },
-  { id: "characters", label: "Characters" },
+  { id: "characters", label: "Author Voice" },
   { id: "locations", label: "Locations" },
   { id: "style", label: "Style Guide" },
   { id: "review", label: "Review" },
@@ -272,8 +272,8 @@ function removeVocabPref(index: number) {
   {:else if currentStep === "characters"}
     <CardList
       items={bible.characters}
-      addLabel="Add Character"
-      emptyMessage="No characters yet. Add one to get started."
+      addLabel="Add Voice Profile"
+      emptyMessage="No author voice yet. Add one to get started."
       onAdd={addCharacter}
       onRemove={removeCharacter}
     >

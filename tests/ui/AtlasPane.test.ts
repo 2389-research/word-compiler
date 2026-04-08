@@ -80,6 +80,6 @@ describe("AtlasPane", () => {
 
   it("shows bible empty state when no bible exists on bible tab", () => {
     render(AtlasPane, { store: createMockStore(), commands: createMockCommands(), onBootstrap: vi.fn() });
-    expect(screen.getByText("No story bible yet.")).toBeInTheDocument();
+    expect(screen.getByText("No essay brief yet.")).toBeInTheDocument();
   });
 });

@@ -37,7 +37,7 @@ function parseCSV(value: string): string[] {
 </script>
 
 <Modal open={true} {onClose} width="wide">
-  {#snippet header()}Chapter Arc Editor{/snippet}
+  {#snippet header()}Essay Arc Editor{/snippet}
 
   <div class="arc-editor">
     <label>

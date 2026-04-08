@@ -78,7 +78,7 @@ async function handleFormSave(plan: ScenePlan) {
 </script>
 
 <Modal open={store.sceneAuthoringOpen} onClose={handleClose} width="wide">
-  {#snippet header()}Scene Authoring{/snippet}
+  {#snippet header()}Section Authoring{/snippet}
 
   <Tabs items={tabItems} active={activeTab} onSelect={(id) => { activeTab = id; }} />
 
@@ -109,11 +109,11 @@ async function handleFormSave(plan: ScenePlan) {
       <Button onclick={handleClose}>Cancel</Button>
       {#if bootstrapFooter.phase === "idle"}
         <Button variant="primary" onclick={() => bootstrapRef?.generate()} disabled={bootstrapFooter.loading || !bootstrapFooter.canGenerate}>
-          Generate Scenes
+          Generate Sections
         </Button>
       {:else if bootstrapFooter.phase === "complete"}
         <Button variant="primary" onclick={() => bootstrapRef?.commit()} disabled={bootstrapFooter.acceptedCount === 0}>
-          Commit {bootstrapFooter.acceptedCount} Scene{bootstrapFooter.acceptedCount !== 1 ? "s" : ""}
+          Commit {bootstrapFooter.acceptedCount} Section{bootstrapFooter.acceptedCount !== 1 ? "s" : ""}
         </Button>
       {/if}
     {:else}
@@ -124,7 +124,7 @@ async function handleFormSave(plan: ScenePlan) {
         {/if}
         <Button onclick={() => formRef?.save()}>Save & Close</Button>
         {#if formFooter.isLastStep}
-          <Button variant="primary" onclick={() => formRef?.save()}>Save Scene Plan</Button>
+          <Button variant="primary" onclick={() => formRef?.save()}>Save Section Plan</Button>
         {:else}
           <Button variant="primary" onclick={() => formRef?.next()}>Next</Button>
         {/if}

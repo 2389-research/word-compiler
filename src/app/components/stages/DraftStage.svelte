@@ -323,7 +323,7 @@ let activeTab = $state<"compiler" | "drift" | "voice" | "setups" | "ir">("compil
 const tabItems = [
   { id: "compiler", label: "Draft Engine" },
   { id: "drift", label: "Voice Consistency" },
-  { id: "voice", label: "Character Voices" },
+  { id: "voice", label: "Voice Analysis" },
   { id: "setups", label: "Setups" },
   { id: "ir", label: "IR" },
 ];
@@ -370,7 +370,7 @@ let styleDriftReports = $derived.by((): StyleDriftReport[] => {
   return reports;
 });
 
-let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Scene 1");
+let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Section 1");
 let sceneTitles = $derived(Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.plan.title])));
 
 let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {

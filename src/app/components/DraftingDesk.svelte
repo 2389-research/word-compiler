@@ -118,7 +118,7 @@ $effect(() => {
             <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
             <path d="M8 7v4M8 5.5v-.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
-          <span id="deep-audit-tip" class="info-tip-text" role="tooltip">Sends prose to Claude to check whether characters explicitly state what should remain subtext. Requires a scene plan with subtext defined.</span>
+          <span id="deep-audit-tip" class="info-tip-text" role="tooltip">Sends prose to Claude to check whether the writing states what should remain implicit. Requires a section plan with subtext defined.</span>
         </button>
       {/if}
       {#if sceneStatus !== "complete"}
@@ -140,7 +140,7 @@ $effect(() => {
             {#if atChunkLimit}All chunks generated{:else}Generate Chunk {chunks.length + 1}{/if}
           </Button>
           {#if canGenerateNext && chunks.length === 0}
-            <Button onclick={onAutopilot} title="Generate all chunks, auto-accept, and complete scene">
+            <Button onclick={onAutopilot} title="Generate all chunks, auto-accept, and complete section">
               Autopilot
             </Button>
           {/if}
@@ -151,9 +151,9 @@ $effect(() => {
           variant="primary"
           onclick={onCompleteScene}
           disabled={!canComplete}
-          title={!canComplete ? [...(completionGate?.messages ?? []), ...auditGate.messages].join("\n") : "Mark scene as complete"}
+          title={!canComplete ? [...(completionGate?.messages ?? []), ...auditGate.messages].join("\n") : "Mark section as complete"}
         >
-          Complete Scene
+          Complete Section
         </Button>
       {/if}
     </div>
@@ -167,7 +167,7 @@ $effect(() => {
     {/if}
 
     {#if chunks.length === 0 && !isGenerating && gateMessages.length === 0}
-      <div class="empty-state">Load a Bible and Scene Plan, then generate your first chunk.</div>
+      <div class="empty-state">Load a brief and section plan, then generate your first chunk.</div>
     {/if}
 
     {#each chunks as chunk, i (chunk.id)}

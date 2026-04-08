@@ -19,12 +19,12 @@ export interface StageDefinition {
 
 export const STAGES: StageDefinition[] = [
   { id: "bootstrap", label: "Bootstrap", prereqDescription: "Start here" },
-  { id: "plan", label: "Plan", prereqDescription: "Bible with at least 1 character" },
-  { id: "draft", label: "Draft", prereqDescription: "At least 1 scene plan" },
+  { id: "plan", label: "Plan", prereqDescription: "Brief with author voice defined" },
+  { id: "draft", label: "Draft", prereqDescription: "At least 1 section plan" },
   { id: "audit", label: "Audit", prereqDescription: "At least 1 chunk generated" },
   { id: "edit", label: "Edit", prereqDescription: "All critical flags resolved" },
   { id: "complete", label: "Complete", prereqDescription: "Editing complete" },
-  { id: "export", label: "Export", prereqDescription: "At least 1 scene complete" },
+  { id: "export", label: "Export", prereqDescription: "At least 1 section complete" },
 ];
 
 export class WorkflowStore {

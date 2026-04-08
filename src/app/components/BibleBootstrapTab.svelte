@@ -108,13 +108,13 @@ export function reset() {
 </script>
 
 <p class="modal-instructions">
-  Paste your story synopsis. The system will extract characters, locations, tone, and a suggested avoid list.
+  Paste your essay idea or outline. The system will extract your thesis, section structure, tone, and a suggested avoid list.
 </p>
 
 {#if !bsLoading}
   <TextArea
     bind:value={synopsis}
-    placeholder={`Example synopsis — replace with your own:\n\nMarcus Cole, a retired homicide detective turned bar owner, runs a dimly lit jazz bar called "The Velvet" in a decaying waterfront district...`}
+    placeholder={`Example brief — replace with your own:\n\nAn essay arguing that most productivity advice fails knowledge workers because it treats creative work like factory output. Opens with a personal anecdote, builds through three counterexamples, closes with a reframed definition of productive work.`}
   />
 {:else}
   <div class="stream-display">{bsStreamText || "Waiting for first token..."}</div>

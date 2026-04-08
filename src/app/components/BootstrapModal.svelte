@@ -94,11 +94,10 @@ async function handleBootstrap() {
 </script>
 
 <Modal open={store.bootstrapModalOpen} onClose={handleClose}>
-  {#snippet header()}Bootstrap Bible from Synopsis{/snippet}
+  {#snippet header()}Bootstrap Brief from Description{/snippet}
 
   <p class="modal-instructions">
-    Paste your story synopsis. The system will extract characters, locations, tone, and a suggested avoid list.
-    You'll need to add dialogue samples manually.
+    Paste your essay idea or outline. The system will extract your thesis, section structure, tone, and a suggested avoid list.
   </p>
 
   {#if !loading}
@@ -111,7 +110,7 @@ async function handleBootstrap() {
           if (!loading && synopsis.trim()) handleBootstrap();
         }
       }}
-      placeholder={`Example synopsis — replace with your own:\n\nMarcus Cole, a retired homicide detective turned bar owner, runs a dimly lit jazz bar called "The Velvet" in a decaying waterfront district...`}
+      placeholder={`Example brief — replace with your own:\n\nAn essay arguing that most productivity advice fails knowledge workers because it treats creative work like factory output. Opens with a personal anecdote, builds through three counterexamples, closes with a reframed definition of productive work.`}
     />
   {:else}
     <div class="stream-display">{streamText || "Waiting for first token..."}</div>
@@ -134,7 +133,7 @@ async function handleBootstrap() {
   {#snippet footer()}
     <Button onclick={handleClose}>Cancel</Button>
     <Button variant="primary" onclick={handleBootstrap} disabled={loading || !synopsis.trim()}>
-      {loading ? "Bootstrapping..." : "Bootstrap Bible"}
+      {loading ? "Bootstrapping..." : "Bootstrap Brief"}
     </Button>
   {/snippet}
 </Modal>

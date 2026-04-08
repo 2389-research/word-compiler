@@ -39,7 +39,7 @@ const STATUS_VARIANTS: Record<SceneStatus, "pending" | "edited" | "accepted"> = 
         class="scene-card {i === activeSceneIndex ? 'scene-card-active' : ''}"
         onclick={() => onSelectScene(i)}
       >
-        <div class="scene-card-title">{entry.plan.title || `Scene ${i + 1}`}</div>
+        <div class="scene-card-title">{entry.plan.title || `Section ${i + 1}`}</div>
         <div class="scene-card-meta">
           <Badge variant={STATUS_VARIANTS[entry.status]}>{STATUS_LABELS[entry.status]}</Badge>
           <span class="scene-card-chunks">{chunks.length}/{entry.plan.chunkCount}</span>
@@ -47,16 +47,16 @@ const STATUS_VARIANTS: Record<SceneStatus, "pending" | "edited" | "accepted"> = 
       </button>
     {/each}
     {#if onAddScene}
-      <button type="button" class="scene-card scene-card-add" onclick={onAddScene} title="Add new scene">
+      <button type="button" class="scene-card scene-card-add" onclick={onAddScene} title="Add new section">
         <span class="scene-card-add-icon">+</span>
       </button>
     {/if}
   </div>
 {:else if onAddScene}
   <div class="scene-sequencer">
-    <button type="button" class="scene-card scene-card-add" onclick={onAddScene} title="Add new scene">
+    <button type="button" class="scene-card scene-card-add" onclick={onAddScene} title="Add new section">
       <span class="scene-card-add-icon">+</span>
-      <span class="scene-card-add-label">New Scene</span>
+      <span class="scene-card-add-label">New Section</span>
     </button>
   </div>
 {/if}

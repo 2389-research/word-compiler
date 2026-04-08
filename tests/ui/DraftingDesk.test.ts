@@ -36,7 +36,7 @@ function defaultProps() {
 describe("DraftingDesk", () => {
   it("shows empty state when no chunks", () => {
     render(DraftingDesk, defaultProps());
-    expect(screen.getByText("Load a Bible and Scene Plan, then generate your first chunk.")).toBeInTheDocument();
+    expect(screen.getByText("Load a brief and section plan, then generate your first chunk.")).toBeInTheDocument();
   });
 
   it("shows 'Generate Chunk 1' button when canGenerate and no chunks", () => {

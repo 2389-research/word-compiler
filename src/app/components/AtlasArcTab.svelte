@@ -53,7 +53,7 @@ function updateDraft(changes: Partial<ChapterArc>) {
 
 {#if !arc}
   <div class="atlas-empty">
-    <p>No chapter arc defined yet.</p>
+    <p>No essay arc defined yet.</p>
   </div>
 {:else if editing && draft}
   <div class="arc-tab edit-card">
@@ -117,7 +117,7 @@ function updateDraft(changes: Partial<ChapterArc>) {
         {arc.workingTitle || "Untitled Chapter"}
         <span class="arc-chapter">Ch. {arc.chapterNumber}</span>
       </h3>
-      <button class="edit-btn" onclick={startEdit} title="Edit chapter arc">edit</button>
+      <button class="edit-btn" onclick={startEdit} title="Edit essay arc">edit</button>
     </div>
 
     <div class="atlas-fields">

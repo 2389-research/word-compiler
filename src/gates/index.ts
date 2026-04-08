@@ -115,10 +115,10 @@ function getUnresolvedCriticalFlags(flags: AuditFlag[]): AuditFlag[] {
  */
 export function checkBootstrapToPlanGate(bible: Bible | null): GateResult {
   if (!bible) {
-    return { passed: false, messages: ["Create a bible first."] };
+    return { passed: false, messages: ["Create an essay brief first."] };
   }
   if (bible.characters.length === 0) {
-    return { passed: false, messages: ["Add at least 1 character to your bible."] };
+    return { passed: false, messages: ["Add an author voice to your brief."] };
   }
   return { passed: true, messages: [] };
 }
@@ -129,7 +129,7 @@ export function checkBootstrapToPlanGate(bible: Bible | null): GateResult {
 export function checkPlanToDraftGate(scenePlans: ScenePlan[]): GateResult {
   const ready = scenePlans.filter((p) => p.title.trim() && p.narrativeGoal.trim());
   if (ready.length === 0) {
-    return { passed: false, messages: ["Create at least 1 scene plan with a title and narrative goal."] };
+    return { passed: false, messages: ["Create at least 1 section plan with a title and section goal."] };
   }
   return { passed: true, messages: [] };
 }
@@ -186,7 +186,7 @@ export function checkAuditToCompleteGate(flags: AuditFlag[]): GateResult {
 export function checkCompleteToExportGate(scenes: Array<{ status: SceneStatus }>): GateResult {
   const complete = scenes.filter((s) => s.status === "complete");
   if (complete.length === 0) {
-    return { passed: false, messages: ["Mark at least 1 scene as complete."] };
+    return { passed: false, messages: ["Mark at least 1 section as complete."] };
   }
   return { passed: true, messages: [] };
 }

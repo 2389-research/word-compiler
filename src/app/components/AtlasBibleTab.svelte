@@ -185,12 +185,12 @@ function hasNarrativeData(): boolean {
 
 {#if !bible}
   <div class="atlas-empty">
-    <p>No story bible yet.</p>
+    <p>No essay brief yet.</p>
     <div class="atlas-empty-actions">
       {#if onAuthor}
-        <Button onclick={onAuthor}>Create Bible</Button>
+        <Button onclick={onAuthor}>Create Brief</Button>
       {/if}
-      <Button onclick={onBootstrap}>Bootstrap from Synopsis</Button>
+      <Button onclick={onBootstrap}>Bootstrap from Description</Button>
     </div>
   </div>
 {:else}
@@ -201,7 +201,7 @@ function hasNarrativeData(): boolean {
           <input
             class="search-input"
             type="text"
-            placeholder="Filter characters & locations..."
+            placeholder="Filter entries..."
             bind:value={searchQuery}
           />
           {#if query}
@@ -215,7 +215,7 @@ function hasNarrativeData(): boolean {
       </div>
     </div>
 
-    <CollapsibleSection bind:this={charsRef} summary="Characters" priority="essential" sectionId="atlas-bible-characters" badge={query ? `${filteredChars.length}/${bible.characters.length}` : `${bible.characters.length}`}>
+    <CollapsibleSection bind:this={charsRef} summary="Author Voice" priority="essential" sectionId="atlas-bible-characters" badge={query ? `${filteredChars.length}/${bible.characters.length}` : `${bible.characters.length}`}>
       {#each filteredChars as char (char.id)}
         {#if editingCharId === char.id && charDraft}
           <div class="edit-card">
@@ -235,7 +235,7 @@ function hasNarrativeData(): boolean {
         {/if}
       {/each}
       {#if editingCharId === null}
-        <button class="add-entity-btn" onclick={addCharacter} disabled={saving}>+ Add Character</button>
+        <button class="add-entity-btn" onclick={addCharacter} disabled={saving}>+ Add Voice Profile</button>
       {/if}
     </CollapsibleSection>
 
@@ -428,7 +428,7 @@ function hasNarrativeData(): boolean {
 
           {#if bible.narrativeRules.sceneEndingPolicy}
             <div class="atlas-field">
-              <span class="atlas-label">Scene Ending Policy</span>
+              <span class="atlas-label">Section Ending Policy</span>
               <div class="atlas-value"><TruncatedProse text={bible.narrativeRules.sceneEndingPolicy} /></div>
             </div>
           {/if}

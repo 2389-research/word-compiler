@@ -56,15 +56,15 @@ describe("SceneAuthoringModal", () => {
     expect(screen.getByText("Guided Form")).toBeInTheDocument();
   });
 
-  it("bootstrap tab shows Chapter Direction field and Generate Scenes button", () => {
+  it("bootstrap tab shows Essay Direction field and Generate Sections button", () => {
     render(SceneAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
-    expect(screen.getByText("Chapter Direction")).toBeInTheDocument();
-    expect(screen.getByText("Generate Scenes")).toBeInTheDocument();
+    expect(screen.getByText("Essay Direction")).toBeInTheDocument();
+    expect(screen.getByText("Generate Sections")).toBeInTheDocument();
   });
 
-  it("Generate Scenes button is disabled when direction is empty", () => {
+  it("Generate Sections button is disabled when direction is empty", () => {
     render(SceneAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
-    const btn = screen.getByText("Generate Scenes");
+    const btn = screen.getByText("Generate Sections");
     expect(btn.closest("button")).toBeDisabled();
   });
 
@@ -72,7 +72,7 @@ describe("SceneAuthoringModal", () => {
     render(SceneAuthoringModal, { store: createMockStore(), commands: createMockCommands() });
     await fireEvent.click(screen.getByText("Guided Form"));
     expect(screen.getByText("Title")).toBeInTheDocument();
-    expect(screen.getByText("Narrative Goal")).toBeInTheDocument();
+    expect(screen.getByText("Section Goal")).toBeInTheDocument();
   });
 
   it("does not show Commit button in idle phase", () => {

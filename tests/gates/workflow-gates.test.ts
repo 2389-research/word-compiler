@@ -55,14 +55,14 @@ describe("checkBootstrapToPlanGate", () => {
   it("fails when bible is null", () => {
     const result = checkBootstrapToPlanGate(null);
     expect(result.passed).toBe(false);
-    expect(result.messages[0]).toMatch(/bible/i);
+    expect(result.messages[0]).toMatch(/brief/i);
   });
 
   it("fails when bible has no characters", () => {
     const bible = createEmptyBible("test");
     const result = checkBootstrapToPlanGate(bible);
     expect(result.passed).toBe(false);
-    expect(result.messages[0]).toMatch(/character/i);
+    expect(result.messages[0]).toMatch(/voice/i);
   });
 
   it("passes with bible + 1 character", () => {

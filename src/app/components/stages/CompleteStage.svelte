@@ -72,8 +72,8 @@ async function handleUpdateIR(ir: NarrativeIR) {
 
 <div class="complete-stage">
   <div class="complete-header">
-    <h2 class="complete-title">Scene Completion</h2>
-    <p class="complete-subtitle">Review scene status, inspect narrative records, and mark scenes as complete.</p>
+    <h2 class="complete-title">Section Completion</h2>
+    <p class="complete-subtitle">Review section status, inspect records, and mark sections as complete.</p>
   </div>
 
   <div class="scene-grid">
@@ -110,7 +110,7 @@ async function handleUpdateIR(ir: NarrativeIR) {
   </div>
 
   {#if sceneSummaries.length === 0}
-    <div class="complete-empty">No scenes yet. Create scenes in the Plan stage.</div>
+    <div class="complete-empty">No sections yet. Create sections in the Plan stage.</div>
   {/if}
 
   {#if selectedSceneId}

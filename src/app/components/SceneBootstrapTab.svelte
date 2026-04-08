@@ -498,11 +498,11 @@ export function reset() {
 {#if phase === "idle"}
   <!-- ─── Form phase ────────────────────────── -->
   <div class="bootstrap-form">
-    <FormField label="Chapter Direction" required hint="Describe the chapter you want to write">
-      <TextArea bind:value={direction} autofocus placeholder="A tense confrontation between Marcus and Elena at The Velvet, escalating from veiled threats to an open power play..." />
+    <FormField label="Essay Direction" required hint="Describe the essay you want to write">
+      <TextArea bind:value={direction} autofocus placeholder="An essay exploring why most productivity advice fails knowledge workers, building from personal experience to systemic critique..." />
     </FormField>
 
-    <FormField label="Scene Count">
+    <FormField label="Section Count">
       <Input type="number" bind:value={sceneCount} />
     </FormField>
 
@@ -534,19 +534,19 @@ export function reset() {
     {/if}
 
     <FormField label="Additional Constraints" hint="Optional extra guidance">
-      <TextArea bind:value={constraints} variant="compact" rows={2} placeholder="No violence in the first scene, save the reveal for the final scene..." />
+      <TextArea bind:value={constraints} variant="compact" rows={2} placeholder="Save the strongest argument for the final section, open with a personal anecdote..." />
     </FormField>
 
     <label class="checkbox-option">
       <input type="checkbox" bind:checked={includeChapterArc} />
-      <span>Also generate Chapter Arc</span>
+      <span>Also generate Essay Arc</span>
     </label>
   </div>
 {:else if phase === "generating"}
   <!-- ─── Generating phase ──────────────────── -->
   <div class="generating-phase">
     <div class="progress-header">
-      <span class="progress-label">Scene {currentSceneIndex + 1} of {sceneCount}</span>
+      <span class="progress-label">Section {currentSceneIndex + 1} of {sceneCount}</span>
       <div class="progress-bar">
         <div class="progress-fill" style="width: {((currentSceneIndex) / sceneCount) * 100}%"></div>
       </div>
@@ -566,7 +566,7 @@ export function reset() {
     {#if acceptedPlans.length > 0}
       <div class="accepted-sidebar">
         {#each acceptedPlans as plan, i (plan.id)}
-          <div class="accepted-mini">Scene {i + 1}: {plan.title}</div>
+          <div class="accepted-mini">Section {i + 1}: {plan.title}</div>
         {/each}
       </div>
     {/if}
@@ -575,7 +575,7 @@ export function reset() {
   <!-- ─── Reviewing phase ───────────────────── -->
   <div class="reviewing-phase">
     <div class="progress-header">
-      <span class="progress-label">Review Scene {currentSceneIndex + 1} of {sceneCount}</span>
+      <span class="progress-label">Review Section {currentSceneIndex + 1} of {sceneCount}</span>
       <div class="progress-bar">
         <div class="progress-fill" style="width: {((currentSceneIndex) / sceneCount) * 100}%"></div>
       </div>
@@ -585,7 +585,7 @@ export function reset() {
       {@const charOk = isCharResolved(currentPlan)}
       {@const locOk = isLocResolved(currentPlan)}
       <div class="review-card" class:review-card-warn={!charOk || !locOk}>
-        <div class="review-card-title">{currentPlan.title || `Scene ${currentSceneIndex + 1}`}</div>
+        <div class="review-card-title">{currentPlan.title || `Section ${currentSceneIndex + 1}`}</div>
 
         {#if charOk}
           <div class="review-card-detail"><span class="review-label">POV:</span> {findCharName(currentPlan.povCharacterId) || "—"}</div>
@@ -661,7 +661,7 @@ export function reset() {
     {#if acceptedPlans.length > 0}
       <div class="accepted-sidebar">
         {#each acceptedPlans as plan, i (plan.id)}
-          <div class="accepted-mini">Scene {i + 1}: {plan.title}</div>
+          <div class="accepted-mini">Section {i + 1}: {plan.title}</div>
         {/each}
       </div>
     {/if}
@@ -716,7 +716,7 @@ export function reset() {
 
     {#if currentArc}
       <div class="preview-arc">
-        <span class="review-label">Chapter Arc:</span> {currentArc.workingTitle}
+        <span class="review-label">Essay Arc:</span> {currentArc.workingTitle}
       </div>
     {/if}
 

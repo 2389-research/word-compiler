@@ -89,7 +89,7 @@ async function handleLoadArc() {
       const parsed = JSON.parse(text) as ChapterArc;
       await commands.saveChapterArc(parsed);
     } catch {
-      store.setError("Invalid Chapter Arc JSON");
+      store.setError("Invalid Essay Arc JSON");
     }
   }
 }
@@ -127,13 +127,13 @@ async function handleLoadArc() {
     </div>
   </div>
   <div class="editor-section">
-    <div class="editor-label">Scene Plan JSON</div>
+    <div class="editor-label">Section Plan JSON</div>
     <div class="editor-wrapper" class:editor-locked={locked}>
       <CodeMirror value={planJson} on:change={(e) => { if (!locked) handlePlanChange(e.detail); }} readonly={locked} {extensions} />
     </div>
   </div>
   <div class="editor-section">
-    <div class="editor-label">Chapter Arc JSON</div>
+    <div class="editor-label">Essay Arc JSON</div>
     <div class="editor-wrapper" class:editor-locked={locked}>
       <CodeMirror value={arcJson} on:change={(e) => { if (!locked) handleArcChange(e.detail); }} readonly={locked} {extensions} />
     </div>

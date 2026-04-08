@@ -50,7 +50,7 @@ let wordCount = $derived(
       />
     {:else}
       <div class="edit-empty">
-        No prose generated for this scene yet. Go back to the Draft stage to generate content.
+        No prose generated for this section yet. Go back to the Draft stage to generate content.
       </div>
     {/if}
   </div>
