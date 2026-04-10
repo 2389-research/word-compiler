@@ -72,7 +72,7 @@ function checkMissingVoiceSamples(speakingCharIds: string[], bible: Bible): Lint
       issues.push({
         code: "MISSING_VOICE_SAMPLES",
         severity: "warning",
-        message: `Character ${charId} speaks in this scene but has no dialogue samples. Voice will drift toward generic.`,
+        message: `Author voice ${charId} has no writing samples. Voice will drift toward generic.`,
       });
     }
   }
@@ -84,7 +84,7 @@ function checkMissingSubtext(speakingCharIds: string[], plan: ScenePlan): LintIs
     return {
       code: "MISSING_SUBTEXT",
       severity: "warning",
-      message: `Multi-character dialogue scene has no subtext contract. High ablation risk.`,
+      message: `Multi-voice section has no implicit meaning contract. High ablation risk.`,
     };
   }
   return null;
@@ -107,7 +107,7 @@ function checkPovCharMissing(plan: ScenePlan, bible: Bible): LintIssue | null {
     return {
       code: "POV_CHAR_MISSING",
       severity: "error",
-      message: `POV character "${plan.povCharacterId}" not found in bible.`,
+      message: `Author voice "${plan.povCharacterId}" not found in brief.`,
     };
   }
   return null;

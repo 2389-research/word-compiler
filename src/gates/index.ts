@@ -12,13 +12,13 @@ export function checkScenePlanGate(plan: ScenePlan): GateResult {
   const messages: string[] = [];
 
   if (!plan.title.trim()) {
-    messages.push("Scene title is required.");
+    messages.push("Section title is required.");
   }
   if (!plan.povCharacterId.trim()) {
-    messages.push("POV character must be selected.");
+    messages.push("Author voice must be selected.");
   }
   if (!plan.narrativeGoal.trim()) {
-    messages.push("Narrative goal is required.");
+    messages.push("Section goal is required.");
   }
   if (!plan.failureModeToAvoid.trim()) {
     messages.push("Failure mode to avoid is required.");

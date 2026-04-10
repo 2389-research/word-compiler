@@ -181,6 +181,12 @@ describe("bootstrapToScenePlans", () => {
     expect(plans[0]!.chunkDescriptions).toEqual(["Point A", "Point B"]);
   });
 
+  it("sets failureModeToAvoid from section purpose", () => {
+    const plans = bootstrapToScenePlans(parsed, "proj-1", "author-id");
+    expect(plans[0]!.failureModeToAvoid).toContain("establish the core problem");
+    expect(plans[0]!.failureModeToAvoid.length).toBeGreaterThan(0);
+  });
+
   it("returns empty array when no sections", () => {
     const empty: ParsedBootstrap = { thesis: "Something" };
     expect(bootstrapToScenePlans(empty, "proj-1", "author-id")).toEqual([]);

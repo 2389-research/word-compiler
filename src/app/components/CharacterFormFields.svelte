@@ -1,16 +1,22 @@
 <script lang="ts">
+import { applyProfileToCharacter, buildProfileExtractionPrompt, parseProfileResponse } from "../../bootstrap/profileExtractor.js";
+import { callLLM } from "../../llm/client.js";
 import type { CharacterDossier } from "../../types/index.js";
 import {
+  Button,
   CollapsibleSection,
+  ErrorBanner,
   ExamplesDrawer,
   FormField,
   Input,
   NumberRange,
   RadioGroup,
+  Spinner,
   TagInput,
   TextArea,
 } from "../primitives/index.js";
 import { getExamples } from "./field-examples.js";
+import { profileExtractionSchema } from "../../bootstrap/profileExtractor.js";
 
 let {
   character,
@@ -19,9 +25,87 @@ let {
   character: CharacterDossier;
   onUpdate: (changes: Partial<CharacterDossier>) => void;
 } = $props();
+
+let showExtractor = $state(false);
+let extractorText = $state("");
+let extracting = $state(false);
+let extractError = $state<string | null>(null);
+let extractResult = $state<string | null>(null);
+
+async function handleExtractVoice() {
+  if (!extractorText.trim()) return;
+
+  extracting = true;
+  extractError = null;
+  extractResult = null;
+
+  try {
+    const samples = extractorText.split(/\n---\n/).map((s) => s.trim()).filter(Boolean);
+    const payload = buildProfileExtractionPrompt(samples);
+
+    const rawJson = await callLLM(
+      payload.systemMessage,
+      payload.userMessage,
+      payload.model,
+      payload.maxTokens,
+      profileExtractionSchema as Record<string, unknown>,
+    );
+
+    const parsed = parseProfileResponse(rawJson);
+    if ("error" in parsed) {
+      extractError = parsed.error;
+      extracting = false;
+      return;
+    }
+
+    const updated = applyProfileToCharacter(character, parsed);
+    onUpdate(updated);
+
+    const filled: string[] = [];
+    if (parsed.vocabularyNotes) filled.push("vocabulary notes");
+    if (parsed.writingTics.length > 0) filled.push(`${parsed.writingTics.length} writing tics`);
+    if (parsed.metaphoricRegister) filled.push("metaphoric register");
+    if (parsed.prohibitedLanguage.length > 0) filled.push(`${parsed.prohibitedLanguage.length} prohibited words`);
+    if (parsed.sentenceLengthRange) filled.push("sentence length range");
+    if (parsed.writingSamples.length > 0) filled.push(`${parsed.writingSamples.length} writing samples`);
+    if (parsed.argumentativeStyle) filled.push("argumentative style");
+
+    extractResult = `Extracted: ${filled.join(", ")}`;
+    showExtractor = false;
+    extractorText = "";
+  } catch (err) {
+    extractError = err instanceof Error ? err.message : "Extraction failed";
+  } finally {
+    extracting = false;
+  }
+}
 </script>
 
 <div class="char-form-fields">
+  {#if !showExtractor}
+    <div class="extract-voice-bar">
+      <Button variant="primary" size="sm" onclick={() => { showExtractor = true; extractResult = null; }}>
+        Extract Voice from Writing Samples
+      </Button>
+      {#if extractResult}
+        <span class="extract-result">{extractResult}</span>
+      {/if}
+    </div>
+  {:else}
+    <div class="extract-voice-panel">
+      <p class="extract-instructions">Paste 3-5 passages of your writing below. Separate multiple passages with a line containing only <code>---</code>.</p>
+      <TextArea bind:value={extractorText} rows={8} placeholder="Paste your writing here..." />
+      {#if extractError}
+        <ErrorBanner message={extractError} />
+      {/if}
+      <div class="extract-actions">
+        <Button variant="primary" onclick={handleExtractVoice} disabled={extracting || !extractorText.trim()}>
+          {#if extracting}<Spinner size="sm" /> Analyzing...{:else}Analyze Writing{/if}
+        </Button>
+        <Button onclick={() => { showExtractor = false; extractError = null; }}>Cancel</Button>
+      </div>
+    </div>
+  {/if}
   <FormField label="Name" fieldId="characterName" required>
     <Input value={character.name} oninput={(e) => onUpdate({ name: (e.target as HTMLInputElement).value })} placeholder="Name" />
   </FormField>
@@ -98,4 +182,14 @@ let {
 <style>
   .char-form-fields { display: flex; flex-direction: column; gap: 8px; }
   .char-section { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+  .extract-voice-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .extract-result { font-size: 11px; color: var(--text-secondary); }
+  .extract-voice-panel {
+    padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .extract-instructions { font-size: 11px; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+  .extract-instructions code { font-size: 10px; background: var(--bg-input); padding: 1px 4px; border-radius: 2px; }
+  .extract-actions { display: flex; gap: 6px; }
 </style>

@@ -7,7 +7,12 @@ import { getDatabase } from "./db/connection.js";
 import { errorHandler, requestLogger } from "./middleware.js";
 
 const app = express();
-const DEFAULT_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const DEFAULT_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+];
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || DEFAULT_ORIGINS,
@@ -51,7 +56,11 @@ app.get("/api/models", async (_req, res) => {
         .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
     } catch {
       // Non-Anthropic backends (OpenRouter, etc.) may not support models.list.
-      // Fall back to the built-in model registry.
+      models = [];
+    }
+
+    // Fall back to built-in registry if API returned nothing useful
+    if (models.length === 0) {
       const { MODEL_REGISTRY } = await import("../src/types/metadata.js");
       models = Object.values(MODEL_REGISTRY).map((m) => ({
         id: m.id,
@@ -59,7 +68,7 @@ app.get("/api/models", async (_req, res) => {
         contextWindow: m.contextWindow,
         maxOutput: m.maxOutput,
       }));
-      console.log(`[models] API models.list unavailable, using ${models.length} built-in models`);
+      console.log(`[models] Using ${models.length} built-in models`);
     }
 
     modelsCache = models;

@@ -74,19 +74,19 @@ describe("checkScenePlanGate", () => {
   it("fails when title is empty", () => {
     const result = checkScenePlanGate(makePlan({ title: "" }));
     expect(result.passed).toBe(false);
-    expect(result.messages).toContain("Scene title is required.");
+    expect(result.messages).toContain("Section title is required.");
   });
 
-  it("fails when POV character is missing", () => {
+  it("fails when author voice is missing", () => {
     const result = checkScenePlanGate(makePlan({ povCharacterId: "" }));
     expect(result.passed).toBe(false);
-    expect(result.messages).toContain("POV character must be selected.");
+    expect(result.messages).toContain("Author voice must be selected.");
   });
 
-  it("fails when narrative goal is missing", () => {
+  it("fails when section goal is missing", () => {
     const result = checkScenePlanGate(makePlan({ narrativeGoal: "" }));
     expect(result.passed).toBe(false);
-    expect(result.messages).toContain("Narrative goal is required.");
+    expect(result.messages).toContain("Section goal is required.");
   });
 
   it("fails when failure mode is missing", () => {

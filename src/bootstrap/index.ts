@@ -1,6 +1,14 @@
 import type { Bible, CompiledPayload, ScenePlan } from "../types/index.js";
 import { createEmptyScenePlan, DEFAULT_MODEL, generateId } from "../types/index.js";
 
+// Re-export profile extraction
+export type { ExtractedProfile } from "./profileExtractor.js";
+export {
+  applyProfileToCharacter,
+  buildProfileExtractionPrompt,
+  parseProfileResponse,
+  profileExtractionSchema,
+} from "./profileExtractor.js";
 export type { ParsedSceneBootstrap, SceneBootstrapParams } from "./sceneBootstrap.js";
 // Re-export scene bootstrap
 export {
@@ -333,6 +341,7 @@ export function bootstrapToScenePlans(
     plan.title = section.heading;
     plan.narrativeGoal = section.purpose;
     plan.povCharacterId = authorCharacterId;
+    plan.failureModeToAvoid = `Generic summary without a clear argument. This section must ${section.purpose.toLowerCase()}, not just describe it.`;
     plan.chunkDescriptions = section.keyPoints || [];
     plan.chunkCount = Math.max(1, (section.keyPoints || []).length);
     plan.estimatedWordCount = [300, 600];
