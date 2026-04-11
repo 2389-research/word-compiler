@@ -414,8 +414,8 @@ function buildContextBlocks(params: SceneBootstrapParams): string[] {
 function buildSystemMessage(params: SceneBootstrapParams): string {
   const systemParts = [
     params.sceneCount === 1
-      ? "You are a narrative architect. Given direction for a chapter, generate the next scene plan. The scene must maintain continuity with any existing scenes — the readerStateExiting of the previous scene should inform the readerStateEntering of this one. Be specific and opinionated."
-      : `You are a narrative architect. Given direction for a chapter, generate ${params.sceneCount} scene plans that form a cohesive chapter arc. Each scene must maintain continuity — the readerStateExiting of scene N should inform the readerStateEntering of scene N+1. Be specific and opinionated.`,
+      ? "You are an essay structure planner. Given direction for an essay, generate the next section plan. The section must maintain continuity with any existing sections — the readerStateExiting of the previous section should inform the readerStateEntering of this one. Be specific and opinionated."
+      : `You are an essay structure planner. Given direction for an essay, generate ${params.sceneCount} section plans that form a cohesive essay structure. Each section must maintain continuity — the readerStateExiting of section N should inform the readerStateEntering of section N+1. Be specific and opinionated.`,
   ];
   const rulesBlock = condensedNarrativeRules(params.narrativeRules);
   if (rulesBlock) systemParts.push("", rulesBlock);
@@ -473,7 +473,7 @@ export function buildSceneBootstrapPrompt(params: SceneBootstrapParams): Compile
   const { positionHint, continuityNote } = buildContinuityNotes(params);
   const noCharsWarning =
     params.characters.length === 0
-      ? "\nIMPORTANT: No characters have been selected for this chapter. Leave povCharacterId and povCharacterName as empty strings. Do NOT invent or reference specific named characters — write scenes that work without assigned POV characters."
+      ? "\nIMPORTANT: No voice profiles have been selected for this essay. Leave povCharacterId and povCharacterName as empty strings. Do NOT invent or reference specific named voices — write sections that work without assigned voice profiles."
       : "";
 
   const userMessage = `CHAPTER DIRECTION:

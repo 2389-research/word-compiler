@@ -11,7 +11,7 @@ const meta: Meta<IRInspector> = {
     docs: {
       description: {
         component:
-          "Inspector panel for Narrative IR (intermediate representation) — shows events, facts, character deltas, setups/payoffs, and unresolved tensions extracted from a scene.",
+          "Inspector panel for Narrative IR (intermediate representation) — shows events, facts, voice deltas, setups/payoffs, and unresolved tensions extracted from a section.",
       },
     },
   },

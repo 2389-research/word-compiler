@@ -19,7 +19,7 @@ const meta: Meta<ForwardSimulator> = {
     docs: {
       description: {
         component:
-          "Visual scene flow graph showing narrative IR propagation across scenes — facts revealed, tensions resolved/introduced, and character arcs.",
+          "Visual section flow graph showing narrative IR propagation across sections — facts revealed, tensions resolved/introduced, and voice arcs.",
       },
     },
   },

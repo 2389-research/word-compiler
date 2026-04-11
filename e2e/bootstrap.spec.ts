@@ -67,13 +67,13 @@ test.describe("Bootstrap workflow", () => {
     // Type a synopsis
     await textarea.fill("Marcus Cole runs a jazz bar called The Velvet in a decaying waterfront district.");
 
-    // Click Bootstrap Bible
-    await page.locator("button", { hasText: "Bootstrap Bible" }).click();
+    // Click Bootstrap Brief
+    await page.locator("button", { hasText: "Bootstrap Brief" }).click();
 
     // Wait for the modal to close (bootstrap completes and closes after 600ms)
     await expect(textarea).not.toBeVisible({ timeout: 5000 });
 
-    // Bible should be loaded — version badge should appear
+    // Brief should be loaded — version badge should appear
     await expect(page.locator(".bible-version")).toBeVisible({ timeout: 3000 });
   });
 
@@ -98,7 +98,7 @@ test.describe("Bootstrap workflow", () => {
     const textarea = page.locator("textarea").first();
     await expect(textarea).toBeVisible();
     await textarea.fill("A story about nothing parseable.");
-    await page.locator("button", { hasText: "Bootstrap Bible" }).click();
+    await page.locator("button", { hasText: "Bootstrap Brief" }).click();
 
     // Should show error banner with parse failure
     await expect(page.locator("text=Parse failed")).toBeVisible({ timeout: 5000 });

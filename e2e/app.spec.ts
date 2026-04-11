@@ -26,8 +26,8 @@ test.describe("Word Compiler App", () => {
 
   test("starts on Bootstrap stage", async ({ page }) => {
     await page.goto("/");
-    // Bootstrap stage shows "Create Your Story Bible" when no bible exists
-    await expect(page.locator("text=Create Your Story Bible")).toBeVisible();
+    // Bootstrap stage shows "Create Your Essay Brief" when no brief exists
+    await expect(page.locator("text=Create Your Essay Brief")).toBeVisible();
   });
 
   test("shows two entry cards on Bootstrap stage", async ({ page }) => {

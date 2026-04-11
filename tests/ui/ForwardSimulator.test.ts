@@ -11,7 +11,7 @@ function makeScene(id: string, title: string, ir = null as ReturnType<typeof cre
 describe("ForwardSimulator", () => {
   it("shows empty state when no scenes", () => {
     render(ForwardSimulator, { scenes: [], activeSceneIndex: 0, onSelectScene: vi.fn() });
-    expect(screen.getByText(/No scenes/)).toBeInTheDocument();
+    expect(screen.getByText(/No sections/)).toBeInTheDocument();
   });
 
   it("renders scene titles", () => {
@@ -35,11 +35,11 @@ describe("ForwardSimulator", () => {
     expect(screen.getByText("No IR")).toBeInTheDocument();
   });
 
-  it("shows scene number labels", () => {
+  it("shows section number labels", () => {
     const scenes = [makeScene("s1", "Opening"), makeScene("s2", "Second")];
     render(ForwardSimulator, { scenes, activeSceneIndex: 0, onSelectScene: vi.fn() });
-    expect(screen.getByText("Scene 1")).toBeInTheDocument();
-    expect(screen.getByText("Scene 2")).toBeInTheDocument();
+    expect(screen.getByText("Section 1")).toBeInTheDocument();
+    expect(screen.getByText("Section 2")).toBeInTheDocument();
   });
 
   it("shows facts count for verified IR", () => {

@@ -10,7 +10,7 @@ const meta: Meta<ChapterArcEditorStory> = {
       story: { height: "600px" },
       description: {
         component:
-          "Modal editor for chapter arc metadata — title, narrative function, register, pacing, ending posture, and reader state entering/exiting. Requires a `ProjectStore` instance (mocked here via a wrapper).",
+          "Modal editor for essay arc metadata — title, narrative function, register, pacing, ending posture, and reader state entering/exiting. Requires a `ProjectStore` instance (mocked here via a wrapper).",
       },
     },
   },

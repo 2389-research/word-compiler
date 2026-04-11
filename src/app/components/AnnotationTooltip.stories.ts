@@ -40,7 +40,7 @@ export const Critical: Story = {
     annotation: makeEditorialAnnotation({
       severity: "critical",
       category: "voice",
-      message: "Character voice breaks: Marcus uses vocabulary far outside his established register",
+      message: "Author voice breaks: passage uses vocabulary far outside the established register",
     }),
   },
 };

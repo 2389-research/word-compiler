@@ -8,18 +8,18 @@ const meta: Meta<AtlasPaneStory> = {
     docs: {
       description: {
         component:
-          "Tabbed worldbuilding panel with Bible (characters, locations, style, narrative rules), Scene Plan, Chapter Arc, and raw JSON editor tabs.",
+          "Tabbed reference panel with Brief (voice profiles, references, style, narrative rules), Section Plan, Essay Arc, and raw JSON editor tabs.",
       },
     },
   },
   argTypes: {
-    hasBible: { control: "boolean", description: "Seed store with an empty bible" },
+    hasBible: { control: "boolean", description: "Seed store with an empty brief" },
     hasBibleRich: {
       control: "boolean",
-      description: "Seed store with a rich bible (characters, locations, style guide, narrative rules)",
+      description: "Seed store with a rich brief (voice profiles, references, style guide, narrative rules)",
     },
-    hasScenes: { control: "boolean", description: "Seed store with a scene plan" },
-    hasArc: { control: "boolean", description: "Seed store with a chapter arc" },
+    hasScenes: { control: "boolean", description: "Seed store with a section plan" },
+    hasArc: { control: "boolean", description: "Seed store with an essay arc" },
     initialTab: {
       control: "select",
       options: ["bible", "scene", "arc", "json"],

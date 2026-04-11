@@ -72,7 +72,7 @@ function updateDraft(changes: Partial<ScenePlan>) {
 
 {#if !plan}
   <div class="atlas-empty">
-    <p>Select a scene from the sequencer to view its plan here.</p>
+    <p>Select a section from the sequencer to view its plan here.</p>
   </div>
 {:else if editing && draft}
   <div class="scene-tab edit-card">
@@ -83,7 +83,7 @@ function updateDraft(changes: Partial<ScenePlan>) {
       </div>
 
       <div class="atlas-field">
-        <span class="atlas-label">POV Character</span>
+        <span class="atlas-label">Author Voice</span>
         {#if store.bible && store.bible.characters.length > 0}
           <select class="select" value={draft.povCharacterId} onchange={(e) => updateDraft({ povCharacterId: (e.target as HTMLSelectElement).value })}>
             <option value="">Select character...</option>
@@ -97,7 +97,7 @@ function updateDraft(changes: Partial<ScenePlan>) {
       </div>
 
       <div class="atlas-field">
-        <span class="atlas-label">POV Distance</span>
+        <span class="atlas-label">Perspective Distance</span>
         <RadioGroup name="editPovDistance" value={draft.povDistance} options={[
           { value: "intimate", label: "Intimate" },
           { value: "close", label: "Close" },
@@ -220,22 +220,22 @@ function updateDraft(changes: Partial<ScenePlan>) {
 {:else}
   <div class="scene-tab">
     <div class="scene-header">
-      <h3 class="scene-title">{plan.title || "Untitled Scene"}</h3>
-      <button class="edit-btn" onclick={startEdit} title="Edit scene plan">edit</button>
+      <h3 class="scene-title">{plan.title || "Untitled Section"}</h3>
+      <button class="edit-btn" onclick={startEdit} title="Edit section plan">edit</button>
     </div>
 
     <div class="scene-meta">
       {#if povName}
-        <Badge>POV: {povName}</Badge>
+        <Badge>Voice: {povName}</Badge>
       {:else if plan.povCharacterId}
-        <Badge variant="warning">POV: {plan.povCharacterId} (not in bible)</Badge>
+        <Badge variant="warning">Voice: {plan.povCharacterId} (not in brief)</Badge>
       {/if}
       <Badge>{plan.povDistance}</Badge>
       <Badge>{plan.density}</Badge>
       {#if locationName}
         <Badge>@ {locationName}</Badge>
       {:else if plan.locationId}
-        <Badge variant="warning">@ {plan.locationId} (not in bible)</Badge>
+        <Badge variant="warning">@ {plan.locationId} (not in brief)</Badge>
       {/if}
     </div>
 

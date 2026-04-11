@@ -153,7 +153,7 @@ async function handleAcceptProposal(proposal: BibleProposal) {
   <div class="audit-columns">
     <div class="audit-prose">
       <h3 class="audit-section-title">
-        {store.activeScenePlan?.title ?? "No scene selected"}
+        {store.activeScenePlan?.title ?? "No section selected"}
       </h3>
       {#if activeChunks.length > 0}
         <div class="prose-scroll">

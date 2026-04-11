@@ -210,7 +210,7 @@ describe("buildReviewSystemPrompt", () => {
       ],
     });
     const prompt = buildReviewSystemPrompt(ctx);
-    expect(prompt).toContain("CHARACTER VOICES");
+    expect(prompt).toContain("AUTHOR VOICES");
     expect(prompt).toContain("Elena: vocab: formal");
     expect(prompt).toContain("Marcus: vocab: blue-collar");
   });

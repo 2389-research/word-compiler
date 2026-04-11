@@ -55,14 +55,14 @@ describe("AtlasPane", () => {
     expect(screen.getByText("Project Atlas")).toBeInTheDocument();
   });
 
-  it("shows 'New Bible' button when onAuthor is provided", () => {
+  it("shows 'New Brief' button when onAuthor is provided", () => {
     render(AtlasPane, {
       store: createMockStore(),
       commands: createMockCommands(),
       onBootstrap: vi.fn(),
       onAuthor: vi.fn(),
     });
-    expect(screen.getByText("New Bible")).toBeInTheDocument();
+    expect(screen.getByText("New Brief")).toBeInTheDocument();
   });
 
   it("shows 'Bootstrap' button when onAuthor is not provided", () => {
@@ -70,10 +70,10 @@ describe("AtlasPane", () => {
     expect(screen.getByText("Bootstrap")).toBeInTheDocument();
   });
 
-  it("renders tab buttons for Bible, Scene, Arc, JSON", () => {
+  it("renders tab buttons for Brief, Section, Arc, JSON", () => {
     render(AtlasPane, { store: createMockStore(), commands: createMockCommands(), onBootstrap: vi.fn() });
-    expect(screen.getByText("Bible")).toBeInTheDocument();
-    expect(screen.getByText("Scene")).toBeInTheDocument();
+    expect(screen.getByText("Brief")).toBeInTheDocument();
+    expect(screen.getByText("Section")).toBeInTheDocument();
     expect(screen.getByText("Arc")).toBeInTheDocument();
     expect(screen.getByText("JSON")).toBeInTheDocument();
   });

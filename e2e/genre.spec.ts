@@ -6,22 +6,22 @@ test.describe("Genre Templates", () => {
     await mockStartup(page);
   });
 
-  test("genre selector visible in Bible Authoring Guided Form", async ({ page }) => {
+  test("style template selector visible in Brief Authoring Guided Form", async ({ page }) => {
     await page.goto("/");
-    // Bootstrap stage — click "Build Manually" to open BibleAuthoringModal (guided form directly)
+    // Bootstrap stage — click "Build Manually" to open BriefAuthoringModal (guided form directly)
     await page.locator(".bootstrap-card", { hasText: "Build Manually" }).click();
-    // Genre template selector should be visible
-    await expect(page.locator("text=Genre Template")).toBeVisible();
+    // Style template selector should be visible
+    await expect(page.locator("text=Style Template")).toBeVisible();
   });
 
-  test("genre selector shows all 4 genre options", async ({ page }) => {
+  test("style template selector shows all 4 style options", async ({ page }) => {
     await page.goto("/");
     await page.locator(".bootstrap-card", { hasText: "Build Manually" }).click();
-    // Check all 4 genre names are present as options
-    await expect(page.locator("option", { hasText: "Literary Fiction" })).toBeAttached();
-    await expect(page.locator("option", { hasText: "Thriller" })).toBeAttached();
-    await expect(page.locator("option", { hasText: "Romance" })).toBeAttached();
-    await expect(page.locator("option", { hasText: "Science Fiction" })).toBeAttached();
+    // Check all 4 style template names are present as options
+    await expect(page.locator("option", { hasText: "Personal Essay" })).toBeAttached();
+    await expect(page.locator("option", { hasText: "Analytical Essay" })).toBeAttached();
+    await expect(page.locator("option", { hasText: "Op-Ed / Persuasive" })).toBeAttached();
+    await expect(page.locator("option", { hasText: "Narrative Nonfiction" })).toBeAttached();
   });
 
   test("guided form shows stepper and foundations step", async ({ page }) => {
@@ -29,11 +29,11 @@ test.describe("Genre Templates", () => {
     await page.locator(".bootstrap-card", { hasText: "Build Manually" }).click();
     // Stepper steps within the modal are visible
     const modal = page.locator(".modal-overlay");
-    await expect(modal.getByRole("button", { name: "Foundations" })).toBeVisible();
-    await expect(modal.locator(".stepper-step", { hasText: "Characters" })).toBeVisible();
+    await expect(modal.getByRole("button", { name: "Voice & Perspective" })).toBeVisible();
+    await expect(modal.locator(".stepper-step", { hasText: "Author Voice" })).toBeVisible();
     await expect(modal.locator(".stepper-step", { hasText: "Review" })).toBeVisible();
     // Can navigate with Next button
     await modal.locator("button", { hasText: "Next" }).click();
-    await expect(modal.locator("text=Add Character")).toBeVisible();
+    await expect(modal.locator("text=Add Voice Profile")).toBeVisible();
   });
 });

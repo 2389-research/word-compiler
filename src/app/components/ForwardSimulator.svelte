@@ -47,7 +47,7 @@ let warningsByScene = $derived(
   {/snippet}
 
   {#if scenes.length === 0}
-    <div class="fwd-empty">No scenes added yet.</div>
+    <div class="fwd-empty">No sections added yet.</div>
   {:else}
     <div class="fwd-timeline">
       {#each readerStates as rs, i (rs.sceneId)}
@@ -61,7 +61,7 @@ let warningsByScene = $derived(
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="fwd-node" class:fwd-node-active={entry?.index === activeSceneIndex} onclick={() => { if (entry) onSelectScene(entry.index); }}>
           <div class="fwd-node-header">
-            <span class="fwd-scene-num">Scene {i + 1}</span>
+            <span class="fwd-scene-num">Section {i + 1}</span>
             <span class="fwd-scene-title">{scene?.plan.title || "(untitled)"}</span>
             {#if !hasIR}
               <span class="fwd-tag fwd-tag-empty">No IR</span>
@@ -141,7 +141,7 @@ let warningsByScene = $derived(
           {/if}
 
           {#if rs.resolvedTensions.length > 0}
-            <CollapsibleSection summary="Resolved this scene ({rs.resolvedTensions.length})">
+            <CollapsibleSection summary="Resolved this section ({rs.resolvedTensions.length})">
               <ul class="fwd-list fwd-list-resolved">
                 {#each rs.resolvedTensions as tension}
                   <li>{tension}</li>

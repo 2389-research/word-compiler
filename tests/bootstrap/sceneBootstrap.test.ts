@@ -36,7 +36,7 @@ describe("buildSceneBootstrapPrompt", () => {
     expect(payload.model).toBe("claude-opus-4-6");
     expect(payload.temperature).toBe(0.7);
     expect(payload.topP).toBe(0.92);
-    expect(payload.systemMessage).toContain("3 scene plans");
+    expect(payload.systemMessage).toContain("3 section plans");
     expect(payload.userMessage).toContain("Marcus Cole");
     expect(payload.userMessage).toContain("The Velvet");
   });
@@ -71,7 +71,7 @@ describe("buildSceneBootstrapPrompt", () => {
       locations: [],
       includeChapterArc: false,
     });
-    expect(payload.userMessage).toContain("No characters have been selected");
+    expect(payload.userMessage).toContain("No voice profiles have been selected");
     expect(payload.userMessage).toContain('"povCharacterId": ""');
     expect(payload.userMessage).not.toContain("exact character name from the list above");
   });
@@ -86,7 +86,7 @@ describe("buildSceneBootstrapPrompt", () => {
     });
     expect(payload.userMessage).toContain("exact character name from the list above");
     expect(payload.userMessage).toContain("ID will be resolved automatically");
-    expect(payload.userMessage).not.toContain("No characters have been selected");
+    expect(payload.userMessage).not.toContain("No voice profiles have been selected");
   });
 
   it("uses singular phrasing when sceneCount is 1", () => {
@@ -97,10 +97,10 @@ describe("buildSceneBootstrapPrompt", () => {
       locations,
       includeChapterArc: false,
     });
-    expect(payload.systemMessage).toContain("generate the next scene plan");
-    expect(payload.systemMessage).not.toContain("1 scene plans");
+    expect(payload.systemMessage).toContain("generate the next section plan");
+    expect(payload.systemMessage).not.toContain("1 section plans");
     expect(payload.userMessage).toContain("Generate exactly 1 scene plan.");
-    expect(payload.userMessage).not.toContain("1 scene plans");
+    expect(payload.userMessage).not.toContain("1 section plans");
   });
 
   it("uses maxTokens 8192 for single scene", () => {
@@ -599,7 +599,7 @@ describe("context-aware prompt building", () => {
     expect(payload.systemMessage).not.toContain("POV CONTRACT");
     expect(payload.systemMessage).not.toContain("NEVER USE");
     // Original content still present
-    expect(payload.systemMessage).toContain("narrative architect");
+    expect(payload.systemMessage).toContain("essay structure planner");
     expect(payload.userMessage).toContain("CHAPTER DIRECTION");
   });
 

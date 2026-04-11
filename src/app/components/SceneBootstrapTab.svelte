@@ -304,7 +304,7 @@ async function handleGenerateOne() {
 
     currentPlan = plans[0] ?? null;
     if (!currentPlan) {
-      error = `LLM response parsed but contained no scene plan.\n\nRaw response:\n${fullText.slice(0, 500)}`;
+      error = `LLM response parsed but contained no section plan.\n\nRaw response:\n${fullText.slice(0, 500)}`;
       loading = false;
       phase = "reviewing";
       status = "";
@@ -318,7 +318,7 @@ async function handleGenerateOne() {
     status = "Done!";
     loading = false;
   } catch (err) {
-    error = err instanceof Error ? err.message : "Scene bootstrap failed";
+    error = err instanceof Error ? err.message : "Section planning failed";
     loading = false;
     phase = "reviewing"; // Stay in reviewing for retry
     status = "";
@@ -507,7 +507,7 @@ export function reset() {
     </FormField>
 
     {#if bibleCharacters.length > 0}
-      <FormField label="Characters" hint="Select characters to include">
+      <FormField label="Voice Profiles" hint="Select voice profiles to include">
         <div class="checkbox-grid">
           {#each bibleCharacters as char (char.id)}
             <label class="checkbox-option">
@@ -588,10 +588,10 @@ export function reset() {
         <div class="review-card-title">{currentPlan.title || `Section ${currentSceneIndex + 1}`}</div>
 
         {#if charOk}
-          <div class="review-card-detail"><span class="review-label">POV:</span> {findCharName(currentPlan.povCharacterId) || "—"}</div>
+          <div class="review-card-detail"><span class="review-label">Voice:</span> {findCharName(currentPlan.povCharacterId) || "—"}</div>
         {:else}
           <div class="resolve-row">
-            <span class="resolve-warn">POV: "{currentPlan.povCharacterId}" not in bible</span>
+            <span class="resolve-warn">Voice: "{currentPlan.povCharacterId}" not in brief</span>
             <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignCurrentChar(currentPlan!.povCharacterId); } else if (v) { resolveCurrentChar(v); } }}>
               <option value="">Map to...</option>
               {#each bibleCharacters as c (c.id)}
@@ -614,7 +614,7 @@ export function reset() {
 
         {#if !locOk}
           <div class="resolve-row">
-            <span class="resolve-warn">Location: "{currentPlan.locationId}" not in bible</span>
+            <span class="resolve-warn">Location: "{currentPlan.locationId}" not in brief</span>
             <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignCurrentLoc(currentPlan!.locationId ?? "New Location"); } else { resolveCurrentLoc(v); } }}>
               <option value="">Map to...</option>
               {#each bibleLocations as l (l.id)}
@@ -679,12 +679,12 @@ export function reset() {
           {@const charOk = isCharResolved(plan)}
           {@const locOk = isLocResolved(plan)}
           <div class="accepted-card" class:accepted-card-warn={!charOk || !locOk}>
-            <div class="accepted-card-title">Scene {i + 1}: {plan.title}</div>
+            <div class="accepted-card-title">Section {i + 1}: {plan.title}</div>
             {#if charOk}
-              <div class="accepted-card-detail"><span class="review-label">POV:</span> {findCharName(plan.povCharacterId) || "—"}</div>
+              <div class="accepted-card-detail"><span class="review-label">Voice:</span> {findCharName(plan.povCharacterId) || "—"}</div>
             {:else}
               <div class="resolve-row">
-                <span class="resolve-warn">POV: "{plan.povCharacterId}" not in bible</span>
+                <span class="resolve-warn">Voice: "{plan.povCharacterId}" not in brief</span>
                 <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignChar(i, plan.povCharacterId); } else if (v) { resolveSceneChar(i, v); } }}>
                   <option value="">Map to...</option>
                   {#each bibleCharacters as c (c.id)}
@@ -699,7 +699,7 @@ export function reset() {
             <div class="accepted-card-detail"><span class="review-label">Words:</span> {plan.estimatedWordCount[0]}–{plan.estimatedWordCount[1]}</div>
             {#if !locOk}
               <div class="resolve-row">
-                <span class="resolve-warn">Location: "{plan.locationId}" not in bible</span>
+                <span class="resolve-warn">Location: "{plan.locationId}" not in brief</span>
                 <select class="resolve-select" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === "__new__") { createAndAssignLoc(i, plan.locationId ?? "New Location"); } else { resolveSceneLoc(i, v); } }}>
                   <option value="">Map to...</option>
                   {#each bibleLocations as l (l.id)}
@@ -721,7 +721,7 @@ export function reset() {
     {/if}
 
     <div class="complete-actions">
-      <Button size="sm" onclick={handleAddMore}>+ Add Another Scene</Button>
+      <Button size="sm" onclick={handleAddMore}>+ Add Another Section</Button>
     </div>
   </div>
 {/if}

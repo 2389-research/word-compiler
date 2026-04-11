@@ -1,32 +1,32 @@
 import { expect, test } from "@playwright/test";
 import { mockStartupWithBible, navigateToStage } from "./helpers.js";
 
-test.describe("Scene authoring workflow", () => {
+test.describe("Section authoring workflow", () => {
   test.beforeEach(async ({ page }) => {
     await mockStartupWithBible(page);
     await page.goto("/");
-    // Navigate to Plan stage (unlocked because bible has a character)
+    // Navigate to Plan stage (unlocked because brief has a voice profile)
     await navigateToStage(page, "Plan");
   });
 
-  test("opens scene authoring modal", async ({ page }) => {
-    // Click the first "+ New Scene" button in the scene sequencer
-    const sceneBtn = page.locator("button", { hasText: "New Scene" }).first();
-    await expect(sceneBtn).toBeVisible({ timeout: 2000 });
-    await sceneBtn.click();
-    await expect(page.locator("text=Scene Authoring")).toBeVisible({ timeout: 2000 });
+  test("opens section authoring modal", async ({ page }) => {
+    // Click the first "+ New Section" button in the section sequencer
+    const sectionBtn = page.locator("button", { hasText: "New Section" }).first();
+    await expect(sectionBtn).toBeVisible({ timeout: 2000 });
+    await sectionBtn.click();
+    await expect(page.locator("text=Section Authoring")).toBeVisible({ timeout: 2000 });
   });
 
-  test("guided form creates scene plan", async ({ page }) => {
-    // Open scene authoring
-    await page.locator("button", { hasText: "New Scene" }).first().click();
-    await expect(page.locator("text=Scene Authoring")).toBeVisible();
+  test("guided form creates section plan", async ({ page }) => {
+    // Open section authoring
+    await page.locator("button", { hasText: "New Section" }).first().click();
+    await expect(page.locator("text=Section Authoring")).toBeVisible();
 
     // Switch to Guided Form tab
     await page.locator("button", { hasText: "Guided Form" }).click();
 
     // Fill in core identity fields
-    const titleInput = page.locator("input[placeholder='Scene title']");
+    const titleInput = page.locator("input[placeholder='Section title']");
     if (await titleInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await titleInput.fill("The Confrontation");
     }
@@ -48,12 +48,12 @@ test.describe("Scene authoring workflow", () => {
       await page.waitForTimeout(500);
     }
 
-    // Save the scene plan
-    const saveBtn = page.locator("button", { hasText: "Save Scene Plan" });
+    // Save the section plan
+    const saveBtn = page.locator("button", { hasText: "Save Section Plan" });
     if (await saveBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await saveBtn.click();
       // Modal should close
-      await expect(page.locator("text=Scene Authoring")).not.toBeVisible({ timeout: 2000 });
+      await expect(page.locator("text=Section Authoring")).not.toBeVisible({ timeout: 2000 });
     }
   });
 });

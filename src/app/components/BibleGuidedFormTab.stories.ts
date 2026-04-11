@@ -9,19 +9,19 @@ const meta: Meta<BibleGuidedFormTabStory> = {
     docs: {
       description: {
         component:
-          "5-step guided form for building a story bible: Foundations, Characters, Locations, Style Guide, and Review. " +
-          "Includes genre template selector, expand/collapse controls, and ExamplesDrawer integration for voice, metaphor, and kill list fields.",
+          "5-step guided form for building an essay brief: Foundations, Voice Profiles, References, Style Guide, and Review. " +
+          "Includes style template selector, expand/collapse controls, and ExamplesDrawer integration for voice, metaphor, and kill list fields.",
       },
     },
   },
   argTypes: {
     prePopulated: {
       control: "boolean",
-      description: "Pre-populate with sample characters, locations, and style guide entries.",
+      description: "Pre-populate with sample voice profiles, references, and style guide entries.",
     },
     withGenre: {
       control: "boolean",
-      description: "Apply Literary Fiction genre template defaults.",
+      description: "Apply Personal Essay style template defaults.",
     },
     initialStep: {
       control: "select",

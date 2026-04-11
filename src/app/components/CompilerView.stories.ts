@@ -17,7 +17,7 @@ const meta: Meta<CompilerView> = {
     docs: {
       description: {
         component:
-          "Displays the compiled context payload, token budget breakdown across rings, lint diagnostics, prose metrics, and audit flags. The three-ring budget system allocates tokens: Ring 1 (system message), Ring 2 (chapter context), Ring 3 (scene context).",
+          "Displays the compiled context payload, token budget breakdown across rings, lint diagnostics, prose metrics, and audit flags. The three-ring budget system allocates tokens: Ring 1 (system message), Ring 2 (essay context), Ring 3 (section context).",
       },
     },
   },
@@ -108,7 +108,7 @@ export const BudgetStarved: Story = {
     docs: {
       description: {
         story:
-          "Ring 3 (scene context — the most important ring) is severely under-budget at only 32% of available tokens (target is 60%+). Ring 2 (chapter context) is also over its 25% cap at 27%. Look for the R3_STARVED and R2_OVER_CAP lint warnings, and notice how the budget breakdown shows a disproportionately small Ring 3 allocation. This scenario indicates the system/chapter context is crowding out scene-level detail.",
+          "Ring 3 (section context — the most important ring) is severely under-budget at only 32% of available tokens (target is 60%+). Ring 2 (essay context) is also over its 25% cap at 27%. Look for the R3_STARVED and R2_OVER_CAP lint warnings, and notice how the budget breakdown shows a disproportionately small Ring 3 allocation. This scenario indicates the system/essay context is crowding out section-level detail.",
       },
     },
   },
@@ -219,7 +219,7 @@ export const FullWorkload: Story = {
       makeAuditFlag({
         severity: "warning",
         category: "epistemic",
-        message: "Unreliable narrator POV but no contradictory signals detected",
+        message: "Unreliable perspective but no contradictory signals detected",
       }),
     ],
   },

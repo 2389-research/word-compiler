@@ -10,18 +10,18 @@ const meta: Meta<SceneAuthoringModalStory> = {
       story: { height: "600px" },
       description: {
         component:
-          "Scene authoring modal — plan new scenes with POV, narrative goals, and chunk breakdowns. Requires a Bible for character/location selectors.",
+          "Section authoring modal — plan new sections with perspective, narrative goals, and chunk breakdowns. Requires a Brief for voice profile/reference selectors.",
       },
     },
   },
   argTypes: {
     withBible: {
       control: "boolean",
-      description: "Whether to populate Bible data (characters + locations).",
+      description: "Whether to populate Brief data (voice profiles + references).",
     },
     richData: {
       control: "boolean",
-      description: "Whether to add extra characters/locations with filled voice and sensory data.",
+      description: "Whether to add extra voice profiles/references with filled voice and sensory data.",
     },
     initialTab: {
       control: "select",

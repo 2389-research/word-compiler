@@ -10,7 +10,7 @@ const meta: Meta<SetupPayoffPanel> = {
     docs: {
       description: {
         component:
-          "Tracks narrative setups and their payoffs across scenes, highlighting dangling setups that lack resolution.",
+          "Tracks narrative setups and their payoffs across sections, highlighting dangling setups that lack resolution.",
       },
     },
   },

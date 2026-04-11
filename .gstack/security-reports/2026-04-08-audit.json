@@ -1,0 +1,80 @@
+{
+  "version": "2.0.0",
+  "date": "2026-04-08T00:00:00Z",
+  "mode": "daily",
+  "scope": "full",
+  "diff_mode": false,
+  "phases_run": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+  "attack_surface": {
+    "code": {
+      "public_endpoints": 30,
+      "authenticated": 0,
+      "admin": 0,
+      "api": 30,
+      "uploads": 0,
+      "integrations": 1,
+      "background_jobs": 0,
+      "websockets": 0
+    },
+    "infrastructure": {
+      "ci_workflows": 2,
+      "webhook_receivers": 0,
+      "container_configs": 0,
+      "iac_configs": 0,
+      "deploy_targets": 0,
+      "secret_management": "env_vars"
+    }
+  },
+  "findings": [
+    {
+      "id": 1,
+      "severity": "HIGH",
+      "confidence": 8,
+      "status": "VERIFIED",
+      "phase": 4,
+      "phase_name": "CI/CD Pipeline Security",
+      "category": "CI/CD",
+      "fingerprint": "ci-unpinned-pnpm-action-setup",
+      "title": "Unpinned third-party GitHub Action (pnpm/action-setup@v4)",
+      "file": ".github/workflows/ci.yml",
+      "line": 19,
+      "commit": null,
+      "description": "pnpm/action-setup@v4 is referenced by tag not SHA in all workflow files. A compromised pnpm/action-setup repo could inject code that runs in CI. The nightly and manual eval workflows expose ANTHROPIC_API_KEY to this action.",
+      "exploit_scenario": "1. Attacker compromises pnpm/action-setup repo or its maintainer account. 2. Attacker force-pushes malicious code to the v4 tag. 3. On next nightly eval run, malicious code executes with access to ANTHROPIC_API_KEY secret. 4. Attacker exfiltrates the API key for unauthorized Anthropic API usage.",
+      "impact": "Anthropic API key exfiltration, unauthorized API spend, potential CI/CD supply chain compromise.",
+      "recommendation": "Pin pnpm/action-setup to a specific commit SHA: `uses: pnpm/action-setup@<sha>`. Use Dependabot or Renovate to auto-update the SHA when new versions are released.",
+      "playbook": null,
+      "verification": "self-verified"
+    }
+  ],
+  "supply_chain_summary": {
+    "direct_deps": 13,
+    "transitive_deps": 0,
+    "critical_cves": 0,
+    "high_cves": 0,
+    "install_scripts": 2,
+    "lockfile_present": true,
+    "lockfile_tracked": true,
+    "tools_skipped": ["npm audit (not run — pnpm project)"]
+  },
+  "filter_stats": {
+    "candidates_scanned": 48,
+    "hard_exclusion_filtered": 5,
+    "confidence_gate_filtered": 3,
+    "verification_filtered": 0,
+    "reported": 1
+  },
+  "totals": {
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "tentative": 0
+  },
+  "trend": {
+    "prior_report_date": null,
+    "resolved": 0,
+    "persistent": 0,
+    "new": 1,
+    "direction": "first_run"
+  }
+}

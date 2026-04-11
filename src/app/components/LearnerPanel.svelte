@@ -63,11 +63,11 @@ function formatAction(proposal: BibleProposal): string {
     case "killList":
       return `Add "${proposal.action.value}" to avoid list`;
     case "characters":
-      return `Update character voice notes`;
+      return `Update author voice notes`;
     case "styleGuide":
       return `Update style guide`;
     case "locations":
-      return `Update location sensory palette`;
+      return `Update reference context`;
     default:
       return proposal.action.value;
   }
@@ -130,7 +130,7 @@ function formatAction(proposal: BibleProposal): string {
             <div class="proposal-decision">Insight</div>
           {:else if !decision}
             <div class="proposal-actions">
-              <Button onclick={() => handleAccept(proposal)} title="Apply this suggestion to your bible">Accept</Button>
+              <Button onclick={() => handleAccept(proposal)} title="Apply this suggestion to your brief">Accept</Button>
               <Button onclick={() => handleReject(proposal)} title="Dismiss this suggestion">Reject</Button>
             </div>
           {:else}

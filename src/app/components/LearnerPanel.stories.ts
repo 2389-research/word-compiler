@@ -10,7 +10,7 @@ const meta: Meta<LearnerPanel> = {
     layout: "fullscreen",
     docs: {
       description: {
-        component: "Displays edit pattern analysis, bible proposals, and tuning suggestions from the revision learner.",
+        component: "Displays edit pattern analysis, brief proposals, and tuning suggestions from the revision learner.",
       },
     },
   },

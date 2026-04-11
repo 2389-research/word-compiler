@@ -9,7 +9,7 @@ let {
 } = $props();
 </script>
 
-<Pane title="Character Voices">
+<Pane title="Voice Analysis">
   {#snippet headerRight()}
     {#if report}
       <span class="voice-status">
@@ -23,7 +23,7 @@ let {
   {/snippet}
 
   {#if !report}
-    <div class="voice-empty">No voice separability data. Complete scenes with dialogue to analyze.</div>
+    <div class="voice-empty">No voice separability data. Complete sections with writing to analyze.</div>
   {:else}
     <div class="voice-body">
       <p class="voice-detail">{report.detail}</p>
@@ -35,8 +35,8 @@ let {
         <Table>
           <thead>
             <tr>
-              <th class="th-left">Character</th>
-              <th class="th-right">Dialogue Lines</th>
+              <th class="th-left">Voice</th>
+              <th class="th-right">Writing Passages</th>
               <th class="th-right">Avg Sentence Len</th>
               <th class="th-right">Variance</th>
               <th class="th-right">TTR</th>

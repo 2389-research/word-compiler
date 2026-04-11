@@ -10,7 +10,7 @@ const meta: Meta<BootstrapModalStory> = {
       story: { height: "500px" },
       description: {
         component:
-          "Modal for bootstrapping a Bible from a story synopsis. Streams LLM output with progress tracking. Requires a `ProjectStore` instance (mocked here via a wrapper).",
+          "Modal for bootstrapping a Brief from an essay synopsis. Streams LLM output with progress tracking. Requires a `ProjectStore` instance (mocked here via a wrapper).",
       },
     },
   },

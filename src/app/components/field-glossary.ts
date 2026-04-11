@@ -21,28 +21,29 @@ export interface GlossaryEntry {
 
 export const FIELD_GLOSSARY = {
   // ═══════════════════════════════════════════════════
-  //  BIBLE — Foundations
+  //  BRIEF — Foundations
   // ═══════════════════════════════════════════════════
 
   povDefault: {
     technical: "POV Default",
-    plain: "Who Tells the Story",
+    plain: "Writing Perspective",
     tooltip:
-      "The default narrative perspective for your project. First person uses 'I', close third stays near one character's thoughts, omniscient can dip into anyone.",
-    whyItMatters: "Sets the baseline voice for every scene. Individual scenes can override this.",
-    examples: ["First person", "Close third", "Distant third", "Omniscient"],
+      "The default perspective for your essay. First person uses 'I' for personal essays. Analytical perspective maintains distance. Personal narrative blends reflection with story.",
+    whyItMatters: "Sets the baseline voice for every section. Individual sections can override this.",
+    examples: ["First person", "Close analytical", "Distant analytical", "Omniscient survey"],
   },
 
   povDistance: {
     technical: "POV Distance",
-    plain: "Camera Distance",
+    plain: "Perspective Distance",
     tooltip:
-      "How close the narration sits to the character's inner experience. Intimate reads like thoughts; distant reads like observation.",
-    whyItMatters: "Controls emotional intensity. Intimate creates empathy, distant creates suspense or irony.",
+      "How close the writing sits to the author's personal experience. Intimate reads like confession; distant reads like analysis.",
+    whyItMatters:
+      "Controls emotional intensity. Intimate creates connection, distant creates authority or objectivity.",
     examples: [
-      "Intimate — reader IS the character",
-      "Close — reader rides alongside",
-      "Distant — reader watches from across the room",
+      "Intimate — reader shares the author's inner experience",
+      "Close — reader follows the author's reasoning",
+      "Distant — reader observes from an analytical vantage point",
     ],
     relatedConcepts: ["povDefault", "povInteriority"],
   },
@@ -51,113 +52,119 @@ export const FIELD_GLOSSARY = {
     technical: "POV Interiority",
     plain: "Inner Thoughts Access",
     tooltip:
-      "How much of the character's internal monologue the reader experiences. Stream is raw thought; behavioral-only shows only actions.",
-    whyItMatters: "Stream risks overwriting show-don't-tell. Behavioral-only forces action-driven prose.",
+      "How much of the author's internal reasoning the reader experiences. Stream is raw thought; behavioral-only shows only evidence and actions.",
+    whyItMatters: "Stream risks self-indulgence. Evidence-only forces argument-driven prose.",
     examples: [
-      "Stream — 'God, not her again'",
-      "Filtered — 'He dreaded seeing her'",
-      "Behavioral only — 'He turned away'",
+      "Stream — 'I couldn't stop thinking about what went wrong'",
+      "Filtered — 'The pattern was hard to ignore'",
+      "Evidence only — 'The data pointed in one direction'",
     ],
     relatedConcepts: ["povDistance"],
   },
 
   povReliability: {
     technical: "POV Reliability",
-    plain: "Narrator Trustworthiness",
-    tooltip: "Can the reader trust what the narrator says? Unreliable narrators show distorted versions of events.",
+    plain: "Author Trustworthiness",
+    tooltip:
+      "Can the reader trust the author's account? Self-aware essays acknowledge biases; unreliable accounts omit inconvenient evidence.",
     whyItMatters:
-      "Unreliable narrators need careful management to maintain the deception without confusing the reader.",
-    examples: ["Reliable — narrator tells it straight", "Unreliable — narrator's account contradicts reality"],
+      "An author who acknowledges limitations builds credibility. One who doesn't risks losing the reader's trust.",
+    examples: ["Reliable — author is transparent about biases", "Unreliable — author omits contradictory evidence"],
   },
 
   // ═══════════════════════════════════════════════════
-  //  BIBLE — Characters
+  //  BRIEF — Voice Profiles
   // ═══════════════════════════════════════════════════
 
   characterName: {
     technical: "Name",
-    plain: "Character Name",
-    tooltip: "The character's name as it appears in prose.",
-    whyItMatters: "Used to track this character across scenes and in generated dialogue.",
+    plain: "Voice Profile Name",
+    tooltip: "The name for this voice profile as it appears in the essay.",
+    whyItMatters: "Used to track this voice across sections and in generated prose.",
   },
 
   characterRole: {
     technical: "Role",
-    plain: "Story Role",
+    plain: "Voice Role",
     tooltip:
-      "Is this character the lead, the rival, support, or background? Affects how much context the compiler allocates.",
-    whyItMatters: "Protagonists get more token budget. Minor characters get compressed first when space is tight.",
-    examples: ["Protagonist", "Antagonist", "Supporting", "Minor"],
+      "Is this the primary author voice, a counterpoint, supporting perspective, or background reference? Affects how much context the compiler allocates.",
+    whyItMatters: "Primary voices get more token budget. Minor voices get compressed first when space is tight.",
+    examples: ["Primary Author", "Counterpoint Voice", "Supporting", "Minor"],
   },
 
   physicalDescription: {
-    technical: "Physical Description",
-    plain: "What They Look Like",
-    tooltip: "The visual details the reader notices. Focus on distinctive traits, not a police sketch.",
-    whyItMatters: "Prevents the AI from inventing conflicting appearances across scenes.",
-    examples: ["Crooked nose, always in a lab coat", "Tall, moves like she's apologizing for taking up space"],
+    technical: "Author Bio",
+    plain: "Who This Writer Is",
+    tooltip:
+      "Key details about this voice's background, expertise, or credentials. Focus on what shapes their perspective.",
+    whyItMatters: "Prevents the AI from inventing conflicting credentials or backgrounds across sections.",
+    examples: [
+      "Former policy analyst, now independent journalist",
+      "Academic researcher with field experience in urban planning",
+    ],
   },
 
   backstory: {
-    technical: "Backstory",
-    plain: "Their History",
-    tooltip: "Key past events that shape how this character behaves now. Brief but specific.",
-    whyItMatters: "Gives the AI motivation context — characters with backstory act more consistently.",
+    technical: "Background",
+    plain: "Their Context",
+    tooltip: "Key experiences or expertise that shape how this voice approaches the subject. Brief but specific.",
+    whyItMatters: "Gives the AI perspective context -- voices with background write more consistently.",
     examples: [
-      "Grew up in foster care, trusts systems more than people",
-      "Former surgeon who lost a patient — now avoids responsibility",
+      "Spent a decade in corporate consulting before becoming a critic of the industry",
+      "Self-taught programmer who learned by building, distrusts formal credentials",
     ],
   },
 
   vocabularyNotes: {
     technical: "Vocabulary Notes",
-    plain: "How They Talk",
-    tooltip: "The word choices, sentence patterns, and verbal habits that make this character's voice distinctive.",
+    plain: "How They Write",
+    tooltip: "The word choices, sentence patterns, and stylistic habits that make this voice distinctive.",
     whyItMatters:
-      "Without voice notes, all characters sound alike. This is the single biggest lever for distinct dialogue.",
+      "Without voice notes, all writing sounds the same. This is the single biggest lever for distinct prose.",
     examples: [
-      "Uses technical jargon even in casual speech",
+      "Uses technical jargon even when explaining to general audiences",
       "Short sentences, never uses adverbs",
-      "Speaks in questions, hedges everything",
+      "Writes in questions, hedges everything",
     ],
     relatedConcepts: ["verbalTics", "dialogueSamples"],
   },
 
   verbalTics: {
     technical: "Verbal Tics",
-    plain: "Speech Habits",
-    tooltip: "Repeated words, filler phrases, or patterns this character falls back on.",
-    whyItMatters: "Makes dialogue instantly recognizable. Readers learn to 'hear' the character.",
-    examples: ["'you know what I mean?'", "'honestly,'", "Starting sentences with 'Look,'"],
+    plain: "Writing Habits",
+    tooltip: "Repeated words, transitional phrases, or patterns this voice falls back on.",
+    whyItMatters: "Makes the voice instantly recognizable. Readers learn to identify the writer's rhythm.",
+    examples: ["'the thing is,'", "'honestly,'", "Starting paragraphs with 'Look,'"],
     relatedConcepts: ["vocabularyNotes"],
   },
 
   metaphoricRegister: {
     technical: "Metaphoric Register",
     plain: "Their Comparison Style",
-    tooltip: "What kinds of metaphors and similes this character naturally reaches for, based on their background.",
+    tooltip: "What kinds of metaphors and analogies this voice naturally reaches for, based on their background.",
     whyItMatters:
-      "A mechanic thinks in engine metaphors. A gardener thinks in growth metaphors. This keeps voice authentic.",
-    examples: ["Mechanical/engineering", "Natural/organic", "Military/strategic", "Culinary/sensory"],
+      "A technologist thinks in systems metaphors. An economist thinks in market metaphors. This keeps voice authentic.",
+    examples: ["Technology/systems", "Natural/organic", "Architecture/construction", "Economic/market"],
   },
 
   prohibitedLanguage: {
     technical: "Prohibited Language",
-    plain: "Words They'd Never Say",
-    tooltip: "Specific words or phrases that would break character if this person used them.",
+    plain: "Words They'd Never Use",
+    tooltip: "Specific words or phrases that would break voice if this writer used them.",
     whyItMatters:
-      "Prevents the AI from putting your words in their mouth. A gruff detective shouldn't say 'delightful.'",
-    examples: ["'awesome', 'totally'", "'whom', 'nevertheless'", "Any profanity"],
+      "Prevents the AI from inserting language that clashes with the voice. A terse essayist should never write 'delightfully nuanced.'",
+    examples: ["'delve', 'landscape', 'robust'", "'whom', 'nevertheless'", "Corporate buzzwords"],
   },
 
   dialogueSamples: {
-    technical: "Dialogue Samples",
-    plain: "Example Lines",
-    tooltip: "2-5 example dialogue lines that capture how this character speaks. The AI uses these as voice templates.",
-    whyItMatters: "Examples teach better than descriptions. One good sample line is worth a paragraph of voice notes.",
+    technical: "Writing Samples",
+    plain: "Example Passages",
+    tooltip: "2-5 example passages that capture how this voice writes. The AI uses these as style templates.",
+    whyItMatters:
+      "Examples teach better than descriptions. One good sample passage is worth a paragraph of voice notes.",
     examples: [
-      '"Look, I don\'t care what the manual says. Does it work?"',
-      '"I suppose one could argue... no, never mind."',
+      "\"The problem isn't that we lack data. The problem is we've stopped asking what the data means.\"",
+      '"I suppose one could argue the opposite. But then one would have to ignore everything that happened next."',
     ],
     relatedConcepts: ["vocabularyNotes", "verbalTics"],
   },
@@ -165,89 +172,95 @@ export const FIELD_GLOSSARY = {
   sentenceLengthRange: {
     technical: "Sentence Length Range",
     plain: "Sentence Rhythm",
-    tooltip: "The typical range of sentence lengths for this character's narration or dialogue, in words.",
+    tooltip: "The typical range of sentence lengths for this voice's prose, in words.",
     whyItMatters:
-      "Short sentences create tension. Long sentences create flow. The range defines this character's prose rhythm.",
+      "Short sentences create urgency. Long sentences create flow. The range defines this voice's prose rhythm.",
     relatedConcepts: ["vocabularyNotes"],
   },
 
   stressResponse: {
     technical: "Stress Response",
     plain: "Under Pressure",
-    tooltip: "How this character behaves when cornered, threatened, or overwhelmed.",
-    whyItMatters: "Characters who react identically to stress feel flat. This keeps high-tension scenes authentic.",
+    tooltip: "How this voice shifts when addressing contentious or high-stakes topics.",
+    whyItMatters: "Voices that handle every topic identically feel flat. This keeps high-stakes sections authentic.",
     examples: [
-      "Gets very still and quiet",
-      "Talks faster, deflects with humor",
-      "Becomes hyper-organized, lists next steps",
+      "Gets more precise and measured",
+      "Writes faster, deploys sarcasm",
+      "Becomes hyper-organized, enumerates counterarguments",
     ],
   },
 
   socialPosture: {
     technical: "Social Posture",
-    plain: "Group Dynamics",
+    plain: "Rhetorical Stance",
     tooltip:
-      "How this character positions themselves in social situations — leader, observer, provocateur, peacemaker.",
+      "How this voice positions itself relative to the reader -- authority, collaborator, provocateur, mediator.",
     whyItMatters:
-      "Determines how they interact in multi-character scenes. Prevents everyone acting the same in groups.",
-    examples: ["Takes charge immediately", "Hangs back, observes, then acts", "Mediates between others"],
+      "Determines how the voice engages with opposing viewpoints. Prevents every section sounding the same.",
+    examples: [
+      "Asserts authority immediately",
+      "Invites the reader to reason alongside",
+      "Mediates between competing positions",
+    ],
   },
 
   noticesFirst: {
     technical: "Notices First",
-    plain: "What Catches Their Eye",
-    tooltip: "When entering a new space or meeting someone, what does this character pay attention to first?",
-    whyItMatters: "Reveals character through perception. A cop notices exits. A chef notices what people are eating.",
+    plain: "What They Focus On",
+    tooltip: "When approaching a new topic, what does this voice pay attention to first?",
+    whyItMatters:
+      "Reveals perspective through attention. An economist notices incentives. A designer notices user experience.",
     examples: [
-      "Threat assessment — exits, weapons, positions",
-      "People's hands and body language",
-      "Aesthetic details — color, light, composition",
+      "Structural incentives -- who benefits, who pays",
+      "Human impact and lived experience",
+      "Aesthetic details -- form, craft, composition",
     ],
   },
 
   lyingStyle: {
-    technical: "Lying Style",
-    plain: "How They Deceive",
-    tooltip: "How this character behaves when being dishonest — tells, habits, or strategies.",
-    whyItMatters: "Creates dramatic irony when readers can spot the lie before other characters do.",
+    technical: "Evasion Style",
+    plain: "How They Hedge",
+    tooltip: "How this voice behaves when addressing uncomfortable evidence or weak points in their argument.",
+    whyItMatters: "Creates transparency when readers can spot the hedging. Authentic voices acknowledge weak points.",
     examples: [
-      "Over-explains, adds unnecessary detail",
-      "Gets very still, maintains eye contact too long",
-      "Changes the subject with a question",
+      "Over-qualifies, adds excessive caveats",
+      "Pivots to a stronger related point",
+      "Acknowledges the weakness head-on, then reframes",
     ],
   },
 
   emotionPhysicality: {
     technical: "Emotion Physicality",
-    plain: "Body Language for Feelings",
+    plain: "Concrete Detail Style",
     tooltip:
-      "How this character's body expresses emotion — avoiding 'she felt sad' in favor of physical manifestation.",
+      "How this voice grounds abstract arguments in physical, concrete detail -- avoiding 'it felt important' in favor of tangible evidence.",
     whyItMatters:
-      "Turns telling into showing. 'She felt angry' becomes 'Her jaw tightened and she set down the glass very carefully.'",
+      "Turns abstraction into persuasion. 'It was significant' becomes 'The spreadsheet showed a 40% drop in three months.'",
     examples: [
-      "Anger → jaw clenches, speaks slowly",
-      "Anxiety → picks at cuticles, won't sit still",
-      "Joy → talks too fast, gestures expand",
+      "Conviction --> precise data, specific dates",
+      "Doubt --> hypotheticals, conditional phrasing",
+      "Urgency --> short declaratives, present tense",
     ],
     relatedConcepts: ["stressResponse"],
   },
 
   // ═══════════════════════════════════════════════════
-  //  BIBLE — Locations
+  //  BRIEF — Reference Contexts
   // ═══════════════════════════════════════════════════
 
   locationName: {
     technical: "Name",
-    plain: "Location Name",
-    tooltip: "A recognizable name for this setting.",
-    whyItMatters: "Used to link scenes to locations and pull in sensory details automatically.",
+    plain: "Reference Context Name",
+    tooltip: "A recognizable name for this reference context or setting.",
+    whyItMatters: "Used to link sections to reference contexts and pull in sensory details automatically.",
   },
 
   locationDescription: {
     technical: "Description",
     plain: "What Makes It Distinctive",
-    tooltip: "The defining character of this place — not a catalog, but the feeling of being there.",
-    whyItMatters: "Gives the AI a foundation for scene-setting. Without this, locations get generic descriptions.",
+    tooltip:
+      "The defining quality of this context -- not a catalog, but the feeling of being there or engaging with it.",
+    whyItMatters: "Gives the AI a foundation for grounding prose. Without this, references get generic descriptions.",
     examples: [
       "A cramped apartment where every surface holds stacked books and cold cups of tea",
       "A brutalist office tower lobby that amplifies every footstep",
@@ -265,9 +278,9 @@ export const FIELD_GLOSSARY = {
   smells: {
     technical: "Smells",
     plain: "What You Smell",
-    tooltip: "Scents that anchor the reader in this location. Smell triggers memory more than any other sense.",
+    tooltip: "Scents that anchor the reader in this context. Smell triggers memory more than any other sense.",
     whyItMatters:
-      "Smell is the most underused and most powerful sense in fiction. One specific scent can set a whole scene.",
+      "Concrete details ground abstract arguments. One specific sensory detail can anchor an entire section.",
     examples: ["Old paper and dust", "Pine cleaner over mildew", "Burnt coffee and ozone"],
   },
 
@@ -282,7 +295,7 @@ export const FIELD_GLOSSARY = {
   lightQuality: {
     technical: "Light Quality",
     plain: "How the Light Behaves",
-    tooltip: "The character of illumination in this space — color, intensity, direction, movement.",
+    tooltip: "The quality of illumination in this space -- color, intensity, direction, movement.",
     whyItMatters:
       "Light shapes mood more than any decoration. The same room feels different under fluorescent vs. candlelight.",
     examples: [
@@ -295,22 +308,22 @@ export const FIELD_GLOSSARY = {
   atmosphere: {
     technical: "Atmosphere",
     plain: "The Mood of This Place",
-    tooltip: "The emotional quality of being in this space, independent of what's happening in the plot.",
+    tooltip: "The emotional quality of being in this space, independent of what's happening in the argument.",
     whyItMatters:
-      "Sets reader expectations. A scene in a 'waiting room that feels like an apology' reads differently than 'a sun-drenched café.'",
+      "Sets reader expectations. A section grounded in 'a waiting room that feels like an apology' reads differently than 'a sun-drenched café.'",
     examples: ["Oppressive stillness", "Chaotic warmth", "Elegant neglect"],
   },
 
   prohibitedDefaults: {
     technical: "Prohibited Defaults",
     plain: "Clichés to Avoid Here",
-    tooltip: "Generic sensory details that should never be used for this specific location.",
+    tooltip: "Generic sensory details that should never be used for this specific context.",
     whyItMatters: "Prevents the AI from falling back on 'the room was dimly lit' or 'birds chirped outside.'",
     examples: ["'musty smell'", "'dim lighting'", "'bustling sounds'"],
   },
 
   // ═══════════════════════════════════════════════════
-  //  BIBLE — Style Guide
+  //  BRIEF — Style Guide
   // ═══════════════════════════════════════════════════
 
   approvedMetaphoricDomains: {
@@ -319,8 +332,8 @@ export const FIELD_GLOSSARY = {
     tooltip:
       "Conceptual territories your prose can draw metaphors from. Consistent metaphor domains create cohesive voice.",
     whyItMatters:
-      "A noir novel using nature metaphors feels wrong. Keeping domains consistent reinforces genre and tone.",
-    examples: ["Machinery, rust, decay", "Water, tides, drowning", "Architecture, foundations, collapse"],
+      "A tech essay using nature metaphors feels scattered. Keeping domains consistent reinforces voice and subject authority.",
+    examples: ["Technology, systems, networks", "Architecture, foundations, collapse", "Economics, markets, flows"],
     relatedConcepts: ["prohibitedMetaphoricDomains", "metaphoricRegister"],
   },
 
@@ -329,7 +342,7 @@ export const FIELD_GLOSSARY = {
     plain: "Forbidden Metaphor Sources",
     tooltip: "Conceptual territories your prose should never draw metaphors from.",
     whyItMatters:
-      "Prevents tonal breaks. A grim thriller shouldn't suddenly compare something to 'a field of wildflowers.'",
+      "Prevents tonal breaks. A serious policy essay shouldn't suddenly compare something to 'a field of wildflowers.'",
     examples: ["Flowers, sunshine, rainbows", "Sports, games, competition", "Food, cooking, recipes"],
     relatedConcepts: ["approvedMetaphoricDomains"],
   },
@@ -340,15 +353,15 @@ export const FIELD_GLOSSARY = {
     tooltip:
       "Words, phrases, or patterns that should never appear in generated prose. Exact matches catch specific words; structural matches catch patterns.",
     whyItMatters:
-      "The single most effective quality control. Catches clichés, filler, and pet peeves before they reach your draft.",
-    examples: ['"suddenly" (exact)', '"[character] couldn\'t help but" (structural)', '"it was as if" (structural)'],
+      "The single most effective quality control. Catches AI slop, filler, and pet peeves before they reach your draft.",
+    examples: ['"delve" (exact)', '"it is worth noting that" (structural)', '"in conclusion" (structural)'],
   },
 
   vocabularyPreferences: {
     technical: "Vocabulary Preferences",
     plain: "Word Substitutions",
     tooltip:
-      "Preferred terms and what they replace. Use 'said' instead of 'exclaimed.' Use 'walked' instead of 'ambled.'",
+      "Preferred terms and what they replace. Use 'shows' instead of 'demonstrates.' Use 'but' instead of 'however.'",
     whyItMatters: "Enforces consistent word choice across the entire project without manual editing.",
   },
 
@@ -356,103 +369,109 @@ export const FIELD_GLOSSARY = {
     technical: "Structural Bans",
     plain: "Banned Sentence Patterns",
     tooltip:
-      "Structural patterns that should never appear — rhetorical questions, sentence fragments, em-dash abuse, etc.",
+      "Structural patterns that should never appear -- throat-clearing openers, rhetorical questions, em-dash abuse, etc.",
     whyItMatters:
       "Prevents prose habits that weaken writing. Structural patterns are harder to catch than individual words.",
-    examples: ["Rhetorical questions", "Em-dash fragments", "Sentences starting with 'It was'"],
+    examples: [
+      "Throat-clearing openers",
+      "Restating the conclusion in each paragraph",
+      "Sentences starting with 'It is important to note'",
+    ],
   },
 
   // ═══════════════════════════════════════════════════
-  //  SCENE — Core Identity
+  //  SECTION — Core Identity
   // ═══════════════════════════════════════════════════
 
   sceneTitle: {
     technical: "Title",
-    plain: "Scene Name",
-    tooltip: "A working title for this scene. It's for your reference, not published.",
-    whyItMatters: "Helps you track scenes in the project. Good titles summarize the scene's purpose.",
+    plain: "Section Name",
+    tooltip: "A working title for this section. It's for your reference, not necessarily published.",
+    whyItMatters: "Helps you track sections in the project. Good titles summarize the section's purpose.",
   },
 
   povCharacterId: {
-    technical: "POV Character",
-    plain: "Whose Scene Is This",
-    tooltip: "Which character experiences this scene? Their voice, perceptions, and knowledge shape everything.",
-    whyItMatters: "Determines which character's voice fingerprint, behavior, and knowledge constraints apply.",
+    technical: "Author Voice",
+    plain: "Whose Section Is This",
+    tooltip: "Which voice profile drives this section? Their style, perspective, and expertise shape everything.",
+    whyItMatters: "Determines which voice profile's fingerprint, style rules, and perspective constraints apply.",
     relatedConcepts: ["scenePovDistance"],
   },
 
   scenePovDistance: {
-    technical: "POV Distance",
-    plain: "Camera Distance",
+    technical: "Perspective Distance",
+    plain: "Perspective Distance",
     tooltip:
-      "How close the narration sits to this character for this specific scene. Can override the project default.",
-    whyItMatters: "Pulling closer creates intimacy for emotional scenes. Pulling back creates suspense for action.",
+      "How close the writing sits to the author's personal experience for this specific section. Can override the project default.",
+    whyItMatters:
+      "Pulling closer creates intimacy for personal sections. Pulling back creates authority for analytical sections.",
     relatedConcepts: ["povDistance"],
   },
 
   narrativeGoal: {
-    technical: "Narrative Goal",
-    plain: "What This Scene Must Do",
+    technical: "Section Goal",
+    plain: "What This Section Must Do",
     tooltip:
-      "The one thing this scene must accomplish for the story. If it doesn't achieve this, the scene has failed.",
-    whyItMatters: "Prevents meandering. Every scene needs a job. This is the scene's contract with the story.",
+      "The one thing this section must accomplish for the essay. If it doesn't achieve this, the section has failed.",
+    whyItMatters: "Prevents meandering. Every section needs a job. This is the section's contract with the essay.",
     examples: [
-      "Establish that the protagonist has been lying to themselves",
-      "Reveal the antagonist's actual motive",
-      "Force an irreversible choice",
+      "Establish that the conventional wisdom is wrong",
+      "Present the strongest counterargument and address it",
+      "Force the reader to reconsider their assumptions",
     ],
   },
 
   emotionalBeat: {
     technical: "Emotional Beat",
     plain: "What the Reader Should Feel",
-    tooltip: "The primary emotion you want the reader to experience during this scene.",
+    tooltip: "The primary emotion you want the reader to experience during this section.",
     whyItMatters:
-      "Guides tone, pacing, and word choice. A scene meant to unsettle reads differently than one meant to comfort.",
-    examples: ["Growing dread", "Reluctant hope", "Betrayal sinking in", "Quiet devastation"],
+      "Guides tone, pacing, and word choice. A section meant to unsettle reads differently than one meant to reassure.",
+    examples: ["Growing unease", "Reluctant agreement", "Surprise at contradictory evidence", "Quiet conviction"],
   },
 
   readerEffect: {
     technical: "Reader Effect",
     plain: "How Understanding Shifts",
-    tooltip: "What changes in the reader's understanding of the story after this scene ends.",
+    tooltip: "What changes in the reader's understanding of the argument after this section ends.",
     whyItMatters:
-      "If nothing shifts, the scene might not be earning its place. Even quiet scenes should move understanding forward.",
+      "If nothing shifts, the section might not be earning its place. Even quiet sections should move understanding forward.",
     examples: [
-      "Reader realizes the ally has been compromised",
-      "Reader begins to doubt the narrator's version of events",
+      "Reader realizes the common explanation is insufficient",
+      "Reader begins to see the author's reasoning as more nuanced than expected",
     ],
     relatedConcepts: ["narrativeGoal"],
   },
 
   failureModeToAvoid: {
     technical: "Failure Mode to Avoid",
-    plain: "The Worst Version of This Scene",
-    tooltip: "What's the most likely way this scene could go wrong? Name it so the AI can avoid it.",
+    plain: "The Worst Version of This Section",
+    tooltip: "What's the most likely way this section could go wrong? Name it so the AI can avoid it.",
     whyItMatters:
       "Negative constraints are surprisingly effective. Telling the AI what NOT to do often works better than positive instructions.",
     examples: [
-      "Becomes a therapy session with characters stating feelings directly",
-      "Devolves into exposition dump disguised as dialogue",
+      "Becomes a listicle restating obvious points without analysis",
+      "Devolves into abstract generalities without concrete evidence",
     ],
   },
 
   // ═══════════════════════════════════════════════════
-  //  SCENE — Reader Knowledge
+  //  SECTION — Reader Knowledge
   // ═══════════════════════════════════════════════════
 
   readerStateKnows: {
     technical: "Knows",
     plain: "Facts the Reader Has",
-    tooltip: "Information the reader has already learned from previous scenes. These are established truths.",
-    whyItMatters: "Prevents re-explaining things the reader already knows. Avoids 'as you know, Bob' dialogue.",
+    tooltip: "Information the reader has already absorbed from previous sections. These are established truths.",
+    whyItMatters:
+      "Prevents re-explaining things the reader already knows. Avoids redundant re-statements of earlier points.",
     relatedConcepts: ["readerStateSuspects", "readerStateWrongAbout"],
   },
 
   readerStateSuspects: {
     technical: "Suspects",
     plain: "What the Reader Guesses",
-    tooltip: "Things the reader probably suspects but hasn't confirmed. These create anticipation.",
+    tooltip: "Things the reader probably suspects but hasn't seen confirmed. These create anticipation.",
     whyItMatters:
       "Suspicion creates engagement. Confirming or denying suspicions at the right moment creates satisfying reveals.",
     relatedConcepts: ["readerStateKnows", "readerStateWrongAbout"],
@@ -461,82 +480,88 @@ export const FIELD_GLOSSARY = {
   readerStateWrongAbout: {
     technical: "Wrong About",
     plain: "Reader's False Beliefs",
-    tooltip: "What the reader currently believes that isn't true. This is the setup for future reveals.",
-    whyItMatters: "Dramatic irony depends on managing what the reader gets wrong. This prevents accidental spoilers.",
-    examples: ["Reader thinks the mentor is trustworthy", "Reader believes the accident was random"],
+    tooltip: "What the reader currently believes that isn't true. This is the setup for future reveals or reframings.",
+    whyItMatters:
+      "Argumentative power depends on managing what the reader gets wrong. This prevents premature conclusions.",
+    examples: ["Reader thinks the conventional explanation is sufficient", "Reader believes the trend is recent"],
     relatedConcepts: ["readerStateKnows", "readerStateSuspects"],
   },
 
   readerStateActiveTensions: {
     technical: "Active Tensions",
     plain: "Open Questions",
-    tooltip: "Unresolved questions or conflicts that are pulling the reader forward through the story.",
+    tooltip: "Unresolved questions or tensions that are pulling the reader forward through the essay.",
     whyItMatters:
-      "Tension is what makes readers turn pages. Tracking it ensures you don't accidentally resolve everything too early.",
-    examples: ["Will she discover the letter before the wedding?", "Can he maintain the lie under interrogation?"],
+      "Tension is what keeps readers engaged. Tracking it ensures you don't accidentally resolve everything too early.",
+    examples: [
+      "Will the proposed solution actually work at scale?",
+      "Is the author's optimism justified by the evidence?",
+    ],
   },
 
-  // Exiting state mirrors entering but with "after scene" framing
+  // Exiting state mirrors entering but with "after section" framing
   readerStateExitingKnows: {
     technical: "Knows",
     plain: "Facts the Reader Has After",
-    tooltip: "Information the reader will definitively know after this scene resolves.",
-    whyItMatters: "Clarifies what the scene actually delivered versus what it set up.",
+    tooltip: "Information the reader will definitively know after this section resolves.",
+    whyItMatters: "Clarifies what the section actually delivered versus what it set up.",
     relatedConcepts: ["readerStateKnows", "readerStateExitingSuspects"],
   },
 
   readerStateExitingSuspects: {
     technical: "Suspects",
     plain: "What the Reader Guesses After",
-    tooltip: "New suspicions planted by this scene that the reader hasn't confirmed yet.",
-    whyItMatters: "New suspicions create forward momentum into the next scene.",
+    tooltip: "New suspicions planted by this section that the reader hasn't confirmed yet.",
+    whyItMatters: "New suspicions create forward momentum into the next section.",
     relatedConcepts: ["readerStateSuspects", "readerStateExitingKnows"],
   },
 
   readerStateExitingWrongAbout: {
     technical: "Wrong About",
     plain: "New False Beliefs After",
-    tooltip: "Beliefs the reader now holds that aren't true — newly planted or reinforced by this scene.",
+    tooltip: "Beliefs the reader now holds that aren't true -- newly planted or reinforced by this section.",
     whyItMatters:
-      "Tracks misdirection. If the reader exits with the right conclusion too early, you've lost dramatic tension.",
+      "Tracks misdirection. If the reader reaches the right conclusion too early, you've lost argumentative tension.",
     relatedConcepts: ["readerStateWrongAbout", "readerStateExitingKnows"],
   },
 
   readerStateExitingActiveTensions: {
     technical: "Active Tensions",
     plain: "Open Questions After",
-    tooltip: "Unresolved questions still pulling the reader forward after this scene — some old, some newly created.",
+    tooltip:
+      "Unresolved questions still pulling the reader forward after this section -- some old, some newly created.",
     whyItMatters:
-      "Ensures the scene doesn't accidentally close all tension. Readers need unanswered questions to keep turning pages.",
+      "Ensures the section doesn't accidentally close all tension. Readers need unanswered questions to keep reading.",
     relatedConcepts: ["readerStateActiveTensions", "readerStateExitingKnows"],
   },
 
   // ═══════════════════════════════════════════════════
-  //  SCENE — Texture
+  //  SECTION — Texture
   // ═══════════════════════════════════════════════════
 
   pacing: {
     technical: "Pacing",
-    plain: "Scene Tempo",
-    tooltip: "The rhythm and speed of this scene. Describe the shape — slow build, rapid-fire, steady crawl.",
+    plain: "Section Tempo",
+    tooltip: "The rhythm and speed of this section. Describe the shape -- slow build, rapid-fire, steady crawl.",
     whyItMatters:
-      "Pacing controls reader experience more than plot does. A slow confrontation is more tense than a fast one.",
+      "Pacing controls reader experience more than argument does. A slow build to a key insight is more persuasive than rushing.",
     examples: [
-      "Slow build to explosive confrontation",
+      "Slow build to decisive argument",
       "Relentless, no pauses",
-      "Languid opening, sharp acceleration at midpoint",
+      "Reflective opening, sharp acceleration at the key evidence",
     ],
   },
 
   density: {
     technical: "Density",
     plain: "Detail Level",
-    tooltip: "How much sensory and descriptive detail to include. Sparse scenes move fast; dense scenes immerse.",
-    whyItMatters: "Dense prose in an action scene slows it down. Sparse prose in an emotional scene feels cold.",
+    tooltip: "How much evidence and descriptive detail to include. Sparse sections move fast; dense sections immerse.",
+    whyItMatters:
+      "Dense prose in a transitional section slows it down. Sparse prose in a key argument feels unsubstantiated.",
     examples: [
-      "Sparse — action, dialogue, minimal description",
-      "Moderate — balanced",
-      "Dense — rich sensory layering",
+      "Sparse -- assertions, evidence, minimal elaboration",
+      "Moderate -- balanced",
+      "Dense -- rich evidence layering and analysis",
     ],
   },
 
@@ -544,80 +569,83 @@ export const FIELD_GLOSSARY = {
     technical: "Sensory Notes",
     plain: "Physical Details to Include",
     tooltip:
-      "Specific sensory details that should appear in this scene. These anchor the reader in the physical world.",
+      "Specific concrete details that should appear in this section. These anchor abstract arguments in the physical world.",
     whyItMatters:
-      "Concrete details prevent generic prose. 'Rain on cobblestones, neon reflecting in puddles' beats 'it was raining.'",
+      "Concrete details prevent generic prose. 'The spreadsheet showed a 40% drop' beats 'things were declining.'",
     examples: [
-      "Rain on cobblestones, neon reflecting in puddles",
-      "Smell of burnt coffee, fluorescent hum",
-      "Cold metal railing under bare hands",
+      "The sound of the factory floor during the interview",
+      "Smell of burnt coffee in the newsroom",
+      "Cold metal railing outside the courthouse",
     ],
   },
 
   sceneLocationId: {
-    technical: "Location",
+    technical: "Reference Context",
     plain: "Where This Happens",
-    tooltip: "The physical setting for this scene. Links to a location from your bible for automatic sensory details.",
+    tooltip:
+      "The setting or context for this section. Links to a reference context from your brief for automatic sensory details.",
     whyItMatters:
-      "Linked locations automatically pull in sounds, smells, textures, and atmosphere you've already defined.",
+      "Linked contexts automatically pull in sounds, smells, textures, and atmosphere you've already defined.",
   },
 
   sceneSpecificProhibitions: {
     technical: "Prohibitions",
-    plain: "Off-Limits for This Scene",
-    tooltip: "Things that must not appear in this specific scene, beyond the global avoid list.",
-    whyItMatters: "Scene-specific control. Maybe flashbacks are fine globally but wrong for this particular scene.",
-    examples: ["No flashbacks", "No weather descriptions", "No interior monologue"],
+    plain: "Off-Limits for This Section",
+    tooltip: "Things that must not appear in this specific section, beyond the global avoid list.",
+    whyItMatters: "Section-specific control. Maybe anecdotes are fine globally but wrong for this analytical section.",
+    examples: ["No personal anecdotes", "No statistics without sources", "No rhetorical questions"],
   },
 
   subtextSurface: {
-    technical: "Surface Conversation",
-    plain: "What They're Saying",
-    tooltip: "The visible, literal conversation happening on the page.",
-    whyItMatters: "Defines the gap between what's said and what's meant. The bigger the gap, the more tension.",
+    technical: "Surface Argument",
+    plain: "What's Being Said",
+    tooltip: "The explicit, stated argument happening on the page.",
+    whyItMatters: "Defines the gap between what's stated and what's implied. The bigger the gap, the more tension.",
     relatedConcepts: ["subtextActual", "subtextEnforcement"],
   },
 
   subtextActual: {
-    technical: "Actual Conversation",
-    plain: "What They Really Mean",
-    tooltip:
-      "The real exchange happening beneath the surface words. What each character is actually trying to achieve.",
-    whyItMatters: "Subtext is what separates compelling dialogue from on-the-nose writing.",
+    technical: "Actual Argument",
+    plain: "What's Really Being Argued",
+    tooltip: "The real point being made beneath the surface argument. What the author is actually trying to achieve.",
+    whyItMatters: "Subtext is what separates compelling essays from on-the-nose writing.",
     relatedConcepts: ["subtextSurface", "subtextEnforcement"],
   },
 
   subtextEnforcement: {
     technical: "Enforcement Rule",
     plain: "Subtext Boundary",
-    tooltip: "The rule that maintains the gap between surface and meaning. What must NOT be said directly.",
+    tooltip: "The rule that maintains the gap between surface and meaning. What must NOT be stated directly.",
     whyItMatters: "Without enforcement, the AI tends to collapse subtext into direct statement. This prevents that.",
-    examples: ["Neither character can acknowledge the affair directly", "The word 'cancer' cannot be spoken aloud"],
+    examples: [
+      "The real target of criticism cannot be named explicitly",
+      "The personal stake cannot be stated outright",
+    ],
     relatedConcepts: ["subtextSurface", "subtextActual"],
   },
 
   anchorLines: {
     technical: "Anchor Lines",
     plain: "Must-Include Lines",
-    tooltip: "Specific lines or phrases that should appear in the generated scene. Can be verbatim or paraphrased.",
+    tooltip: "Specific lines or phrases that should appear in the generated section. Can be verbatim or paraphrased.",
     whyItMatters: "Guarantees key moments land exactly as you envision them. The AI builds around these anchors.",
   },
 
   // ═══════════════════════════════════════════════════
-  //  SCENE — Structure
+  //  SECTION — Structure
   // ═══════════════════════════════════════════════════
 
   estimatedWordCount: {
     technical: "Estimated Word Count",
-    plain: "Scene Length",
-    tooltip: "Target word count range for this scene. A range lets the AI expand or compress naturally.",
-    whyItMatters: "Prevents scenes from running too long or ending too short. The range gives natural flexibility.",
+    plain: "Section Length",
+    tooltip: "Target word count range for this section. A range lets the AI expand or compress naturally.",
+    whyItMatters: "Prevents sections from running too long or ending too short. The range gives natural flexibility.",
   },
 
   chunkCount: {
     technical: "Chunk Count",
     plain: "Generation Passes",
-    tooltip: "How many separate generation passes to break this scene into. More chunks = more control points.",
+    tooltip: "How many separate generation passes to break this section into. More chunks = more control points.",
     whyItMatters:
       "Each chunk is a checkpoint where you can review, edit, or redirect. More chunks = finer control, but slower.",
   },
@@ -625,8 +653,13 @@ export const FIELD_GLOSSARY = {
   chunkDescriptions: {
     technical: "Chunk Descriptions",
     plain: "What Happens in Each Chunk",
-    tooltip: "Brief description of what each generation pass should cover. Like a mini-outline within the scene.",
-    whyItMatters: "Gives the AI a roadmap for each pass. Prevents front-loading all the action into the first chunk.",
-    examples: ["Chunk 1: Setup and arrival", "Chunk 2: The confrontation escalates", "Chunk 3: Aftermath and exit"],
+    tooltip: "Brief description of what each generation pass should cover. Like a mini-outline within the section.",
+    whyItMatters:
+      "Gives the AI a roadmap for each pass. Prevents front-loading all the key points into the first chunk.",
+    examples: [
+      "Chunk 1: Context and setup",
+      "Chunk 2: Core argument with evidence",
+      "Chunk 3: Implications and transition",
+    ],
   },
 } satisfies Record<string, GlossaryEntry>;

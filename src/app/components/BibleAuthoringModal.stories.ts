@@ -9,18 +9,18 @@ const meta: Meta<BibleAuthoringModalStory> = {
     docs: {
       story: { height: "600px" },
       description: {
-        component: "Bible authoring modal — create or edit the story bible via guided form entry.",
+        component: "Brief authoring modal — create or edit the essay brief via guided form entry.",
       },
     },
   },
   argTypes: {
     prePopulated: {
       control: "boolean",
-      description: "Whether to pre-populate with sample Bible data.",
+      description: "Whether to pre-populate with sample Brief data.",
     },
     withGenre: {
       control: "boolean",
-      description: "Whether to apply Literary Fiction genre template defaults.",
+      description: "Whether to apply Personal Essay style template defaults.",
     },
   },
 };

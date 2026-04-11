@@ -334,7 +334,7 @@ let canGenerate = $derived(!!store.bible && !!store.activeScenePlan && !!store.c
 let gateMessages = $derived.by(() => {
   const msgs: string[] = [];
   if (!store.bible) msgs.push("No bible loaded.");
-  if (!store.activeScenePlan) msgs.push("No scene plan selected.");
+  if (!store.activeScenePlan) msgs.push("No section plan selected.");
   if (store.activeScenePlan) {
     const planGate = checkScenePlanGate(store.activeScenePlan);
     msgs.push(...planGate.messages);
@@ -571,7 +571,7 @@ async function handleUpdateIR(ir: NarrativeIR) {
         {:else if activeTab === "ir"}
           <IRInspector
             ir={store.activeSceneIR}
-            sceneTitle={store.activeScenePlan?.title ?? "No scene"}
+            sceneTitle={store.activeScenePlan?.title ?? "No section"}
             isExtracting={store.isExtractingIR}
             canExtract={store.activeScene?.status === "complete"}
             onExtract={() => onExtractIR(store.activeScenePlan?.id)}

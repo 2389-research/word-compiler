@@ -62,7 +62,7 @@ export function makeScenePlan(overrides: Partial<ScenePlan> = {}): ScenePlan {
       "She reads the letter and pieces it together",
       "Bob walks in — confrontation erupts",
     ],
-    failureModeToAvoid: "Melodramatic dialogue; telegraphing the twist too early",
+    failureModeToAvoid: "Heavy-handed thesis statement; telegraphing the conclusion too early",
     ...overrides,
   };
 }
@@ -132,20 +132,20 @@ export function makeAuditFlag(overrides: Partial<AuditFlag> = {}): AuditFlag {
 export function makeCompiledPayload(overrides: Partial<CompiledPayload> = {}): CompiledPayload {
   return {
     systemMessage: [
-      "You are a literary fiction author writing in close-third POV.",
+      "You are an essay writer with a direct, personal voice.",
       "",
       "## VOICE PROFILE",
       "Dense, imagistic prose. Favor concrete sensory detail over abstraction.",
       "Sentence variance: mix short declarative with longer compound-complex.",
       "",
-      "## CHARACTERS",
-      "Alice Whitmore — protagonist, journalist, guarded but perceptive.",
-      "Bob Harlan — supporting, Alice's editor, charming surface conceals anxiety.",
+      "## VOICE PROFILES",
+      "Primary Author — direct, analytical, grounded in concrete detail.",
+      "Secondary Voice — reflective, personal, favors extended metaphor.",
     ].join("\n"),
     userMessage: [
-      "## SCENE PLAN",
-      "Title: The Confrontation",
-      "Goal: Alice discovers Bob's deception through the letter",
+      "## SECTION PLAN",
+      "Title: The Core Argument",
+      "Goal: Establish the central thesis through personal anecdote",
       "",
       "## PROSE SO FAR",
       "The rain fell in sheets against the window, each drop a tiny percussion",
@@ -268,7 +268,7 @@ export function makeChapterArc(overrides: Partial<ChapterArc> = {}): ChapterArc 
     workingTitle: "The Letter",
     narrativeFunction: "Inciting incident — shatters Alice's false sense of security",
     dominantRegister: "Restrained → explosive",
-    pacingTarget: "Slow build in scenes 1-2, rapid acceleration in scene 3",
+    pacingTarget: "Slow build in sections 1-2, rapid acceleration in section 3",
     endingPosture: "Cliffhanger — Bob's accusation hangs unanswered",
     readerStateEntering: {
       knows: ["Alice is a journalist investigating corruption"],

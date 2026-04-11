@@ -26,50 +26,50 @@ export function buildIRExtractionPrompt(prose: string, plan: ScenePlan, bible: B
       ? activeSetups.map((s) => `- [${s.id}] ${s.description} (${s.status})`).join("\n")
       : "(none registered)";
 
-  return `SCENE PLAN:
+  return `SECTION PLAN:
 Title: ${plan.title}
 Narrative goal: ${plan.narrativeGoal}
 Emotional beat: ${plan.emotionalBeat}
 
-CHARACTERS IN BIBLE:
+VOICES IN BRIEF:
 ${characterList}
 
 ACTIVE SETUPS:
 ${setupList}
 
 PAYOFF MATCHING RULES:
-When a setup from ACTIVE SETUPS is paid off in this scene, reference it in
+When a setup from ACTIVE SETUPS is paid off in this section, reference it in
 payoffsExecuted using the setup's description verbatim as a prefix, followed
 by " — " and a brief note on how the payoff occurred. Only list payoffs for
 setups in the ACTIVE SETUPS list above.
 
-SCENE PROSE:
+SECTION PROSE:
 ${prose}
 
 ---
 
-Extract the narrative internal record for this scene. Return ONLY valid JSON in this exact shape:
+Extract the narrative internal record for this section. Return ONLY valid JSON in this exact shape:
 
 {
-  "events": ["List of concrete story events that occurred — plot-level facts, not atmosphere"],
-  "factsIntroduced": ["Facts that now exist in the story world after this scene"],
-  "factsRevealedToReader": ["Facts the reader now knows (may differ from character knowledge)"],
+  "events": ["List of concrete events that occurred — factual claims, not atmosphere"],
+  "factsIntroduced": ["Facts that now exist in the essay after this section"],
+  "factsRevealedToReader": ["Facts the reader now knows (may differ from what sources know)"],
   "factsWithheld": ["Facts that exist but were deliberately not revealed to reader"],
   "characterDeltas": [
     {
-      "characterId": "exact id from character list",
-      "learned": "what this character learned, or null",
+      "characterId": "exact id from voice list",
+      "learned": "what this voice learned, or null",
       "suspicionGained": "new suspicion formed, or null",
       "emotionalShift": "emotional state change, or null",
       "relationshipChange": "relationship dynamic change, or null"
     }
   ],
-  "setupsPlanted": ["description of each setup planted in this scene — quote from prose if possible"],
+  "setupsPlanted": ["description of each setup planted in this section — quote from prose if possible"],
   "payoffsExecuted": ["<setup description from ACTIVE SETUPS> — <how it was paid off>"],
   "characterPositions": [
-    { "characterId": "character name or id", "position": "physical/narrative position at scene end" }
+    { "characterId": "voice name or id", "position": "narrative position at section end" }
   ],
-  "unresolvedTensions": ["tensions still active at scene end — what keeps the reader wanting to turn the page"]
+  "unresolvedTensions": ["tensions still active at section end — what keeps the reader engaged"]
 }
 
 Be specific and factual. Keep each string value TERSE (under 15 words). Do not add commentary. Do not invent facts not present in the prose.`;
@@ -77,7 +77,7 @@ Be specific and factual. Keep each string value TERSE (under 15 words). Do not a
 
 // ─── Extractor ───────────────────────────────────────────
 
-const IR_SYSTEM_MESSAGE = `You are a narrative structure analyst. Your job is to extract a precise, factual internal record from scene prose. You identify events, knowledge states, and dramatic tensions without interpretation or evaluation. Return only JSON.`;
+const IR_SYSTEM_MESSAGE = `You are a narrative structure analyst. Your job is to extract a precise, factual internal record from section prose. You identify events, knowledge states, and tensions without interpretation or evaluation. Return only JSON.`;
 
 export async function extractIR(
   prose: string,

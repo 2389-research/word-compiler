@@ -122,7 +122,7 @@ export function save() {
           <Input bind:value={formPlan.povCharacterId} placeholder="Voice profile" />
         {/if}
       </FormField>
-      <FormField label="POV Distance">
+      <FormField label="Perspective Distance">
         <RadioGroup name="formPovDistance" value={formPlan.povDistance} options={[
           { value: "intimate", label: "Intimate" },
           { value: "close", label: "Close" },

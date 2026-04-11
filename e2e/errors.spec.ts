@@ -21,14 +21,14 @@ test.describe("Error handling", () => {
     const textarea = page.locator("textarea").first();
     await expect(textarea).toBeVisible();
     await textarea.fill("A test synopsis.");
-    await page.locator("button", { hasText: "Bootstrap Bible" }).click();
+    await page.locator("button", { hasText: "Bootstrap Brief" }).click();
 
     // Should show some error state — either error banner or the button re-enables
     await page.waitForTimeout(2000);
 
     const hasError = await page.locator("text=failed").isVisible().catch(() => false);
     const hasButton = await page
-      .locator("button", { hasText: "Bootstrap Bible" })
+      .locator("button", { hasText: "Bootstrap Brief" })
       .isEnabled()
       .catch(() => false);
     expect(hasError || hasButton).toBe(true);
@@ -51,14 +51,14 @@ test.describe("Error handling", () => {
     const textarea = page.locator("textarea").first();
     await expect(textarea).toBeVisible();
     await textarea.fill("Another test synopsis.");
-    await page.locator("button", { hasText: "Bootstrap Bible" }).click();
+    await page.locator("button", { hasText: "Bootstrap Brief" }).click();
 
     await page.waitForTimeout(2000);
 
     const hasParseError = await page.locator("text=Parse failed").isVisible().catch(() => false);
     const hasError = await page.locator("text=failed").isVisible().catch(() => false);
     const isUsable = await page
-      .locator("button", { hasText: "Bootstrap Bible" })
+      .locator("button", { hasText: "Bootstrap Brief" })
       .isEnabled()
       .catch(() => false);
     expect(hasParseError || hasError || isUsable).toBe(true);
@@ -81,7 +81,7 @@ test.describe("Error handling", () => {
     const textarea = page.locator("textarea").first();
     await expect(textarea).toBeVisible();
     await textarea.fill("Yet another test synopsis.");
-    await page.locator("button", { hasText: "Bootstrap Bible" }).click();
+    await page.locator("button", { hasText: "Bootstrap Brief" }).click();
 
     // Should show error
     await expect(page.locator("text=failed").first()).toBeVisible({ timeout: 5000 });
@@ -92,7 +92,7 @@ test.describe("Error handling", () => {
     page.on("pageerror", (error) => errors.push(error.message));
 
     await page.goto("/");
-    await expect(page.locator("text=Create Your Story Bible")).toBeVisible();
+    await expect(page.locator("text=Create Your Essay Brief")).toBeVisible();
 
     // Navigate through all stage buttons
     const stageLabels = ["Plan", "Draft", "Audit", "Edit", "Complete", "Export", "Bootstrap"];

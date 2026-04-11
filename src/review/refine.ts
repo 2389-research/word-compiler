@@ -42,14 +42,14 @@ export function findChunksForRange(start: number, end: number, boundaries: Chunk
 
 export function buildRefinementSystemPrompt(context: ReviewContext): string {
   const sections: string[] = [
-    "You are a surgical prose editor for literary fiction.",
+    "You are a surgical prose editor for essays and nonfiction.",
     "CORE PRINCIPLE: MINIMAL INTERVENTION. Change only what the writer's complaint requires. Preserve surrounding rhythm, syntax, and voice.",
-    "PRIORITY ORDER: Voice rules > Narrative coherence > Rhythm > Grammar.",
+    "PRIORITY ORDER: Voice rules > Argumentative coherence > Rhythm > Grammar.",
   ];
 
   if (context.activeVoices.length > 0) {
     const voices = context.activeVoices.map((v) => `${v.name}: ${v.fingerprint}`).join("\n");
-    sections.push(`CHARACTER VOICES (active in scene):\n${voices}`);
+    sections.push(`AUTHOR VOICES (active in section):\n${voices}`);
   }
 
   if (context.styleRules.killList.length > 0) {

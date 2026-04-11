@@ -10,7 +10,7 @@ const meta: Meta<ExportModalStory> = {
       story: { height: "500px" },
       description: {
         component:
-          "Export modal — renders chapter prose as Markdown or Plain Text with preview, word count, copy, and download.",
+          "Export modal — renders essay prose as Markdown or Plain Text with preview, word count, copy, and download.",
       },
     },
   },
@@ -21,7 +21,7 @@ const meta: Meta<ExportModalStory> = {
     },
     multiScene: {
       control: "boolean",
-      description: "Whether to add a second scene for multi-scene export.",
+      description: "Whether to add a second section for multi-section export.",
     },
     initialFormat: {
       control: "select",

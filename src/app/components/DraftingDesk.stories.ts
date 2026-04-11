@@ -11,7 +11,7 @@ const meta: Meta<DraftingDesk> = {
     docs: {
       description: {
         component:
-          "Main drafting workspace — displays chunks, scene plan, generation controls, audit flags, and IR extraction. Orchestrates the per-scene writing workflow.",
+          "Main drafting workspace — displays chunks, section plan, generation controls, audit flags, and IR extraction. Orchestrates the per-section writing workflow.",
       },
     },
   },
@@ -69,8 +69,8 @@ export const GateFailed: Story = {
   args: {
     chunks: [makeChunk({ sequenceNumber: 0, status: "accepted" })],
     gateMessages: [
-      "Scene plan is missing — load or create a scene plan before generating",
-      "Bible is not loaded — load a Bible JSON file first",
+      "Section plan is missing — load or create a section plan before generating",
+      "Brief is not loaded — load a Brief JSON file first",
     ],
     canGenerate: false,
   },

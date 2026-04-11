@@ -31,7 +31,7 @@ let sceneSummary = $derived.by(() => {
 });
 
 function getFilename(): string {
-  const title = store.chapterArc?.workingTitle ?? "chapter";
+  const title = store.chapterArc?.workingTitle ?? "essay";
   const slug = title
     .toLowerCase()
     .replace(/\s+/g, "-")

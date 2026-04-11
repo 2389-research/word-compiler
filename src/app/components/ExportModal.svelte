@@ -31,7 +31,7 @@ let preview = $derived(exported.length > 500 ? `${exported.slice(0, 500)}…` : 
 let wordCount = $derived(exported.split(/\s+/).filter(Boolean).length);
 
 function getFilename(): string {
-  const title = store.chapterArc?.workingTitle ?? "chapter";
+  const title = store.chapterArc?.workingTitle ?? "essay";
   const slug = title
     .toLowerCase()
     .replace(/\s+/g, "-")

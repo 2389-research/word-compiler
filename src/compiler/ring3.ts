@@ -98,12 +98,13 @@ function buildSceneCast(presentIds: string[], speakingCharIds: string[], bible: 
   const sections: RingSection[] = [
     {
       name: "SCENE_CAST_GUARDRAIL",
-      text: "Only characters listed as present may appear. Do not introduce unnamed crowd, bystanders, or extras unless the scene plan explicitly calls for them.",
+      text: "Only entities listed in the section plan may be referenced. Do not introduce unattributed sources or claims unless the section plan explicitly calls for them.",
       priority: 0,
       immune: true,
     },
   ];
 
+  // Essays never populate presentCharacterIds — this section is fiction-only. Kept for potential future fiction support.
   const coveredIds = new Set(speakingCharIds);
   const nonSpeaking = presentIds
     .filter((id) => !coveredIds.has(id))

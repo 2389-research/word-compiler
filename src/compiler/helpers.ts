@@ -161,7 +161,7 @@ function formatBehaviorSection(behavior: CharacterDossier["behavior"]): string[]
 }
 
 const POV_INTERIORITY_GUARDRAIL =
-  "Show contradictions through action, choice, and voice slippage — never state them directly. Do not invent backstory or appearance beyond what is provided in context.";
+  "Show nuance through evidence, qualification, and tonal shifts — never contradict earlier claims without acknowledgment. Do not invent facts or credentials beyond what is provided in context.";
 
 export function formatPovInteriority(char: CharacterDossier, povDistance: string): string {
   const lines: string[] = [`=== POV INTERIORITY: ${char.name.toUpperCase()} ===`];

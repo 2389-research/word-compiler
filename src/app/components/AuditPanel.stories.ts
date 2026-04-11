@@ -90,14 +90,14 @@ export const ManyFlags: Story = {
       makeAuditFlag({
         severity: "warning",
         category: "sentence-variance",
-        message: "Low variance (1.4) in scene body",
+        message: "Low variance (1.4) in section body",
       }),
       makeAuditFlag({
         severity: "warning",
         category: "epistemic",
         message: "Unreliable narrator but no contradictory signals",
       }),
-      makeAuditFlag({ severity: "warning", category: "subtext", message: "Dialogue too on-the-nose in paragraph 5" }),
+      makeAuditFlag({ severity: "warning", category: "subtext", message: "Writing too on-the-nose in paragraph 5" }),
       makeAuditFlag({ severity: "info", category: "paragraph-length", message: "Paragraph 2 has 7 sentences" }),
       makeAuditFlag({ severity: "info", category: "paragraph-length", message: "Paragraph 6 has 9 sentences" }),
       makeAuditFlag({ severity: "info", category: "setup-payoff", message: "Dangling setup: garden shed key" }),

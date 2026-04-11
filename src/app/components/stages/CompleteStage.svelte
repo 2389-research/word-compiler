@@ -43,7 +43,7 @@ let inspectedIR = $derived.by(() => {
 });
 
 let inspectedTitle = $derived.by(() => {
-  if (!selectedSceneId) return "No scene";
+  if (!selectedSceneId) return "No section";
   return store.scenes.find((s) => s.plan.id === selectedSceneId)?.plan.title ?? "Unknown";
 });
 
@@ -51,6 +51,7 @@ let inspectedCanExtract = $derived.by(() => {
   if (!selectedSceneId) return false;
   return store.scenes.find((s) => s.plan.id === selectedSceneId)?.status === "complete";
 });
+
 
 async function handleComplete(sceneId: string) {
   const result = await commands.completeScene(sceneId);

@@ -22,8 +22,8 @@ let {
 } = $props();
 
 const tabs = [
-  { id: "bible", label: "Bible" },
-  { id: "scene", label: "Scene" },
+  { id: "bible", label: "Brief" },
+  { id: "scene", label: "Section" },
   { id: "arc", label: "Arc" },
   { id: "json", label: "JSON" },
 ];
@@ -36,7 +36,7 @@ let activeTab = $state(validTabIds.has(initialTab) ? initialTab : "bible");
   {#snippet headerRight()}
     <div class="pane-actions">
       {#if onAuthor}
-        <Button onclick={onAuthor}>New Bible</Button>
+        <Button onclick={onAuthor}>New Brief</Button>
       {:else}
         <Button onclick={onBootstrap}>Bootstrap</Button>
       {/if}

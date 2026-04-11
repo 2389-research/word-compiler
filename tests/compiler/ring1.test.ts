@@ -32,7 +32,7 @@ describe("buildRing1", () => {
     const result = buildRing1(makeBible(), makeConfig());
     const rulesSection = result.sections.find((s) => s.name === "NARRATIVE_RULES");
     expect(rulesSection).toBeDefined();
-    expect(rulesSection!.text).toContain("Do not invent backstory");
+    expect(rulesSection!.text).toContain("Do not invent facts, credentials");
     expect(rulesSection!.immune).toBe(true);
     expect(rulesSection!.priority).toBe(0);
   });

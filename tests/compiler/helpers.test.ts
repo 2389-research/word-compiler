@@ -335,8 +335,8 @@ describe("formatPovInteriority", () => {
 
   it("appends guardrail text", () => {
     const result = formatPovInteriority(makeFullChar(), "intimate");
-    expect(result).toContain("Show contradictions through action");
-    expect(result).toContain("Do not invent backstory");
+    expect(result).toContain("Show nuance through evidence");
+    expect(result).toContain("Do not invent facts or credentials");
   });
 });
 

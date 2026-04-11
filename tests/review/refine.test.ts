@@ -136,7 +136,7 @@ describe("buildRefinementSystemPrompt", () => {
   it("includes core principles", () => {
     const prompt = buildRefinementSystemPrompt(baseContext);
     expect(prompt).toContain("MINIMAL INTERVENTION");
-    expect(prompt).toContain("Voice rules > Narrative coherence");
+    expect(prompt).toContain("Voice rules > Argumentative coherence");
   });
 
   it("includes active voices when present", () => {

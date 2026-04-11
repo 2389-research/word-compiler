@@ -123,8 +123,7 @@ function buildPovSection(bible: Bible): RingSection | null {
   };
 }
 
-const NON_INVENTION_GUARDRAIL =
-  "Do not invent backstory, appearance, or world facts beyond what is provided in context";
+const NON_INVENTION_GUARDRAIL = "Do not invent facts, credentials, or claims beyond what is provided in context";
 
 function buildNarrativeRulesSection(bible: Bible): RingSection {
   const rules: string[] = [NON_INVENTION_GUARDRAIL];

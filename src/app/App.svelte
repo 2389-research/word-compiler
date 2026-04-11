@@ -89,7 +89,7 @@ onMount(async () => {
 });
 
 async function createFirstProject() {
-  const title = newProjectTitle.trim() || "Untitled Novel";
+  const title = newProjectTitle.trim() || "Untitled Essay";
   try {
     const project = await apiCreateProject({
       id: generateId(),
@@ -117,7 +117,7 @@ async function handleSelectProject(projectId: string) {
 }
 
 async function handleCreateProjectFromList() {
-  const title = newProjectTitle.trim() || "Untitled Novel";
+  const title = newProjectTitle.trim() || "Untitled Essay";
   try {
     const project = await apiCreateProject({
       id: generateId(),

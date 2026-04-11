@@ -18,7 +18,7 @@ let {
 
 let activeChunks = $derived(store.activeSceneChunks);
 let sceneId = $derived(store.activeScenePlan?.id ?? "");
-let sceneTitle = $derived(store.activeScenePlan?.title ?? "No scene selected");
+let sceneTitle = $derived(store.activeScenePlan?.title ?? "No section selected");
 
 let wordCount = $derived(
   activeChunks.reduce((sum, c) => sum + getCanonicalText(c).split(/\s+/).filter(Boolean).length, 0),

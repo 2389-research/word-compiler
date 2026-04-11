@@ -325,7 +325,7 @@ describe("buildRing3", () => {
     const guardrail = result.sections.find((s) => s.name === "SCENE_CAST_GUARDRAIL");
 
     expect(guardrail).toBeDefined();
-    expect(guardrail!.text).toContain("Only characters listed as present");
+    expect(guardrail!.text).toContain("Only entities listed in the section plan");
     expect(guardrail!.immune).toBe(true);
     expect(guardrail!.priority).toBe(0);
   });

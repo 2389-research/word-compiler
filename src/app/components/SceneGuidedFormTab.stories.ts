@@ -9,7 +9,7 @@ const meta: Meta<SceneGuidedFormTabStory> = {
     docs: {
       description: {
         component:
-          "Guided form for creating scene plans — 4 steps: Core Identity, Reader Knowledge, Texture, and Structure. " +
+          "Guided form for creating section plans — 4 steps: Core Identity, Reader Knowledge, Texture, and Structure. " +
           "Includes ExamplesDrawer integration for narrative goal, emotional beat, subtext, and pacing fields.",
       },
     },
@@ -17,11 +17,11 @@ const meta: Meta<SceneGuidedFormTabStory> = {
   argTypes: {
     withCharacters: {
       control: "boolean",
-      description: "Populate the character selector with sample characters.",
+      description: "Populate the voice profile selector with sample voice profiles.",
     },
     withLocations: {
       control: "boolean",
-      description: "Populate the location selector with sample locations.",
+      description: "Populate the reference selector with sample references.",
     },
     initialStep: {
       control: "select",

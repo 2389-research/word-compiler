@@ -11,7 +11,7 @@ export default meta;
 type Story = StoryObj<SectionPanelStory>;
 
 export const TitleOnly: Story = {
-  args: { title: "System Message (Ring 1)", content: "You are a literary fiction author..." },
+  args: { title: "System Message (Ring 1)", content: "You are a personal essay writer..." },
 };
 
 export const WithBadge: Story = {

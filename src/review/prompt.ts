@@ -135,7 +135,7 @@ function povSection(context: ReviewContext): string | null {
 function voicesSection(context: ReviewContext): string | null {
   if (context.activeVoices.length === 0) return null;
   const voices = context.activeVoices.map((v) => `${v.name}: ${v.fingerprint}`).join("\n");
-  return `CHARACTER VOICES (present in scene):\n${voices}`;
+  return `AUTHOR VOICES (present in section):\n${voices}`;
 }
 
 function subtextSection(context: ReviewContext): string | null {
@@ -152,7 +152,7 @@ function editingInstructionsSection(context: ReviewContext): string | null {
 
 export function buildReviewSystemPrompt(context: ReviewContext): string {
   const sections = [
-    "You are an editorial review assistant for long-form fiction.",
+    "You are an editorial review assistant for essays and long-form nonfiction.",
     "Flag only issues a skilled human editor would catch. Prefer fewer, high-quality annotations over many marginal ones.",
     SEVERITY_DEFINITIONS,
     metaphoricSection(context),
@@ -202,7 +202,7 @@ export function buildSuggestionRequestPrompt(
   authorFeedback: string,
 ): { systemPrompt: string; userPrompt: string } {
   const systemSections = [
-    "You are a prose rewriting assistant for long-form fiction.",
+    "You are a prose rewriting assistant for essays and long-form nonfiction.",
     "Your job: generate a VERBATIM replacement for the flagged text span. The replacement will be directly substituted into the manuscript.",
     "NEVER return editorial advice, commentary, or instructions. Return ONLY concrete prose ready for insertion.",
     metaphoricSection(context),
