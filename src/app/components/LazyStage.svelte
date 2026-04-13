@@ -12,16 +12,18 @@ let {
 
 let Loaded = $state<Component | null>(null);
 let error = $state<string | null>(null);
+let loadId = 0;
 
 $effect(() => {
   Loaded = null;
   error = null;
+  const thisLoad = ++loadId;
   loader()
     .then((mod) => {
-      Loaded = mod.default;
+      if (thisLoad === loadId) Loaded = mod.default;
     })
     .catch((err) => {
-      error = err instanceof Error ? err.message : "Failed to load stage";
+      if (thisLoad === loadId) error = err instanceof Error ? err.message : "Failed to load stage";
     });
 });
 </script>
