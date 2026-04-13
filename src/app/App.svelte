@@ -5,15 +5,9 @@ import { apiCreateProject, apiListProjects, apiUpdateProject } from "../api/clie
 import { countTokens } from "../tokens/index.js";
 import { generateId, getCanonicalText } from "../types/index.js";
 import GlossaryPanel from "./components/GlossaryPanel.svelte";
+import LazyStage from "./components/LazyStage.svelte";
 import ProjectList from "./components/ProjectList.svelte";
 import StageCTA from "./components/StageCTA.svelte";
-import AuditStage from "./components/stages/AuditStage.svelte";
-import BootstrapStage from "./components/stages/BootstrapStage.svelte";
-import CompleteStage from "./components/stages/CompleteStage.svelte";
-import DraftStage from "./components/stages/DraftStage.svelte";
-import EditStage from "./components/stages/EditStage.svelte";
-import ExportStage from "./components/stages/ExportStage.svelte";
-import PlanStage from "./components/stages/PlanStage.svelte";
 import VoiceProfilePanel from "./components/VoiceProfilePanel.svelte";
 import WorkflowRail from "./components/WorkflowRail.svelte";
 import { Button, ErrorBanner, Input, Select } from "./primitives/index.js";
@@ -387,40 +381,44 @@ function exportState() {
       <svelte:boundary onerror={(err) => { console.error("[boundary] Stage crash:", err); boundaryErrorMsg = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Try switching stages or refreshing.`; store.setError(boundaryErrorMsg); }}>
         <div class="stage-content" in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
           {#if workflow.activeStage === "bootstrap"}
-            <BootstrapStage {store} {commands} />
+            <LazyStage loader={() => import("./components/stages/BootstrapStage.svelte")} props={{ store, commands }} />
           {:else if workflow.activeStage === "draft"}
-            <DraftStage
-              {store}
-              {commands}
-              onGenerate={() => generateChunk()}
-              onRunAudit={() => runAuditManual()}
-              onRunDeepAudit={() => runDeepAudit()}
-              onAutopilot={() => runAutopilot()}
-              onExtractIR={(sceneId) => extractSceneIR(sceneId)}
+            <LazyStage
+              loader={() => import("./components/stages/DraftStage.svelte")}
+              props={{
+                store,
+                commands,
+                onGenerate: () => generateChunk(),
+                onRunAudit: () => runAuditManual(),
+                onRunDeepAudit: () => runDeepAudit(),
+                onAutopilot: () => runAutopilot(),
+                onExtractIR: (sceneId: string) => extractSceneIR(sceneId),
+              }}
             />
           {:else if workflow.activeStage === "plan"}
-            <PlanStage {store} {commands} />
+            <LazyStage loader={() => import("./components/stages/PlanStage.svelte")} props={{ store, commands }} />
           {:else if workflow.activeStage === "audit"}
-            <AuditStage
-              {store}
-              {commands}
-              onRunAudit={() => runAuditManual()}
-              onRunDeepAudit={() => runDeepAudit()}
+            <LazyStage
+              loader={() => import("./components/stages/AuditStage.svelte")}
+              props={{
+                store,
+                commands,
+                onRunAudit: () => runAuditManual(),
+                onRunDeepAudit: () => runDeepAudit(),
+              }}
             />
           {:else if workflow.activeStage === "edit"}
-            <EditStage
-              {store}
-              {commands}
-              onRequestRefinement={requestRefinement}
+            <LazyStage
+              loader={() => import("./components/stages/EditStage.svelte")}
+              props={{ store, commands, onRequestRefinement: requestRefinement }}
             />
           {:else if workflow.activeStage === "complete"}
-            <CompleteStage
-              {store}
-              {commands}
-              onExtractIR={(sceneId) => extractSceneIR(sceneId)}
+            <LazyStage
+              loader={() => import("./components/stages/CompleteStage.svelte")}
+              props={{ store, commands, onExtractIR: (sceneId: string) => extractSceneIR(sceneId) }}
             />
           {:else if workflow.activeStage === "export"}
-            <ExportStage {store} />
+            <LazyStage loader={() => import("./components/stages/ExportStage.svelte")} props={{ store }} />
           {/if}
         </div>
         {#snippet failed(err, reset)}
