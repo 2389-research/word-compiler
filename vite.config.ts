@@ -10,6 +10,19 @@ export default defineConfig({
     },
     ...(process.env.VITEST ? { conditions: ["browser"] } : {}),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("codemirror")) return "vendor-codemirror";
+            if (id.includes("tiptap") || id.includes("prosemirror")) return "vendor-tiptap";
+            if (id.includes("svelte")) return "vendor-svelte";
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       "/api": "http://localhost:3001",
