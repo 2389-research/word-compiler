@@ -53,6 +53,9 @@ importers:
       cors:
         specifier: ^2.8.6
         version: 2.8.6
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -68,7 +71,7 @@ importers:
         version: 2.4.2
       '@browserbasehq/stagehand':
         specifier: ^3.0.8
-        version: 3.0.8(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(deepmerge@4.3.1)(dotenv@16.6.1)(zod@3.25.76)
+        version: 3.0.8(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(deepmerge@4.3.1)(dotenv@17.4.2)(zod@3.25.76)
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
@@ -1761,8 +1764,8 @@ packages:
   dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
 
-  dotenv@16.6.1:
-    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+  dotenv@17.4.2:
+    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
@@ -3668,7 +3671,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@browserbasehq/stagehand@3.0.8(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(deepmerge@4.3.1)(dotenv@16.6.1)(zod@3.25.76)':
+  '@browserbasehq/stagehand@3.0.8(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(deepmerge@4.3.1)(dotenv@17.4.2)(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 2.0.1
       '@anthropic-ai/sdk': 0.39.0
@@ -3679,7 +3682,7 @@ snapshots:
       ai: 5.0.136(zod@3.25.76)
       deepmerge: 4.3.1
       devtools-protocol: 0.0.1464554
-      dotenv: 16.6.1
+      dotenv: 17.4.2
       fetch-cookie: 3.2.0
       openai: 4.104.0(ws@8.19.0(bufferutil@4.1.0))(zod@3.25.76)
       pino: 9.14.0
@@ -5021,7 +5024,7 @@ snapshots:
 
   dom-accessibility-api@0.6.3: {}
 
-  dotenv@16.6.1: {}
+  dotenv@17.4.2: {}
 
   dunder-proto@1.0.1:
     dependencies:

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Anthropic from "@anthropic-ai/sdk";
 import cors from "cors";
 import express from "express";
