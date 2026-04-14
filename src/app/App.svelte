@@ -287,7 +287,7 @@ function exportState() {
 <a class="skip-to-main" href="#main-content">Skip to main content</a>
 
 {#if !appReady}
-  <main id="main-content" class="app" class:loading-screen={startupStatus !== "multiple-projects"}>
+  <main class="app" class:loading-screen={startupStatus !== "multiple-projects"}>
     {#if startupStatus !== "multiple-projects"}
       <span class="app-title">Word Compiler</span>
     {/if}

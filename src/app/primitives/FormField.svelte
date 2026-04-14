@@ -1,7 +1,8 @@
 <script lang="ts">
-import type { Snippet } from "svelte";
+import { type Snippet, setContext } from "svelte";
 import { FIELD_GLOSSARY } from "../components/field-glossary.js";
 import { hasHoverCapability, onHoverChange } from "./actions.js";
+import { FORM_FIELD_CONTEXT_KEY, type FormFieldContext } from "./formFieldContext.js";
 
 let {
   label,
@@ -18,6 +19,17 @@ let {
   required?: boolean;
   children: Snippet;
 } = $props();
+
+// Unique per-instance ids so multiple FormFields reusing the same glossary
+// fieldId (e.g. one per character) still get distinct DOM ids.
+const uid = `ff-${Math.random().toString(36).slice(2, 10)}`;
+const inputId = uid;
+const labelId = `${uid}-label`;
+
+// Child primitives (Input / TextArea / Select / RadioGroup / TagInput) read
+// these via getContext to wire explicit label-for / aria-labelledby without
+// requiring every call site to thread ids manually.
+setContext<FormFieldContext>(FORM_FIELD_CONTEXT_KEY, { inputId, labelId });
 
 let glossary = $derived(fieldId ? FIELD_GLOSSARY[fieldId as keyof typeof FIELD_GLOSSARY] : undefined);
 let displayLabel = $derived(label ?? glossary?.technical ?? fieldId ?? "");
@@ -36,9 +48,8 @@ $effect(() => {
 });
 </script>
 
-<!-- svelte-ignore a11y_label_has_associated_control -->
-<label class="form-field" class:form-field-error={!!error}>
-  <span class="form-field-label">
+<div class="form-field" class:form-field-error={!!error}>
+  <label class="form-field-label" id={labelId} for={inputId}>
     {displayLabel}{#if required}<span class="form-field-required">*</span>{/if}
     {#if plainLabel}
       <span class="form-field-plain">({plainLabel})</span>
@@ -49,10 +60,9 @@ $effect(() => {
         class="form-field-tooltip-trigger"
         aria-label="More information about {displayLabel}"
         aria-describedby={showTooltip && tooltipId ? tooltipId : undefined}
-        onmousedown={(e) => e.preventDefault()}
         onmouseenter={() => { if (hasHover) showTooltip = true; }}
         onmouseleave={() => { if (hasHover) showTooltip = false; }}
-        onclick={(e) => { e.preventDefault(); if (!hasHover) showTooltip = !showTooltip; }}
+        onclick={() => { if (!hasHover) showTooltip = !showTooltip; }}
         onfocus={() => { if (hasHover) showTooltip = true; }}
         onblur={() => { showTooltip = false; }}
       >?</button>
@@ -60,7 +70,7 @@ $effect(() => {
         <span class="form-field-tooltip" role="tooltip" id={tooltipId}>{tooltip}</span>
       {/if}
     {/if}
-  </span>
+  </label>
   {#if hint}
     <span class="form-field-hint">{hint}</span>
   {/if}
@@ -68,7 +78,7 @@ $effect(() => {
   {#if error}
     <span class="form-field-error-msg">{error}</span>
   {/if}
-</label>
+</div>
 
 <style>
   .form-field { display: flex; flex-direction: column; gap: 3px; }

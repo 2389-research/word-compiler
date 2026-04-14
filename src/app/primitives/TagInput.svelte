@@ -1,4 +1,7 @@
 <script lang="ts">
+import { getContext } from "svelte";
+import { FORM_FIELD_CONTEXT_KEY, type FormFieldContext } from "./formFieldContext.js";
+
 let {
   tags,
   onchange,
@@ -8,6 +11,8 @@ let {
   onchange: (tags: string[]) => void;
   placeholder?: string;
 } = $props();
+
+const ffCtx = getContext<FormFieldContext | undefined>(FORM_FIELD_CONTEXT_KEY);
 
 let inputValue = $state("");
 
@@ -55,6 +60,8 @@ function handleInput(e: Event) {
   {/each}
   <input
     class="tag-input"
+    id={ffCtx?.inputId}
+    aria-labelledby={ffCtx?.labelId}
     type="text"
     value={inputValue}
     {placeholder}

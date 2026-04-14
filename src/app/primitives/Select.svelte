@@ -1,18 +1,24 @@
 <script lang="ts">
-import type { Snippet } from "svelte";
+import { getContext, type Snippet } from "svelte";
+import { FORM_FIELD_CONTEXT_KEY, type FormFieldContext } from "./formFieldContext.js";
 
 let {
+  id,
   value,
   onchange,
   children,
 }: {
+  id?: string;
   value: string;
   onchange?: (e: Event) => void;
   children: Snippet;
 } = $props();
+
+const ffCtx = getContext<FormFieldContext | undefined>(FORM_FIELD_CONTEXT_KEY);
+const resolvedId = $derived(id ?? ffCtx?.inputId);
 </script>
 
-<select class="select" {value} {onchange}>
+<select class="select" id={resolvedId} {value} {onchange}>
   {@render children()}
 </select>
 
