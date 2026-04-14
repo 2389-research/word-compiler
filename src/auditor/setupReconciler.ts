@@ -1,4 +1,5 @@
 import type { Bible, NarrativeIR } from "../types/index.js";
+import { generateId } from "../types/index.js";
 import { findPayoffForSetup, matchesSetupDescription } from "./setupMatching.js";
 
 // ─── Setup Status Reconciler ────────────────────────────
@@ -48,8 +49,39 @@ export function reconcileSetupStatuses(
     .filter(([sceneId, ir]) => (ir.verified || trustSet.has(sceneId)) && sceneId in sceneOrders)
     .sort(([a], [b]) => sceneOrders[a]! - sceneOrders[b]!);
 
+  let initialSetups = bible.narrativeRules.setups;
+  if (initialSetups.length === 0) {
+    const seededSetups: NonNullable<Bible["narrativeRules"]["setups"]> = [];
+    const seenDescriptions = new Set<string>();
+    for (const [sceneId, ir] of trustedIRs) {
+      for (const planted of ir.setupsPlanted) {
+        const description = planted.trim();
+        if (description.length === 0) continue;
+        const key = description.toLowerCase();
+        if (seenDescriptions.has(key)) continue;
+        seenDescriptions.add(key);
+        seededSetups.push({
+          id: generateId(),
+          description,
+          plantedInScene: sceneId,
+          payoffInScene: null,
+          status: "planted",
+        });
+        changes.push({
+          setupId: seededSetups[seededSetups.length - 1]!.id,
+          description,
+          from: "missing",
+          to: "planted",
+          sceneId,
+          reason: `Seeded setup from IR.setupsPlanted in scene ${sceneId}`,
+        });
+      }
+    }
+    initialSetups = seededSetups;
+  }
+
   // Pass 1: planned → planted
-  const afterPlanting = bible.narrativeRules.setups.map((setup) => {
+  const afterPlanting = initialSetups.map((setup) => {
     if (setup.status !== "planned") return setup;
 
     for (const [sceneId, ir] of trustedIRs) {

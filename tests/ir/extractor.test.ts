@@ -108,12 +108,14 @@ describe("buildIRExtractionPrompt", () => {
     const bible = { ...makeBible(), narrativeRules: { ...makeBible().narrativeRules, setups: [] } };
     const prompt = buildIRExtractionPrompt("prose", makePlan(), bible);
     expect(prompt).toContain("(none registered)");
+    expect(prompt).toContain("If ACTIVE SETUPS is empty, still extract payoffs");
   });
 
   it("includes PAYOFF MATCHING RULES block", () => {
     const prompt = buildIRExtractionPrompt("prose", makePlan(), makeBible());
     expect(prompt).toContain("PAYOFF MATCHING RULES:");
     expect(prompt).toContain("setup's description verbatim as a prefix");
+    expect(prompt).toContain("When ACTIVE SETUPS is non-empty, only list payoffs for setups in ACTIVE SETUPS.");
   });
 
   it("excludes paid-off and dangling setups from ACTIVE SETUPS", () => {
@@ -162,7 +164,7 @@ describe("buildIRExtractionPrompt", () => {
 
   it("uses structured payoffsExecuted format instruction", () => {
     const prompt = buildIRExtractionPrompt("prose", makePlan(), makeBible());
-    expect(prompt).toContain("<setup description from ACTIVE SETUPS>");
+    expect(prompt).toContain("<setup description or setup phrase>");
     expect(prompt).toContain("<how it was paid off>");
   });
 });
