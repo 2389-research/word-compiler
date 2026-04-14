@@ -38,7 +38,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "src/**/*.ts": [
+    "src/**/*.{ts,svelte}": [
       "biome check --write"
     ],
     "server/**/*.ts": [
