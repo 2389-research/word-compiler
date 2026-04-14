@@ -1,4 +1,7 @@
 <script lang="ts">
+import { getContext } from "svelte";
+import { FORM_FIELD_CONTEXT_KEY, type FormFieldContext } from "./formFieldContext.js";
+
 let {
   options,
   value,
@@ -12,9 +15,11 @@ let {
   name: string;
   direction?: "row" | "column";
 } = $props();
+
+const ffCtx = getContext<FormFieldContext | undefined>(FORM_FIELD_CONTEXT_KEY);
 </script>
 
-<div class="radio-group radio-group-{direction}" role="radiogroup">
+<div class="radio-group radio-group-{direction}" role="radiogroup" aria-labelledby={ffCtx?.labelId}>
   {#each options as opt (opt.value)}
     <label class="radio-option" class:radio-option-selected={value === opt.value}>
       <input
@@ -43,6 +48,20 @@ let {
     border-color: var(--accent); color: var(--accent);
     background: rgba(0, 212, 255, 0.08);
   }
-  .radio-option input { display: none; }
+  .radio-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .radio-option:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   .radio-label { font-family: var(--font-mono); }
 </style>

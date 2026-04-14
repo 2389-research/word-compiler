@@ -247,7 +247,6 @@ function handleCancel() {
   }
 
   .prose-editor :global(.prose-editor-content) {
-    outline: none;
     padding: 24px 48px;
     font-size: 14px;
     line-height: 1.8;
@@ -256,6 +255,13 @@ function handleCancel() {
     max-width: 720px;
     margin: 0 auto;
     color: var(--text-primary);
+  }
+  .prose-editor :global(.prose-editor-content:focus) {
+    outline: none;
+  }
+  .prose-editor :global(.prose-editor-content:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
   .prose-editor :global(.prose-editor-content p) {

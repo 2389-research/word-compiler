@@ -1,4 +1,7 @@
 <script lang="ts">
+import { getContext } from "svelte";
+import { FORM_FIELD_CONTEXT_KEY, type FormFieldContext } from "./formFieldContext.js";
+
 let {
   tags,
   onchange,
@@ -8,6 +11,8 @@ let {
   onchange: (tags: string[]) => void;
   placeholder?: string;
 } = $props();
+
+const ffCtx = getContext<FormFieldContext | undefined>(FORM_FIELD_CONTEXT_KEY);
 
 let inputValue = $state("");
 
@@ -55,6 +60,8 @@ function handleInput(e: Event) {
   {/each}
   <input
     class="tag-input"
+    id={ffCtx?.inputId}
+    aria-labelledby={ffCtx?.labelId}
     type="text"
     value={inputValue}
     {placeholder}
@@ -82,9 +89,17 @@ function handleInput(e: Event) {
   }
   .tag-remove:hover { color: var(--error); }
   .tag-input {
-    border: none; background: transparent; outline: none;
+    border: none; background: transparent;
     font-family: var(--font-mono); font-size: 11px;
     color: var(--text-primary); flex: 1; min-width: 80px;
+  }
+  .tag-input:focus {
+    outline: none;
+  }
+  .tag-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
   .tag-input::placeholder { color: var(--text-muted); }
 </style>

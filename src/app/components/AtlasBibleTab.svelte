@@ -461,7 +461,7 @@ function hasNarrativeData(): boolean {
     color: var(--text-primary); padding: 4px 24px 4px 8px;
   }
   .search-input::placeholder { color: var(--text-muted); }
-  .search-input:focus { outline: none; border-color: var(--accent); }
+  .search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
   .search-clear {
     position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
     background: none; border: none; color: var(--text-muted); cursor: pointer;

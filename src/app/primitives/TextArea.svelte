@@ -1,7 +1,10 @@
 <script lang="ts">
+import { getContext } from "svelte";
 import { focusOnMount } from "./actions.js";
+import { FORM_FIELD_CONTEXT_KEY, type FormFieldContext } from "./formFieldContext.js";
 
 let {
+  id,
   value = $bindable(""),
   placeholder,
   rows,
@@ -12,6 +15,7 @@ let {
   onkeydown,
   oninput,
 }: {
+  id?: string;
   value?: string;
   placeholder?: string;
   rows?: number;
@@ -22,6 +26,9 @@ let {
   onkeydown?: (e: KeyboardEvent) => void;
   oninput?: (e: Event) => void;
 } = $props();
+
+const ffCtx = getContext<FormFieldContext | undefined>(FORM_FIELD_CONTEXT_KEY);
+const resolvedId = $derived(id ?? ffCtx?.inputId);
 
 let el: HTMLTextAreaElement;
 
@@ -49,6 +56,7 @@ function handleInput(e: Event) {
 
 <textarea
   bind:this={el}
+  id={resolvedId}
   class="textarea textarea-{variant}"
   class:textarea-autosize={autosize}
   bind:value
