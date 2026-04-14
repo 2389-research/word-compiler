@@ -115,6 +115,7 @@ describe("buildIRExtractionPrompt", () => {
     const prompt = buildIRExtractionPrompt("prose", makePlan(), makeBible());
     expect(prompt).toContain("PAYOFF MATCHING RULES:");
     expect(prompt).toContain("setup's description verbatim as a prefix");
+    expect(prompt).toContain("When ACTIVE SETUPS is non-empty, only list payoffs for setups in ACTIVE SETUPS.");
   });
 
   it("excludes paid-off and dangling setups from ACTIVE SETUPS", () => {

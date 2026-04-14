@@ -41,6 +41,7 @@ PAYOFF MATCHING RULES:
 When a setup from ACTIVE SETUPS is paid off in this scene, reference it in
 payoffsExecuted using the setup's description verbatim as a prefix, followed
 by " — " and a brief note on how the payoff occurred.
+When ACTIVE SETUPS is non-empty, only list payoffs for setups in ACTIVE SETUPS.
 If ACTIVE SETUPS is empty, still extract payoffs for callbacks/payoffs that
 occur in this scene using "<setup phrase from prose> — <how it was paid off>".
 

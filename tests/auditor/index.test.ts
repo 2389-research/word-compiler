@@ -256,4 +256,33 @@ describe("runAudit", () => {
 
     expect(flags.some((f) => f.category === "dangling_setup")).toBe(true);
   });
+
+  it("ignores unverified prior IR payoffs when checking dangling setups", () => {
+    const bible = createEmptyBible("test");
+    bible.narrativeRules.setups = [
+      {
+        id: "setup-1",
+        description: "The hidden key",
+        plantedInScene: "scene-1",
+        payoffInScene: null,
+        status: "planted",
+      },
+    ];
+    const sceneIR = { ...createEmptyNarrativeIR("scene-2"), verified: true };
+    const priorIR = {
+      ...createEmptyNarrativeIR("scene-1"),
+      verified: false,
+      payoffsExecuted: ["The hidden key — used to open the drawer"],
+    };
+    const plan = { ...createEmptyScenePlan("test"), id: "scene-2" };
+
+    const { flags } = runAudit("Some prose.", bible, "scene-2", {
+      sceneIR,
+      allPriorIRs: [priorIR],
+      plan,
+      isFinalScene: true,
+    });
+
+    expect(flags.some((f) => f.category === "dangling_setup")).toBe(true);
+  });
 });

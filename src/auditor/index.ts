@@ -245,11 +245,12 @@ export function runAudit(
 
   // IR-driven checks (only when IR context is provided with verified IRs)
   if (irContext?.sceneIR?.verified) {
+    const verifiedPriorIRs = irContext.allPriorIRs.filter((ir) => ir.verified);
     flags.push(...checkEpistemicLeaks(irContext.sceneIR, irContext.allPriorIRs, bible));
     flags.push(...checkSetupPayoff(irContext.sceneIR, irContext.plan, bible));
     if (irContext.isFinalScene) {
       const bySceneId = new Map<string, NarrativeIR>();
-      for (const ir of irContext.allPriorIRs) bySceneId.set(ir.sceneId, ir);
+      for (const ir of verifiedPriorIRs) bySceneId.set(ir.sceneId, ir);
       bySceneId.set(irContext.sceneIR.sceneId, irContext.sceneIR);
       flags.push(...checkDanglingSetups([...bySceneId.values()], bible, irContext.plan.id));
     }
