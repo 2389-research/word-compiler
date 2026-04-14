@@ -163,12 +163,16 @@ let editTitleValue = $state("");
 let boundaryErrorMsg = "";
 
 // ─── Prose word count ───────────────────────────
-let totalWordCount = $derived(
-  store.scenes.reduce((sum, scene) => {
+let cachedWordCount = 0;
+let totalWordCount = $derived.by(() => {
+  // Skip recomputation during streaming — word count updates when generation finishes
+  if (store.isGenerating) return cachedWordCount;
+  cachedWordCount = store.scenes.reduce((sum, scene) => {
     const chunks = store.sceneChunks[scene.plan.id] ?? [];
     return sum + chunks.reduce((s, c) => s + getCanonicalText(c).split(/\s+/).filter(Boolean).length, 0);
-  }, 0),
-);
+  }, 0);
+  return cachedWordCount;
+});
 
 // ─── State Export ────────────────────────────────
 function truncate(text: string, maxLen: number): string {

@@ -45,10 +45,16 @@ export async function loadProject(store: ProjectStore, projectId: string): Promi
       }));
     }
 
-    // Fetch chunks for each scene
+    // Fetch chunks for all scenes in parallel
     const sceneChunks: Record<string, Chunk[]> = {};
-    for (const scene of scenes) {
-      sceneChunks[scene.plan.id] = await api.apiListChunks(scene.plan.id);
+    const chunkResults = await Promise.all(
+      scenes.map(async (scene) => ({
+        sceneId: scene.plan.id,
+        chunks: await api.apiListChunks(scene.plan.id),
+      })),
+    );
+    for (const { sceneId, chunks } of chunkResults) {
+      sceneChunks[sceneId] = chunks;
     }
 
     // Fetch narrative IRs for all scenes in the chapter

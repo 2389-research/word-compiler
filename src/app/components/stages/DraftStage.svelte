@@ -351,14 +351,26 @@ let gateMessages = $derived.by(() => {
   return msgs;
 });
 
+// Skip expensive NLP computations during streaming to avoid recomputing on every token
+let cachedStyleDrift: StyleDriftReport[] = [];
 let styleDriftReports = $derived.by((): StyleDriftReport[] => {
-  if (!store.bible) return [];
+  if (store.isGenerating) return cachedStyleDrift;
+  if (!store.bible) {
+    cachedStyleDrift = [];
+    return [];
+  }
   const completedScenes = store.scenes.filter((s) => s.status === "complete");
-  if (completedScenes.length < 2) return [];
+  if (completedScenes.length < 2) {
+    cachedStyleDrift = [];
+    return [];
+  }
   const reports: StyleDriftReport[] = [];
   const baselineId = completedScenes[0]!.plan.id;
   const baselineChunks = store.sceneChunks[baselineId] ?? [];
-  if (baselineChunks.length === 0) return [];
+  if (baselineChunks.length === 0) {
+    cachedStyleDrift = [];
+    return [];
+  }
   const baselineProse = baselineChunks.map((c) => getCanonicalText(c)).join("\n\n");
   for (let i = 1; i < completedScenes.length; i++) {
     const scene = completedScenes[i]!;
@@ -367,22 +379,32 @@ let styleDriftReports = $derived.by((): StyleDriftReport[] => {
     const prose = chunks.map((c) => getCanonicalText(c)).join("\n\n");
     reports.push(computeStyleDriftFromProse(baselineId, baselineProse, scene.plan.id, prose));
   }
+  cachedStyleDrift = reports;
   return reports;
 });
 
 let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Scene 1");
 let sceneTitles = $derived(Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.plan.title])));
 
+let cachedVoiceReport: VoiceSeparabilityReport | null = null;
 let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {
-  if (!store.bible || store.bible.characters.length < 2) return null;
+  if (store.isGenerating) return cachedVoiceReport;
+  if (!store.bible || store.bible.characters.length < 2) {
+    cachedVoiceReport = null;
+    return null;
+  }
   const sceneTexts = store.scenes
     .map((s) => ({
       sceneId: s.plan.id,
       prose: (store.sceneChunks[s.plan.id] ?? []).map((c) => getCanonicalText(c)).join("\n\n"),
     }))
     .filter((s) => s.prose.length > 0);
-  if (sceneTexts.length === 0) return null;
-  return measureVoiceSeparability(sceneTexts, store.bible);
+  if (sceneTexts.length === 0) {
+    cachedVoiceReport = null;
+    return null;
+  }
+  cachedVoiceReport = measureVoiceSeparability(sceneTexts, store.bible);
+  return cachedVoiceReport;
 });
 
 // ─── Handlers ───────────────────────────────────
