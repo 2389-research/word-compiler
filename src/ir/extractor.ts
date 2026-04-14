@@ -40,8 +40,9 @@ ${setupList}
 PAYOFF MATCHING RULES:
 When a setup from ACTIVE SETUPS is paid off in this scene, reference it in
 payoffsExecuted using the setup's description verbatim as a prefix, followed
-by " — " and a brief note on how the payoff occurred. Only list payoffs for
-setups in the ACTIVE SETUPS list above.
+by " — " and a brief note on how the payoff occurred.
+If ACTIVE SETUPS is empty, still extract payoffs for callbacks/payoffs that
+occur in this scene using "<setup phrase from prose> — <how it was paid off>".
 
 SCENE PROSE:
 ${prose}
@@ -65,7 +66,7 @@ Extract the narrative internal record for this scene. Return ONLY valid JSON in 
     }
   ],
   "setupsPlanted": ["description of each setup planted in this scene — quote from prose if possible"],
-  "payoffsExecuted": ["<setup description from ACTIVE SETUPS> — <how it was paid off>"],
+  "payoffsExecuted": ["<setup description or setup phrase> — <how it was paid off>"],
   "characterPositions": [
     { "characterId": "character name or id", "position": "physical/narrative position at scene end" }
   ],

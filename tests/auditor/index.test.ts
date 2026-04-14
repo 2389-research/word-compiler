@@ -7,7 +7,7 @@ import {
   runAudit,
   splitSentences,
 } from "../../src/auditor/index.js";
-import { createEmptyBible } from "../../src/types/index.js";
+import { createEmptyBible, createEmptyNarrativeIR, createEmptyScenePlan } from "../../src/types/index.js";
 
 describe("checkKillList", () => {
   it("clean prose returns no flags", () => {
@@ -207,5 +207,53 @@ describe("runAudit", () => {
 
     expect(flags.some((f) => f.category === "kill_list")).toBe(true);
     expect(metrics.wordCount).toBeGreaterThan(0);
+  });
+
+  it("runs setup/payoff check when verified IR context is provided", () => {
+    const bible = createEmptyBible("test");
+    bible.narrativeRules.setups = [
+      {
+        id: "setup-1",
+        description: "The hidden key",
+        plantedInScene: "scene-1",
+        payoffInScene: null,
+        status: "planted",
+      },
+    ];
+    const sceneIR = { ...createEmptyNarrativeIR("scene-1"), verified: true, setupsPlanted: [] };
+    const plan = { ...createEmptyScenePlan("test"), id: "scene-1" };
+
+    const { flags } = runAudit("Some prose.", bible, "scene-1", {
+      sceneIR,
+      allPriorIRs: [],
+      plan,
+    });
+
+    expect(flags.some((f) => f.category === "setup_missing")).toBe(true);
+  });
+
+  it("runs dangling setup check when auditing final scene", () => {
+    const bible = createEmptyBible("test");
+    bible.narrativeRules.setups = [
+      {
+        id: "setup-1",
+        description: "The hidden key",
+        plantedInScene: "scene-1",
+        payoffInScene: null,
+        status: "planted",
+      },
+    ];
+    const sceneIR = { ...createEmptyNarrativeIR("scene-2"), verified: true };
+    const priorIR = { ...createEmptyNarrativeIR("scene-1"), verified: true };
+    const plan = { ...createEmptyScenePlan("test"), id: "scene-2" };
+
+    const { flags } = runAudit("Some prose.", bible, "scene-2", {
+      sceneIR,
+      allPriorIRs: [priorIR],
+      plan,
+      isFinalScene: true,
+    });
+
+    expect(flags.some((f) => f.category === "dangling_setup")).toBe(true);
   });
 });

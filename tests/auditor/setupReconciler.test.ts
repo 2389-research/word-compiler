@@ -186,15 +186,34 @@ describe("reconcileSetupStatuses", () => {
     expect(changes[1]!.to).toBe("paid-off");
   });
 
-  it("returns empty changes with empty bible setups", () => {
+  it("seeds setups from trusted IRs when bible setups are empty", () => {
     const bible = createEmptyBible("proj-1");
     const irs: Record<string, NarrativeIR> = {
       "scene-1": makeVerifiedIR("scene-1", { setupsPlanted: ["something"] }),
     };
 
-    const { changes } = reconcileSetupStatuses(bible, irs, { "scene-1": 0 });
+    const { updatedBible, changes } = reconcileSetupStatuses(bible, irs, { "scene-1": 0 });
 
-    expect(changes).toHaveLength(0);
+    expect(updatedBible.narrativeRules.setups).toHaveLength(1);
+    expect(updatedBible.narrativeRules.setups[0]!.description).toBe("something");
+    expect(updatedBible.narrativeRules.setups[0]!.status).toBe("planted");
+    expect(updatedBible.narrativeRules.setups[0]!.plantedInScene).toBe("scene-1");
+    expect(changes).toHaveLength(1);
+    expect(changes[0]!.from).toBe("missing");
+    expect(changes[0]!.to).toBe("planted");
+  });
+
+  it("deduplicates seeded setups by normalized description", () => {
+    const bible = createEmptyBible("proj-1");
+    const irs: Record<string, NarrativeIR> = {
+      "scene-1": makeVerifiedIR("scene-1", { setupsPlanted: ["The hidden key", "the hidden key "] }),
+      "scene-2": makeVerifiedIR("scene-2", { setupsPlanted: ["THE HIDDEN KEY"] }),
+    };
+
+    const { updatedBible, changes } = reconcileSetupStatuses(bible, irs, { "scene-1": 0, "scene-2": 1 });
+
+    expect(updatedBible.narrativeRules.setups).toHaveLength(1);
+    expect(changes).toHaveLength(1);
   });
 
   it("skips payoff check when plantedInScene is null (avoids false paid-off)", () => {

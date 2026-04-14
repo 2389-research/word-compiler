@@ -1,4 +1,4 @@
-import { runAudit } from "../../auditor/index.js";
+import { type IRAuditContext, runAudit } from "../../auditor/index.js";
 import { reconcileSetupStatuses } from "../../auditor/setupReconciler.js";
 import { checkSubtext } from "../../auditor/subtext.js";
 import { extractIR, type IRLLMClient } from "../../ir/extractor.js";
@@ -12,7 +12,7 @@ import {
   REFINEMENT_OUTPUT_SCHEMA,
 } from "../../review/refine.js";
 import type { RefinementRequest, RefinementResult } from "../../review/refineTypes.js";
-import type { Chunk, NarrativeIR } from "../../types/index.js";
+import type { Chunk, NarrativeIR, ScenePlan } from "../../types/index.js";
 import { DEFAULT_MODEL, generateId, getCanonicalText } from "../../types/index.js";
 import type { Commands } from "./commands.js";
 import type { ProjectStore } from "./project.svelte.js";
@@ -43,7 +43,8 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     const allText = [...chunksForScene(sceneId).slice(0, chunkIndex), { ...pendingChunk, generatedText: fullText }]
       .map((c) => getCanonicalText(c))
       .join("\n\n");
-    const { flags, metrics } = runAudit(allText, store.bible!, sceneId);
+    const scenePlan = store.scenes.find((s) => s.plan.id === sceneId)?.plan ?? store.activeScenePlan;
+    const { flags, metrics } = runAudit(allText, store.bible!, sceneId, buildIRAuditContext(sceneId, scenePlan));
     store.setAudit(flags, metrics);
 
     await commands.saveAuditFlags(flags);
@@ -102,6 +103,25 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     return !!(store.compiledPayload && store.bible && store.activeScenePlan);
   }
 
+  function buildIRAuditContext(sceneId: string, plan: ScenePlan | null): IRAuditContext | undefined {
+    const sceneIR = store.sceneIRs[sceneId];
+    if (!sceneIR || !plan) return undefined;
+
+    const currentOrder = store.scenes.find((s) => s.plan.id === sceneId)?.sceneOrder ?? Number.POSITIVE_INFINITY;
+    const allPriorIRs = store.scenes
+      .filter((s) => s.sceneOrder < currentOrder)
+      .map((s) => store.sceneIRs[s.plan.id])
+      .filter((ir): ir is NarrativeIR => !!ir);
+    const maxOrder = Math.max(...store.scenes.map((s) => s.sceneOrder));
+
+    return {
+      sceneIR,
+      allPriorIRs,
+      plan,
+      isFinalScene: currentOrder === maxOrder,
+    };
+  }
+
   async function generateChunk(pinnedSceneId?: string) {
     if (!canGenerate()) {
       store.setError("Cannot generate: missing compiled payload, bible, or scene plan");
@@ -153,7 +173,8 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
 
     try {
       const allText = chunks.map((c) => getCanonicalText(c)).join("\n\n");
-      const { flags, metrics } = runAudit(allText, store.bible!, sceneId);
+      const scenePlan = store.scenes.find((s) => s.plan.id === sceneId)?.plan ?? plan;
+      const { flags, metrics } = runAudit(allText, store.bible!, sceneId, buildIRAuditContext(sceneId, scenePlan));
       store.setAudit(flags, metrics);
       await commands.saveAuditFlags(flags);
     } catch (err) {
@@ -260,17 +281,20 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
 
     try {
       const prose = chunks.map((c) => getCanonicalText(c)).join("\n\n");
+      const { flags: baseFlags, metrics } = runAudit(
+        prose,
+        store.bible!,
+        sceneId,
+        buildIRAuditContext(sceneId, scenePlan),
+      );
       const subtextClient = {
         call: (systemMessage: string, userMessage: string, model: string, maxTokens: number) =>
           callLLM(systemMessage, userMessage, model, maxTokens),
       };
       const subtextFlags = await checkSubtext(prose, scenePlan, subtextClient);
-
-      if (subtextFlags.length > 0) {
-        const combined = [...store.auditFlags, ...subtextFlags];
-        store.setAudit(combined, store.metrics);
-        await commands.saveAuditFlags(combined);
-      }
+      const combined = [...baseFlags, ...subtextFlags];
+      store.setAudit(combined, metrics);
+      await commands.saveAuditFlags(combined);
     } catch (err) {
       store.setError(err instanceof Error ? err.message : "Deep audit failed");
     } finally {

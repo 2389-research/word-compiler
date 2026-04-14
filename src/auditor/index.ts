@@ -10,7 +10,7 @@ import type {
 } from "../types/index.js";
 import { generateId } from "../types/index.js";
 import { checkEpistemicLeaks } from "./epistemic.js";
-import { checkSetupPayoff } from "./setupPayoff.js";
+import { checkDanglingSetups, checkSetupPayoff } from "./setupPayoff.js";
 
 // ─── Kill List ──────────────────────────────────────────
 
@@ -226,6 +226,7 @@ export interface IRAuditContext {
   sceneIR: NarrativeIR;
   allPriorIRs: NarrativeIR[];
   plan: ScenePlan;
+  isFinalScene?: boolean;
 }
 
 // ─── Convenience ────────────────────────────────────────
@@ -246,6 +247,12 @@ export function runAudit(
   if (irContext?.sceneIR?.verified) {
     flags.push(...checkEpistemicLeaks(irContext.sceneIR, irContext.allPriorIRs, bible));
     flags.push(...checkSetupPayoff(irContext.sceneIR, irContext.plan, bible));
+    if (irContext.isFinalScene) {
+      const bySceneId = new Map<string, NarrativeIR>();
+      for (const ir of irContext.allPriorIRs) bySceneId.set(ir.sceneId, ir);
+      bySceneId.set(irContext.sceneIR.sceneId, irContext.sceneIR);
+      flags.push(...checkDanglingSetups([...bySceneId.values()], bible, irContext.plan.id));
+    }
   }
 
   const metrics = computeMetrics(prose);
