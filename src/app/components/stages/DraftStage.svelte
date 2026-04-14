@@ -351,7 +351,10 @@ let gateMessages = $derived.by(() => {
   return msgs;
 });
 
+// Skip expensive NLP computations during streaming to avoid recomputing on every token
+let cachedStyleDrift: StyleDriftReport[] = [];
 let styleDriftReports = $derived.by((): StyleDriftReport[] => {
+  if (store.isGenerating) return cachedStyleDrift;
   if (!store.bible) return [];
   const completedScenes = store.scenes.filter((s) => s.status === "complete");
   if (completedScenes.length < 2) return [];
@@ -367,13 +370,16 @@ let styleDriftReports = $derived.by((): StyleDriftReport[] => {
     const prose = chunks.map((c) => getCanonicalText(c)).join("\n\n");
     reports.push(computeStyleDriftFromProse(baselineId, baselineProse, scene.plan.id, prose));
   }
+  cachedStyleDrift = reports;
   return reports;
 });
 
 let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Scene 1");
 let sceneTitles = $derived(Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.plan.title])));
 
+let cachedVoiceReport: VoiceSeparabilityReport | null = null;
 let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {
+  if (store.isGenerating) return cachedVoiceReport;
   if (!store.bible || store.bible.characters.length < 2) return null;
   const sceneTexts = store.scenes
     .map((s) => ({
@@ -382,7 +388,8 @@ let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {
     }))
     .filter((s) => s.prose.length > 0);
   if (sceneTexts.length === 0) return null;
-  return measureVoiceSeparability(sceneTexts, store.bible);
+  cachedVoiceReport = measureVoiceSeparability(sceneTexts, store.bible);
+  return cachedVoiceReport;
 });
 
 // ─── Handlers ───────────────────────────────────
