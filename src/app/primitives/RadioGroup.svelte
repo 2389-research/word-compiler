@@ -43,6 +43,20 @@ let {
     border-color: var(--accent); color: var(--accent);
     background: rgba(0, 212, 255, 0.08);
   }
-  .radio-option input { display: none; }
+  .radio-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .radio-option:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   .radio-label { font-family: var(--font-mono); }
 </style>

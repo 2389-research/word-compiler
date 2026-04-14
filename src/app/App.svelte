@@ -284,8 +284,10 @@ function exportState() {
 
 <svelte:window onkeydown={handleKeydown} />
 
+<a class="skip-to-main" href="#main-content">Skip to main content</a>
+
 {#if !appReady}
-  <div class="app" class:loading-screen={startupStatus !== "multiple-projects"}>
+  <main id="main-content" class="app" class:loading-screen={startupStatus !== "multiple-projects"}>
     {#if startupStatus !== "multiple-projects"}
       <span class="app-title">Word Compiler</span>
     {/if}
@@ -317,10 +319,10 @@ function exportState() {
     {#if startupStatus === "no-projects" || startupStatus === "multiple-projects"}
       <VoiceProfilePanel />
     {/if}
-  </div>
+  </main>
 {:else}
 <div class="app">
-  <div class="app-header">
+  <header class="app-header">
     <span class="app-title">Word Compiler</span>
     {#if editingTitle}
       <Input
@@ -368,9 +370,11 @@ function exportState() {
         {theme.current === "dark" ? "Light" : "Dark"}
       </Button>
     </div>
-  </div>
+  </header>
 
-  <WorkflowRail {workflow} />
+  <nav aria-label="Workflow stages">
+    <WorkflowRail {workflow} />
+  </nav>
 
   {#if store.error}
     <div class="error-margin">
@@ -380,7 +384,7 @@ function exportState() {
 
   <StageCTA nextStage={workflow.nextStageCTA} onclick={(stage) => workflow.goToStage(stage.id)} />
 
-  <div class="stage-workspace">
+  <main id="main-content" class="stage-workspace" aria-label="Active stage workspace">
     {#key workflow.activeStage}
       <svelte:boundary onerror={(err) => { console.error("[boundary] Stage crash:", err); boundaryErrorMsg = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Try switching stages or refreshing.`; store.setError(boundaryErrorMsg); }}>
         <div class="stage-content" in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
@@ -434,7 +438,7 @@ function exportState() {
         {/snippet}
       </svelte:boundary>
     {/key}
-  </div>
+  </main>
 
   <GlossaryPanel />
 </div>

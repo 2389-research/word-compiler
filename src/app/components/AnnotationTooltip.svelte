@@ -226,8 +226,9 @@ $effect(() => {
   .feedback-textarea::placeholder {
     color: var(--text-muted);
   }
-  .feedback-textarea:focus {
-    outline: none;
+  .feedback-textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
     border-color: var(--accent);
   }
   .tooltip-actions {

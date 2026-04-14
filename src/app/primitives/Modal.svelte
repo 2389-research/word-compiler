@@ -1,10 +1,12 @@
 <script lang="ts">
 import type { Snippet } from "svelte";
+import { tick } from "svelte";
 
 let {
   open,
   onClose,
   width = "default",
+  labelledBy,
   header,
   children,
   footer,
@@ -12,13 +14,70 @@ let {
   open: boolean;
   onClose: () => void;
   width?: "default" | "wide";
+  labelledBy?: string;
   header: Snippet;
   children: Snippet;
   footer?: Snippet;
 } = $props();
 
+let dialogEl = $state<HTMLDivElement | null>(null);
+let previouslyFocused: HTMLElement | null = null;
+let headerId = `modal-header-${Math.random().toString(36).slice(2, 9)}`;
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function getFocusable(): HTMLElement[] {
+  if (!dialogEl) return [];
+  return Array.from(dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute("disabled") && el.offsetParent !== null,
+  );
+}
+
+$effect(() => {
+  if (open) {
+    previouslyFocused = document.activeElement as HTMLElement | null;
+    tick().then(() => {
+      const focusable = getFocusable();
+      (focusable[0] ?? dialogEl)?.focus();
+    });
+  } else if (previouslyFocused) {
+    previouslyFocused.focus();
+    previouslyFocused = null;
+  }
+});
+
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape") onClose();
+  if (e.key === "Escape") {
+    e.preventDefault();
+    onClose();
+    return;
+  }
+  if (e.key !== "Tab") return;
+
+  const focusable = getFocusable();
+  if (focusable.length === 0) {
+    e.preventDefault();
+    dialogEl?.focus();
+    return;
+  }
+  const first = focusable[0] as HTMLElement;
+  const last = focusable[focusable.length - 1] as HTMLElement;
+  const active = document.activeElement as HTMLElement | null;
+
+  if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 function handleOverlayClick(e: MouseEvent) {
@@ -32,12 +91,16 @@ function handleOverlayClick(e: MouseEvent) {
     class="modal-overlay"
     onclick={handleOverlayClick}
     onkeydown={handleKeydown}
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
   >
-    <div class="modal modal-{width}">
-      <div class="modal-header">{@render header()}</div>
+    <div
+      bind:this={dialogEl}
+      class="modal modal-{width}"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy ?? headerId}
+      tabindex="-1"
+    >
+      <div class="modal-header" id={headerId}>{@render header()}</div>
       <div class="modal-body">{@render children()}</div>
       {#if footer}
         <div class="modal-footer">{@render footer()}</div>
@@ -64,6 +127,13 @@ function handleOverlayClick(e: MouseEvent) {
     max-width: calc(100vw - 32px);
     display: flex;
     flex-direction: column;
+  }
+  .modal:focus {
+    outline: none;
+  }
+  .modal:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   .modal-default { width: 600px; }
   .modal-wide { width: 700px; }

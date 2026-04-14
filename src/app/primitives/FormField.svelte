@@ -36,8 +36,9 @@ $effect(() => {
 });
 </script>
 
-<div class="form-field" class:form-field-error={!!error}>
-  <label class="form-field-label">
+<!-- svelte-ignore a11y_label_has_associated_control -->
+<label class="form-field" class:form-field-error={!!error}>
+  <span class="form-field-label">
     {displayLabel}{#if required}<span class="form-field-required">*</span>{/if}
     {#if plainLabel}
       <span class="form-field-plain">({plainLabel})</span>
@@ -48,9 +49,10 @@ $effect(() => {
         class="form-field-tooltip-trigger"
         aria-label="More information about {displayLabel}"
         aria-describedby={showTooltip && tooltipId ? tooltipId : undefined}
+        onmousedown={(e) => e.preventDefault()}
         onmouseenter={() => { if (hasHover) showTooltip = true; }}
         onmouseleave={() => { if (hasHover) showTooltip = false; }}
-        onclick={() => { if (!hasHover) showTooltip = !showTooltip; }}
+        onclick={(e) => { e.preventDefault(); if (!hasHover) showTooltip = !showTooltip; }}
         onfocus={() => { if (hasHover) showTooltip = true; }}
         onblur={() => { showTooltip = false; }}
       >?</button>
@@ -58,7 +60,7 @@ $effect(() => {
         <span class="form-field-tooltip" role="tooltip" id={tooltipId}>{tooltip}</span>
       {/if}
     {/if}
-  </label>
+  </span>
   {#if hint}
     <span class="form-field-hint">{hint}</span>
   {/if}
@@ -66,7 +68,7 @@ $effect(() => {
   {#if error}
     <span class="form-field-error-msg">{error}</span>
   {/if}
-</div>
+</label>
 
 <style>
   .form-field { display: flex; flex-direction: column; gap: 3px; }

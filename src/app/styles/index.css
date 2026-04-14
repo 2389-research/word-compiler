@@ -247,3 +247,58 @@ button:active:not(:disabled),
     display: none;
   }
 }
+
+/* ─── Accessibility utilities ─────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-to-main {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transform: translateY(-120%);
+  z-index: 1000;
+}
+.skip-to-main:focus {
+  transform: translateY(4px);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Global focus-visible style — component rules may override with their own
+   :focus-visible treatment but must not silently remove focus via :focus. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Respect user preference for reduced motion. Wave, pulse, spinner, and
+   fade transitions get neutered — functionality stays intact. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

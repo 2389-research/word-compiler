@@ -254,7 +254,6 @@ let hasResults = $derived(variants.length > 0);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
-    outline: none;
     margin-bottom: 8px;
     box-sizing: border-box;
   }

@@ -417,7 +417,6 @@ function handleDismiss(id: string) {
     touch-action: pan-y;
   }
   .annotated-editor :global(.annotated-editor-content) {
-    outline: none;
     padding: 10px;
     font-size: 13px;
     line-height: 1.7;
@@ -426,6 +425,13 @@ function handleDismiss(id: string) {
   }
   .annotated-editor :global(.annotated-editor-content p + p) {
     margin-top: 0.8em;
+  }
+  .annotated-editor :global(.annotated-editor-content:focus) {
+    outline: none;
+  }
+  .annotated-editor :global(.annotated-editor-content:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
   /* Squiggle underlines */

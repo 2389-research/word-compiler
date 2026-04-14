@@ -82,9 +82,17 @@ function handleInput(e: Event) {
   }
   .tag-remove:hover { color: var(--error); }
   .tag-input {
-    border: none; background: transparent; outline: none;
+    border: none; background: transparent;
     font-family: var(--font-mono); font-size: 11px;
     color: var(--text-primary); flex: 1; min-width: 80px;
+  }
+  .tag-input:focus {
+    outline: none;
+  }
+  .tag-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
   .tag-input::placeholder { color: var(--text-muted); }
 </style>
