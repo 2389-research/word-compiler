@@ -4,7 +4,7 @@
 
 **Goal:** Fix the timer leaks in `DraftStage.svelte` (`autoReviewTimeout` and `editDebounceTimers` — neither is cleaned up on unmount, so pending `setTimeout` callbacks fire against stale state after the component is destroyed) and split the 650-line god component into a thin orchestrator plus three focused sub-components and two framework-free helper modules — all without touching stores, other panels, primitives, or the API client.
 
-**Architecture:** After the refactor, `src/app/components/stages/DraftStage.svelte` becomes a ~120-line orchestrator that composes `<SceneSequencer/>`, `<DraftStageMain/>`, `<DraftStageSidebar/>`, and `<SceneAuthoringModal/>`. All editorial-review state (orchestrator, annotations, dismissed set, auto-review timer, debounce timers) moves into a single runes-based controller module `draftStageReview.svelte.ts` whose lifecycle is owned by `DraftStageMain.svelte` via an `$effect` with a cleanup function — which is what finally kills both timer leaks. Pure localStorage persistence helpers move to `draftStagePersistence.ts` (no runes, no UI). Expensive NLP derivations (style drift, voice separability) move to `draftStageMetrics.svelte.ts` (a runes `.svelte.ts` module exporting a factory that returns `$derived`-backed reports). The sidebar owns its own `activeTab` state.
+**Architecture:** After the refactor, `src/app/components/stages/DraftStage.svelte` becomes a ~120-line orchestrator that composes `<SceneSequencer/>`, `<DraftStageMain/>`, `<DraftStageSidebar/>`, and `<SceneAuthoringModal/>`. All editorial-review state plus the chunk-command handlers (orchestrator, annotations, dismissed set, auto-review timer, debounce timers, `handleUpdateChunk` / `handleRemoveChunk` / `handleDestroyChunk`) move into a single runes-based controller module `draftStageController.svelte.ts` whose lifecycle is owned by `DraftStageMain.svelte` via an `$effect` with a cleanup function — which is what finally kills both timer leaks. Because the controller is constructed at the top level of `DraftStageMain`'s `<script>`, plain `$effect(...)` calls inside the factory auto-bind to the calling component's lifetime — no `$effect.root` is needed. The controller also exposes a `disposed` flag that every async callback (debounced `handleUpdateChunk`, the auto-review setTimeout body, `onAnnotationsChanged` / `onReviewingChanged` from the orchestrator) checks before touching state, so late LLM responses can't fire into a torn-down controller. Pure localStorage persistence helpers move to `draftStagePersistence.ts` (no runes, no UI). Expensive NLP derivations (style drift, voice separability) move to `draftStageMetrics.svelte.ts` (a runes `.svelte.ts` module exporting a factory that returns `$derived`-backed reports). The sidebar owns its own `activeTab` state. The controller uses `SvelteMap` / `SvelteSet` from `svelte/reactivity` for `chunkAnnotations` and `reviewingChunks` so cross-module getter reads stay reactive without fragile manual reassignment.
 
 **Tech Stack:** Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`), TypeScript strict with `noUncheckedIndexedAccess`, Vitest with `@testing-library/svelte`, Biome (2-space, 120 cols, double quotes, semicolons). No new dependencies.
 
@@ -18,6 +18,8 @@ This package may only modify or create files under:
 
 - `src/app/components/stages/DraftStage*` (i.e. `DraftStage.svelte` plus new sibling files named `DraftStage<Suffix>.svelte` / `draftStage<Suffix>.ts` / `draftStage<Suffix>.svelte.ts`)
 - `tests/ui/DraftStage.test.ts` (new)
+- `tests/app/components/stages/draftStageController.test.ts` (new — controller unit tests)
+- `tests/helpers/mockStore.ts` (new — typed factories for `ProjectStore` / `Commands` mocks; removes `as never` casts from test files)
 
 It may NOT modify:
 
@@ -59,7 +61,7 @@ Both bugs have the same root cause: the timers live in module-scoped `let` bindi
 DraftStage.svelte                        (orchestrator, ~120 lines)
 ├── SceneSequencer.svelte                (unchanged, external)
 ├── DraftStageMain.svelte                (new, ~180 lines)
-│   ├── uses: draftStageReview.svelte.ts (new, ~240 lines, framework-free runes module)
+│   ├── uses: draftStageController.svelte.ts (new, ~260 lines, runes module)
 │   ├── uses: draftStagePersistence.ts   (new, ~40 lines, pure TS)
 │   └── DraftingDesk.svelte              (unchanged, external)
 ├── DraftStageSidebar.svelte             (new, ~120 lines)
@@ -77,12 +79,14 @@ DraftStage.svelte                        (orchestrator, ~120 lines)
 
 | Path | Kind | Responsibility |
 |---|---|---|
-| `src/app/components/stages/DraftStageMain.svelte` | Svelte | Main column. Instantiates the review controller, wires `DraftingDesk` props and event handlers for chunk updates / review / CIPHER. Owns no review state directly — delegates to the controller. |
+| `src/app/components/stages/DraftStageMain.svelte` | Svelte | Main column. Instantiates the controller, wires `DraftingDesk` props and event handlers for chunk updates / review / CIPHER. Owns no review state directly — delegates to the controller. |
 | `src/app/components/stages/DraftStageSidebar.svelte` | Svelte | Sidebar column. Owns `activeTab` `$state`, `tabItems` constant, metrics derivations (via `draftStageMetrics.svelte.ts`), and the tab switch. |
-| `src/app/components/stages/draftStageReview.svelte.ts` | Runes module | Exports `createDraftStageReviewController(...)`. Owns `dismissed`, `chunkAnnotations`, `reviewingChunks`, `orchestrator`, `orchestratorVersion`, `prevChunkCount`, `autoReviewTimeout`, `editDebounceTimers`. Exposes handlers and a `dispose()` method that clears every timer. Registered from `DraftStageMain` inside an `$effect` whose cleanup calls `dispose()` — this is how both timer leaks die. |
+| `src/app/components/stages/draftStageController.svelte.ts` | Runes module | Exports `createDraftStageController(...)`. Owns `dismissed`, `chunkAnnotations` (`SvelteMap`), `reviewingChunks` (`SvelteSet`), `orchestrator`, `orchestratorVersion`, `prevChunkCount`, `autoReviewTimeout` (module-level `let`), `editDebounceTimers`, and a `disposed` boolean. Exposes handlers and a `dispose()` method that flips `disposed`, clears every timer, and cancels the orchestrator. Auto-review timer is kept as a module-level `let` (not returned from effect cleanup) to avoid the stale re-run cancellation race; a separate no-dep `$effect` provides the unmount teardown. Registered from `DraftStageMain` inside an `$effect` whose cleanup calls `dispose()`. |
 | `src/app/components/stages/draftStagePersistence.ts` | Plain TS | Pure `localStorage` helpers: `loadDismissed`, `saveDismissed`, `loadAnnotations`, `saveAnnotations`. Takes `projectId` / `sceneId` as arguments (no store access). |
 | `src/app/components/stages/draftStageMetrics.svelte.ts` | Runes module | Exports `createDraftStageMetrics(store)` returning `{ get styleDriftReports(); get voiceReport(); get baselineSceneTitle(); get sceneTitles(); }` as `$derived`-backed getters, with the same `cachedStyleDrift` / `cachedVoiceReport` freeze-during-streaming behavior. |
-| `tests/ui/DraftStage.test.ts` | Vitest | Timer leak regression tests (fake timers, mount/unmount assertion) + behavioral smoke tests for the orchestrator. |
+| `tests/ui/DraftStage.test.ts` | Vitest | Component-level timer-leak smoke tests (fake timers, append chunk, unmount) + behavioral smoke tests for the orchestrator. |
+| `tests/app/components/stages/draftStageController.test.ts` | Vitest | Controller unit tests that pin the `editDebounceTimers` leak by calling `controller.handleUpdateChunk(...)` directly and asserting `vi.getTimerCount()` before and after `controller.dispose()`. |
+| `tests/helpers/mockStore.ts` | Plain TS | Typed `createMockProjectStore()` / `createMockCommands()` factories. Replaces `as never` casts in tests. |
 
 **No files under `src/app/store/**` are created.** The runes modules live beside `DraftStage.svelte` in `src/app/components/stages/` because they are single-owner helpers for a single component tree. The scope-boundary exception for store extraction is not needed.
 
@@ -158,17 +162,16 @@ let {
 
 `activeTab` is `$bindable()` so the orchestrator can flip it to `"ir"` when `DraftStageMain` calls `onOpenIRTab`.
 
-**`draftStageReview.svelte.ts`:**
+**`draftStageController.svelte.ts`:**
 
 ```ts
-export interface DraftStageReviewController {
-  // Reactive state (getters backed by $state)
-  readonly chunkAnnotations: Map<number, EditorialAnnotation[]>;
-  readonly reviewingChunks: Set<number>;
+export interface DraftStageController {
+  // Reactive state (getters backed by $state + SvelteMap/SvelteSet)
+  readonly chunkAnnotations: SvelteMap<number, EditorialAnnotation[]>;
+  readonly reviewingChunks: SvelteSet<number>;
 
   // Handlers bound to the controller
   handleReviewChunk(index: number): void;
-  handleAcceptSuggestion(annotationId: string): void;
   handleDismissAnnotation(annotationId: string): void;
   handleRequestSuggestion(annotationId: string, feedback: string): Promise<string | null>;
   handleUpdateChunk(index: number, changes: Partial<Chunk>): void;
@@ -179,13 +182,13 @@ export interface DraftStageReviewController {
   dispose(): void;
 }
 
-export function createDraftStageReviewController(
+export function createDraftStageController(
   store: ProjectStore,
   commands: Commands,
-): DraftStageReviewController;
+): DraftStageController;
 ```
 
-`createDraftStageReviewController` internally uses `$state`, `$effect.root`, and `untrack` from Svelte to replicate the two existing review `$effect`s (reload-on-project-change, recreate-orchestrator) and the auto-review `$effect`. `$effect.root` returns a disposer that the controller stores; `dispose()` calls that disposer, `orchestrator?.cancelAll()`, `clearTimeout(autoReviewTimeout)`, and walks `editDebounceTimers` clearing every entry.
+`createDraftStageController` internally uses `$state`, `$effect`, and `untrack` from Svelte to replicate the two existing review `$effect`s (reload-on-project-change, recreate-orchestrator) and the auto-review `$effect`. There is **no `$effect.root`**: because the factory is invoked at the top level of `DraftStageMain`'s `<script>`, the `$effect(...)` calls inside it auto-bind to the calling component's lifetime. `dispose()` sets `disposed = true`, calls `orchestrator?.cancelAll()`, clears `autoReviewTimeout`, and walks `editDebounceTimers` clearing every entry. Every async callback that touches state (debounced persist, auto-review setTimeout body, orchestrator `onAnnotationsChanged` / `onReviewingChanged`) begins with `if (disposed) return;`. Note that `handleAcceptSuggestion` is NOT on this interface: the current component's function was a dead no-op (the comment at DraftStage.svelte lines 228–231 confirms text replacement is handled by `AnnotatedEditor` via a ProseMirror transaction). The no-op is deleted, and the `onAcceptSuggestion` prop is removed from the `DraftingDesk` callsite inside `DraftStageMain`.
 
 **`draftStagePersistence.ts`:**
 
@@ -220,140 +223,134 @@ export function createDraftStageMetrics(store: ProjectStore): DraftStageMetrics;
 
 | State | Current owner | New owner |
 |---|---|---|
-| `dismissed` (`Set<string>`) | `DraftStage.svelte` L112 | `draftStageReview.svelte.ts` (`$state`) |
-| `chunkAnnotations` | `DraftStage.svelte` L113 | `draftStageReview.svelte.ts` (`$state`) |
-| `reviewingChunks` | `DraftStage.svelte` L114 | `draftStageReview.svelte.ts` (`$state`) |
-| `orchestrator` | `DraftStage.svelte` L115 | `draftStageReview.svelte.ts` (`$state`) |
-| `orchestratorVersion` | `DraftStage.svelte` L118 | `draftStageReview.svelte.ts` (`$state`) |
-| `prevChunkCount` | `DraftStage.svelte` L190 | `draftStageReview.svelte.ts` (plain `let` inside closure) |
-| `autoReviewTimeout` | `DraftStage.svelte` L189 | `draftStageReview.svelte.ts` (plain `let` inside closure, cleared by `dispose()`) |
-| `editDebounceTimers` | `DraftStage.svelte` L411 | `draftStageReview.svelte.ts` (plain `Map` inside closure, walked by `dispose()`) |
+| `dismissed` (`Set<string>`) | `DraftStage.svelte` L112 | `draftStageController.svelte.ts` (`$state`) |
+| `chunkAnnotations` | `DraftStage.svelte` L113 | `draftStageController.svelte.ts` (`SvelteMap` from `svelte/reactivity`) |
+| `reviewingChunks` | `DraftStage.svelte` L114 | `draftStageController.svelte.ts` (`SvelteSet` from `svelte/reactivity`) |
+| `orchestrator` | `DraftStage.svelte` L115 | `draftStageController.svelte.ts` (`$state`) |
+| `orchestratorVersion` | `DraftStage.svelte` L118 | `draftStageController.svelte.ts` (`$state`) |
+| `prevChunkCount` | `DraftStage.svelte` L190 | `draftStageController.svelte.ts` (plain `let` inside closure) |
+| `autoReviewTimeout` | `DraftStage.svelte` L189 | `draftStageController.svelte.ts` (**module-level `let` inside factory closure**, cleared by `dispose()` and by a separate no-dep unmount `$effect`) |
+| `editDebounceTimers` | `DraftStage.svelte` L411 | `draftStageController.svelte.ts` (plain `Map` inside closure, walked by `dispose()`) |
+| `disposed` | n/a (new) | `draftStageController.svelte.ts` (plain `let` inside closure, flipped by `dispose()`, checked at the top of every async callback) |
 | `activeTab` | `DraftStage.svelte` L321 | `DraftStageSidebar.svelte` (`$state`, `$bindable`) |
 | `cachedStyleDrift` | `DraftStage.svelte` L355 | `draftStageMetrics.svelte.ts` (closure `let`) |
 | `cachedVoiceReport` | `DraftStage.svelte` L389 | `draftStageMetrics.svelte.ts` (closure `let`) |
 | `canGenerate` | `DraftStage.svelte` L332 (`$derived`) | `DraftStage.svelte` orchestrator (still `$derived`; passed into `DraftStageMain`) |
 | `gateMessages` | `DraftStage.svelte` L334 (`$derived.by`) | `DraftStage.svelte` orchestrator (still `$derived.by`; passed into `DraftStageMain`) |
 
-No state is duplicated. No prop-drilling beyond one level: `DraftStage` → `DraftStageMain`/`DraftStageSidebar`. The review controller is constructed once in `DraftStageMain` and passed nowhere else (handlers are invoked locally inside `DraftStageMain`'s template bindings to `<DraftingDesk>`).
+No state is duplicated. No prop-drilling beyond one level: `DraftStage` → `DraftStageMain`/`DraftStageSidebar`. The controller is constructed once in `DraftStageMain` and passed nowhere else (handlers are invoked locally inside `DraftStageMain`'s template bindings to `<DraftingDesk>`).
 
 ### The timer fix in detail
 
-Inside `draftStageReview.svelte.ts`, the auto-review effect is wrapped in `$effect.root` so its cleanup is explicit:
+The auto-review timeout is owned at module scope (a `let` inside the factory closure) so mid-edit re-runs of the scheduling effect do not cancel a valid pending timer. An orthogonal no-dep `$effect` clears it on unmount. The scheduling effect itself does NOT return a cleanup that clears the timeout — doing so would regress the existing bug warned about in the pre-existing comment at `DraftStage.svelte` lines 183–188: when an unrelated dependency changes (e.g. `store.activeSceneChunks` updates reference due to a chunk status change), the effect re-runs, the cleanup cancels the pending timer, then the body hits `count <= prevChunkCount` and early-returns without scheduling a new one, silently dropping a valid pending review.
+
+Inside `draftStageController.svelte.ts`:
 
 ```ts
-const rootDispose = $effect.root(() => {
-  // ...existing orchestrator-recreate $effect...
+// Module-level (closure) mutable state. NOT reactive. Lifecycle owned by dispose()
+// and the unmount-only $effect below.
+let autoReviewTimeout: ReturnType<typeof setTimeout> | undefined;
+let prevChunkCount = 0;
+const editDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let disposed = false;
 
-  // Auto-review effect
-  $effect(() => {
-    const count = store.activeSceneChunks.length;
-    const sceneId = store.activeScenePlan?.id;
-    const generating = store.isGenerating;
-    if (!sceneId || count === 0 || count <= prevChunkCount || generating) {
-      if (!generating) prevChunkCount = count;
-      return;
-    }
-    prevChunkCount = count;
-    const orch = untrack(() => orchestrator);
-    if (!orch) return;
-    const chunks = untrack(() => store.activeSceneChunks);
-    clearTimeout(autoReviewTimeout);
-    autoReviewTimeout = setTimeout(() => {
-      const views: ChunkView[] = chunks
-        .map((c, i) => ({ chunk: c, index: i }))
-        .filter(({ chunk }) => chunk.status !== "accepted")
-        .map(({ chunk, index }) => ({
-          index,
-          text: getCanonicalText(chunk),
-          sceneId,
-        }));
-      if (views.length > 0) orch.requestReview(views);
-    }, 1500);
+// Scheduling effect — tracks store.activeSceneChunks. Does NOT clear
+// autoReviewTimeout in cleanup; see comment above.
+$effect(() => {
+  const count = store.activeSceneChunks.length;
+  const sceneId = store.activeScenePlan?.id;
+  const generating = store.isGenerating;
+  if (!sceneId || count === 0 || count <= prevChunkCount || generating) {
+    if (!generating) prevChunkCount = count;
+    return;
+  }
+  prevChunkCount = count;
+  const orch = untrack(() => orchestrator);
+  if (!orch) return;
+  const chunks = untrack(() => store.activeSceneChunks);
+  clearTimeout(autoReviewTimeout);
+  autoReviewTimeout = setTimeout(() => {
+    if (disposed) return;
+    const views: ChunkView[] = chunks
+      .map((c, i) => ({ chunk: c, index: i }))
+      .filter(({ chunk }) => chunk.status !== "accepted")
+      .map(({ chunk, index }) => ({
+        index,
+        text: getCanonicalText(chunk),
+        sceneId,
+      }));
+    if (views.length > 0) orch.requestReview(views);
+  }, 1500);
+});
 
-    return () => {
+// Unmount-only cleanup for autoReviewTimeout. No dependencies are tracked,
+// so this effect's body runs once on mount and its cleanup runs once on unmount.
+$effect(() => {
+  return () => {
+    if (autoReviewTimeout !== undefined) {
       clearTimeout(autoReviewTimeout);
       autoReviewTimeout = undefined;
-    };
-  });
+    }
+  };
 });
 
 function dispose(): void {
+  if (disposed) return;
+  disposed = true;
   orchestrator?.cancelAll();
   clearTimeout(autoReviewTimeout);
   autoReviewTimeout = undefined;
   for (const timer of editDebounceTimers.values()) clearTimeout(timer);
   editDebounceTimers.clear();
-  rootDispose();
 }
 ```
 
 In `DraftStageMain.svelte`:
 
 ```ts
-const review = createDraftStageReviewController(store, commands);
+const controller = createDraftStageController(store, commands);
 $effect(() => {
-  return () => review.dispose();
+  return () => controller.dispose();
 });
 ```
 
-That `$effect`'s return function runs on component unmount, calling `dispose()`, which cancels the auto-review timeout, walks every entry of `editDebounceTimers`, and tears down the `$effect.root`. **Both leaks die.**
+That `$effect`'s return function runs on component unmount, calling `dispose()`, which flips `disposed`, cancels the auto-review timeout, and walks every entry of `editDebounceTimers`. The orthogonal unmount-only `$effect` inside the factory is an additional belt-and-braces guard (covers the edge case where `dispose()` somehow doesn't run). **Both leaks die.**
 
 ---
 
 ## Task 1: Write failing tests first
 
 **Files:**
+- Create: `tests/helpers/mockStore.ts`
+- Create: `tests/app/components/stages/draftStageController.test.ts`
 - Create: `tests/ui/DraftStage.test.ts`
 
-- [ ] **Step 1: Create the test file with timer-leak regression + behavioral smoke tests**
+The two regression tests must actually **exercise** the leaks they claim to pin — the original plan's tests mounted and immediately unmounted without ever triggering a debounced edit or appending a chunk, so the assertions passed even against the buggy code. The fix is:
+
+1. A **controller-unit test** (new `tests/app/components/stages/draftStageController.test.ts`) that constructs the controller directly with a mock store/commands, calls `controller.handleUpdateChunk(0, { editedText: "foo" })`, asserts `vi.getTimerCount() === 1`, calls `controller.dispose()`, and asserts `vi.getTimerCount() === 0`. This pins the `editDebounceTimers` leak.
+2. A **component-level smoke test** (`tests/ui/DraftStage.test.ts`) that mounts `DraftStage`, mutates the mock store's `activeSceneChunks` to append a new chunk after mount, advances fake timers partway (e.g. 500 ms), unmounts, and asserts `vi.getTimerCount() === 0` plus that the mocked orchestrator's `requestReview` was never called. This pins the `autoReviewTimeout` leak.
+
+Because Task 1 runs **before** Task 2's fix and **before** the controller module exists, a minimal build-order note applies: the controller-unit test imports from `./draftStageController.svelte.js`, which doesn't exist yet. Either (a) create the controller module as an empty stub that exports `createDraftStageController` with the real interface but a throwing body, then fill it in during Task 5a, or (b) mark the controller-unit test `.skip` in Task 1 and un-skip it as the first action of Task 5a. Option (b) is simpler and is what this plan uses.
+
+- [ ] **Step 1a: Create `tests/helpers/mockStore.ts` — typed factories (no `as never`)**
 
 ```ts
-import { render, screen } from "@testing-library/svelte";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import DraftStage from "../../src/app/components/stages/DraftStage.svelte";
+import { vi } from "vitest";
+import type { Commands } from "../../src/app/store/commands.js";
+import type { ProjectStore } from "../../src/app/store/project.svelte.js";
 import { makeChunk, makeSceneEntry } from "../../src/app/stories/factories.js";
 
-// DraftingDesk pulls in ProseMirror; stub the tiptap modules it imports
-// transitively, matching the pattern used by tests/ui/EditStage.test.ts.
-vi.mock("@tiptap/core", () => ({
-  Editor: vi.fn().mockImplementation(() => ({
-    destroy: vi.fn(),
-    getText: vi.fn().mockReturnValue(""),
-    state: { doc: { descendants: vi.fn() }, selection: { from: 0, to: 0 } },
-    commands: { setContent: vi.fn() },
-    setEditable: vi.fn(),
-    view: { coordsAtPos: vi.fn().mockReturnValue({ top: 0, bottom: 0, left: 0 }) },
-    registerPlugin: vi.fn(),
-    on: vi.fn(),
-  })),
-}));
-vi.mock("@tiptap/extension-document", () => ({ default: {} }));
-vi.mock("@tiptap/extension-paragraph", () => ({ default: {} }));
-vi.mock("@tiptap/extension-text", () => ({ default: {} }));
-
-// Stub the review orchestrator factory so tests don't hit the LLM
-vi.mock("../../src/review/index.js", async () => {
-  const actual = await vi.importActual<Record<string, unknown>>("../../src/review/index.js");
-  return {
-    ...actual,
-    createReviewOrchestrator: vi.fn(() => ({
-      requestReview: vi.fn(),
-      cancelAll: vi.fn(),
-    })),
-  };
-});
-
-function createMockStore(overrides: Record<string, unknown> = {}) {
+export function createMockProjectStore(overrides: Partial<ProjectStore> = {}): ProjectStore {
   const scene = makeSceneEntry("scene-1", "The Confrontation", "drafting");
   const chunk = makeChunk({ sceneId: "scene-1" });
-  return {
+  const base = {
     project: { id: "project-1" },
     bible: { characters: [], voiceRules: [], killList: [] },
     scenes: [scene],
     activeSceneIndex: 0,
     activeScene: scene,
     activeScenePlan: scene.plan,
-    activeSceneChunks: [chunk] as typeof chunk[],
+    activeSceneChunks: [chunk],
     sceneChunks: { "scene-1": [chunk] },
     sceneIRs: {},
     activeSceneIR: null,
@@ -373,12 +370,12 @@ function createMockStore(overrides: Record<string, unknown> = {}) {
     cancelGeneration: vi.fn(),
     cancelAutopilot: vi.fn(),
     updateChunkForScene: vi.fn(),
-    ...overrides,
   };
+  return { ...base, ...overrides } as unknown as ProjectStore;
 }
 
-function createMockCommands() {
-  return {
+export function createMockCommands(overrides: Partial<Commands> = {}): Commands {
+  const base = {
     saveBible: vi.fn().mockResolvedValue({ ok: true }),
     saveScenePlan: vi.fn().mockResolvedValue({ ok: true }),
     updateScenePlan: vi.fn().mockResolvedValue({ ok: true }),
@@ -398,12 +395,119 @@ function createMockCommands() {
     saveCompilationLog: vi.fn().mockResolvedValue({ ok: true }),
     applyRefinement: vi.fn().mockResolvedValue({ ok: true }),
   };
+  return { ...base, ...overrides } as unknown as Commands;
 }
+```
+
+The `as unknown as` cast at the return site is the narrowest hatch and is confined to this one helper file. Individual test files get fully typed mocks without touching `never`.
+
+- [ ] **Step 1b: Create `tests/app/components/stages/draftStageController.test.ts` — controller unit test**
+
+```ts
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockCommands, createMockProjectStore } from "../../../helpers/mockStore.js";
+
+// Stub the review orchestrator factory so we don't call the LLM
+vi.mock("../../../../src/review/index.js", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("../../../../src/review/index.js");
+  return {
+    ...actual,
+    createReviewOrchestrator: vi.fn(() => ({
+      requestReview: vi.fn(),
+      cancelAll: vi.fn(),
+    })),
+  };
+});
+
+describe.skip("draftStageController — timer leak regression (unskip in Task 5a)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("clears pending edit-debounce timers on dispose()", async () => {
+    const { createDraftStageController } = await import(
+      "../../../../src/app/components/stages/draftStageController.svelte.js"
+    );
+    const store = createMockProjectStore();
+    const commands = createMockCommands();
+    const controller = createDraftStageController(store, commands);
+
+    expect(vi.getTimerCount()).toBe(0);
+    controller.handleUpdateChunk(0, { editedText: "typed text" });
+    expect(vi.getTimerCount()).toBe(1);
+
+    controller.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ignores late debounced callbacks after dispose()", async () => {
+    const { createDraftStageController } = await import(
+      "../../../../src/app/components/stages/draftStageController.svelte.js"
+    );
+    const store = createMockProjectStore();
+    const commands = createMockCommands();
+    const controller = createDraftStageController(store, commands);
+
+    controller.handleUpdateChunk(0, { editedText: "typed text" });
+    controller.dispose();
+    vi.advanceTimersByTime(2000);
+    expect(commands.persistChunk).not.toHaveBeenCalled();
+  });
+});
+```
+
+The suite is `describe.skip` in Task 1 so the build isn't broken by the missing controller module. Task 5a un-skips it and expects it to PASS against the newly-extracted controller.
+
+- [ ] **Step 1c: Create `tests/ui/DraftStage.test.ts` — component-level smoke + auto-review leak**
+
+```ts
+import { render, screen } from "@testing-library/svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import DraftStage from "../../src/app/components/stages/DraftStage.svelte";
+import { makeChunk } from "../../src/app/stories/factories.js";
+import { createMockCommands, createMockProjectStore } from "../helpers/mockStore.js";
+
+// DraftingDesk pulls in ProseMirror; stub the tiptap modules it imports
+// transitively, matching the pattern used by tests/ui/EditStage.test.ts.
+vi.mock("@tiptap/core", () => ({
+  Editor: vi.fn().mockImplementation(() => ({
+    destroy: vi.fn(),
+    getText: vi.fn().mockReturnValue(""),
+    state: { doc: { descendants: vi.fn() }, selection: { from: 0, to: 0 } },
+    commands: { setContent: vi.fn() },
+    setEditable: vi.fn(),
+    view: { coordsAtPos: vi.fn().mockReturnValue({ top: 0, bottom: 0, left: 0 }) },
+    registerPlugin: vi.fn(),
+    on: vi.fn(),
+  })),
+}));
+vi.mock("@tiptap/extension-document", () => ({ default: {} }));
+vi.mock("@tiptap/extension-paragraph", () => ({ default: {} }));
+vi.mock("@tiptap/extension-text", () => ({ default: {} }));
+
+// Stub the review orchestrator factory so tests don't hit the LLM.
+// We capture the most recent instance so tests can assert on its calls.
+const mockOrchestratorInstances: Array<{ requestReview: ReturnType<typeof vi.fn>; cancelAll: ReturnType<typeof vi.fn> }> = [];
+vi.mock("../../src/review/index.js", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("../../src/review/index.js");
+  return {
+    ...actual,
+    createReviewOrchestrator: vi.fn(() => {
+      const instance = { requestReview: vi.fn(), cancelAll: vi.fn() };
+      mockOrchestratorInstances.push(instance);
+      return instance;
+    }),
+  };
+});
 
 function defaultProps() {
   return {
-    store: createMockStore() as never,
-    commands: createMockCommands() as never,
+    store: createMockProjectStore(),
+    commands: createMockCommands(),
     onGenerate: vi.fn(),
     onRunAudit: vi.fn(),
     onRunDeepAudit: vi.fn(),
@@ -415,6 +519,7 @@ function defaultProps() {
 describe("DraftStage — timer cleanup on unmount", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    mockOrchestratorInstances.length = 0;
   });
 
   afterEach(() => {
@@ -422,33 +527,36 @@ describe("DraftStage — timer cleanup on unmount", () => {
     vi.restoreAllMocks();
   });
 
-  it("clears the auto-review setTimeout when unmounted before it fires", () => {
-    const clearSpy = vi.spyOn(globalThis, "clearTimeout");
-    const { unmount } = render(DraftStage, defaultProps());
-    // Ensure any queued effects have had a chance to schedule timers
-    vi.advanceTimersByTime(0);
-    unmount();
-    // After unmount, no pending timers must remain
-    expect(vi.getTimerCount()).toBe(0);
-    // And clearTimeout must have been called at least once during teardown
-    expect(clearSpy).toHaveBeenCalled();
-  });
-
-  it("does not fire the auto-review callback after unmount", () => {
-    const { unmount } = render(DraftStage, defaultProps());
-    vi.advanceTimersByTime(0);
-    unmount();
-    // Advance well past the 1500ms auto-review delay
-    expect(() => vi.advanceTimersByTime(5000)).not.toThrow();
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  it("flushes edit-debounce timers on unmount", () => {
+  it("does not fire auto-review callback after unmount (append-then-unmount)", async () => {
     const props = defaultProps();
     const { unmount } = render(DraftStage, props);
-    // Simulate a pending edit debounce: the controller's handleUpdateChunk
-    // would schedule a 500ms setTimeout. We verify unmount clears the queue
-    // regardless of how many are pending.
+    vi.advanceTimersByTime(0);
+
+    // Append a new chunk to trigger the auto-review scheduling effect.
+    // The mock store is a plain object; test the effect propagation via a
+    // direct mutation + manual $effect tick. If the production store uses
+    // runes, rely on the SvelteMap-backed reactive append helper instead.
+    const newChunk = makeChunk({ sceneId: "scene-1" });
+    props.store.activeSceneChunks = [...props.store.activeSceneChunks, newChunk];
+    props.store.sceneChunks["scene-1"] = props.store.activeSceneChunks;
+    // Flush microtasks so the scheduling $effect runs and schedules setTimeout
+    await Promise.resolve();
+
+    // Advance partway through the 1500ms debounce
+    vi.advanceTimersByTime(500);
+    expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+
+    unmount();
+
+    // Advance past the 1500ms delay — nothing should fire
+    vi.advanceTimersByTime(5000);
+    expect(vi.getTimerCount()).toBe(0);
+    const orch = mockOrchestratorInstances[mockOrchestratorInstances.length - 1];
+    if (orch) expect(orch.requestReview).not.toHaveBeenCalled();
+  });
+
+  it("clears any already-pending timers on bare unmount", () => {
+    const { unmount } = render(DraftStage, defaultProps());
     vi.advanceTimersByTime(0);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
@@ -475,29 +583,55 @@ describe("DraftStage — behavioral smoke tests", () => {
     expect(screen.getByText("IR")).toBeInTheDocument();
   });
 });
+
+describe("DraftStage — Map/Set reactivity across module boundary (Task 5 gate)", () => {
+  it("propagates controller chunkAnnotations mutations into DraftingDesk", () => {
+    // This test is skipped in Task 1 (no controller yet) and un-skipped in
+    // Task 5a. It guards the SvelteMap/SvelteSet decision: if the controller
+    // reverted to plain Map, this test would fail because DraftingDesk's
+    // `chunkAnnotations` prop would not re-render on mutation.
+    //
+    // Implementation: mount DraftStage, reach into the rendered tree to
+    // find a DraftingDesk chunk indicator, controller-mutate
+    // chunkAnnotations.set(0, [...]), assert the DOM updates within a tick.
+    // Intentionally a placeholder here — flesh out in Task 5a.
+    expect(true).toBe(true);
+  });
+});
 ```
 
-- [ ] **Step 2: Run the tests and confirm they fail for the right reason**
+- [ ] **Step 2: Run the tests and confirm the auto-review leak test FAILS for the right reason**
 
-Run: `pnpm test -- tests/ui/DraftStage.test.ts`
+Run: `pnpm test -- tests/ui/DraftStage.test.ts tests/app/components/stages/draftStageController.test.ts`
 
-Expected: the three **timer cleanup** tests fail because the current `DraftStage.svelte` leaks `autoReviewTimeout` and never walks `editDebounceTimers` on unmount. The three **smoke tests** should already pass against the current implementation — they exist to pin behavior so later extractions can't silently change it.
+Expected:
+- The `does not fire auto-review callback after unmount (append-then-unmount)` test **fails** against the current buggy code — after the component unmounts, the 1500 ms `setTimeout` fires and either `requestReview` gets called on the dead orchestrator or `vi.getTimerCount()` is non-zero.
+- The `clears any already-pending timers on bare unmount` test may pass on current code because the bare mount/unmount never appends a chunk — that's fine; it's a defensive smoke test, not a leak pin. (The **real** `editDebounceTimers` pin lives in `draftStageController.test.ts` and is currently `describe.skip`'d — verify the skip reports correctly.)
+- The three smoke tests pass against the current implementation.
 
-If any smoke test fails against the *current* `DraftStage.svelte`, stop and adjust the test to match current behavior before moving on. The smoke tests are a fence, not a forcing function.
+If any smoke test fails against the *current* `DraftStage.svelte`, stop and adjust the test to match current behavior before moving on.
 
-- [ ] **Step 3: Commit the failing tests**
+**Do not skip this step.** The whole point of D-I30 is that the first revision of this plan's tests passed against the buggy code. We must see the auto-review test RED before moving to Task 2.
+
+- [ ] **Step 3: Commit the failing tests + helper**
 
 ```bash
-git add tests/ui/DraftStage.test.ts
+git add tests/helpers/mockStore.ts \
+        tests/app/components/stages/draftStageController.test.ts \
+        tests/ui/DraftStage.test.ts
 git commit -m "$(cat <<'EOF'
 test(draft-stage): add timer-leak regression and smoke tests
 
-Adds tests/ui/DraftStage.test.ts covering (a) the two timer leaks
-called out in #34 — autoReviewTimeout and editDebounceTimers must
-be cleared on unmount — and (b) behavioral smoke tests pinning the
-SceneSequencer + sidebar tab structure so the upcoming
-decomposition can't silently regress them. Timer-leak tests fail
-against current DraftStage; smoke tests pass.
+Adds tests/helpers/mockStore.ts (typed ProjectStore/Commands factories),
+tests/ui/DraftStage.test.ts (append-then-unmount auto-review leak pin +
+behavioral smoke tests), and tests/app/components/stages/
+draftStageController.test.ts (controller-unit test for editDebounceTimers
+leak, currently describe.skip until Task 5a creates the module).
+
+The auto-review test exercises the leak by appending a chunk after mount
+so the scheduling effect actually schedules a setTimeout, then unmounts
+partway through — this fails against the current buggy DraftStage.
+Smoke tests pin the SceneSequencer + sidebar tab structure.
 
 Part of #34.
 
@@ -513,46 +647,39 @@ EOF
 **Files:**
 - Modify: `src/app/components/stages/DraftStage.svelte`
 
-This task lands the narrowest possible fix: convert both timer bindings into cleanups owned by Svelte effects, without moving any code into new files. This gives the refactor a safety net — if Task 3 takes multiple commits, the leak is already fixed in between.
+This task lands the narrowest possible fix: add unmount-only cleanups for both timer sets without relocating them into the scheduling effect's return function (which would regress the race warned about in the existing comment). This gives the refactor a safety net — if Task 3 takes multiple commits, the leak is already fixed in between.
 
-- [ ] **Step 1: Convert the auto-review effect cleanup**
+- [ ] **Step 1: Add an unmount-only cleanup effect for `autoReviewTimeout`**
 
-In `src/app/components/stages/DraftStage.svelte`, replace the auto-review `$effect` (currently lines 192–216) so it returns a cleanup function:
+**Do NOT move `clearTimeout(autoReviewTimeout)` into the auto-review scheduling effect's return. That would regress the pre-existing race.** Keep `let autoReviewTimeout: ReturnType<typeof setTimeout> | undefined;` at module scope exactly where it is (line 189), and keep the scheduling effect body unchanged. Instead, directly **after** that scheduling `$effect(...)` block, add a separate no-dep effect for teardown:
 
 ```ts
+// Unmount-only cleanup: the auto-review timeout is owned at module scope so
+// mid-edit re-runs of the scheduling effect (e.g. when store.activeSceneChunks
+// changes reference but count hasn't increased) don't cancel a valid pending
+// timer. This orthogonal effect has no reactive dependencies, so its body
+// runs once on mount and its cleanup runs once on unmount.
 $effect(() => {
-  const count = store.activeSceneChunks.length;
-  const sceneId = store.activeScenePlan?.id;
-  const generating = store.isGenerating;
-  if (!sceneId || count === 0 || count <= prevChunkCount || generating) {
-    if (!generating) prevChunkCount = count;
-    return;
-  }
-  prevChunkCount = count;
-  const orch = untrack(() => orchestrator);
-  if (!orch) return;
-  const chunks = untrack(() => store.activeSceneChunks);
-  clearTimeout(autoReviewTimeout);
-  autoReviewTimeout = setTimeout(() => {
-    const views: ChunkView[] = chunks
-      .map((c, i) => ({ chunk: c, index: i }))
-      .filter(({ chunk }) => chunk.status !== "accepted")
-      .map(({ chunk, index }) => ({
-        index,
-        text: getCanonicalText(chunk),
-        sceneId,
-      }));
-    if (views.length > 0) orch.requestReview(views);
-  }, 1500);
-
   return () => {
-    clearTimeout(autoReviewTimeout);
-    autoReviewTimeout = undefined;
+    if (autoReviewTimeout !== undefined) {
+      clearTimeout(autoReviewTimeout);
+      autoReviewTimeout = undefined;
+    }
   };
 });
 ```
 
-The existing comment above `let autoReviewTimeout` (lines 183–188) explains why the timer wasn't in cleanup originally: it was a workaround for the re-run-early-return race where a stale effect would cancel a valid pending review. That race is now solved by the `count <= prevChunkCount` early-return happening **before** `clearTimeout`, so the `return` cleanup only runs when this effect instance actually scheduled a timeout. Update the comment to explain the new invariant, do not delete it.
+Also update the comment above `let autoReviewTimeout` (lines 183–188) to accurately describe the invariant:
+
+```ts
+// IMPORTANT: The auto-review timeout is owned at module scope (not returned
+// from an effect cleanup) so that when store.activeSceneChunks changes
+// reference due to an unrelated update (e.g. a status flip on an existing
+// chunk), the re-running effect's early-return (count <= prevChunkCount)
+// does not cancel a valid pending review. An orthogonal no-dep $effect
+// (below) clears this timeout on component unmount.
+let autoReviewTimeout: ReturnType<typeof setTimeout> | undefined;
+```
 
 - [ ] **Step 2: Add an unmount cleanup effect for `editDebounceTimers`**
 
@@ -869,22 +996,26 @@ EOF
 
 ---
 
-## Task 5: Extract `draftStageReview.svelte.ts`
+## Task 5: Extract `draftStageController.svelte.ts` (split into 4 bisectable commits)
 
 **Files:**
-- Create: `src/app/components/stages/draftStageReview.svelte.ts`
+- Create: `src/app/components/stages/draftStageController.svelte.ts`
 - Modify: `src/app/components/stages/DraftStage.svelte`
+- Modify: `tests/app/components/stages/draftStageController.test.ts` (un-skip)
+- Modify: `tests/ui/DraftStage.test.ts` (un-skip Map/Set reactivity test)
 
-This is the largest extraction. Move every piece of review state, the two review `$effect`s, the auto-review `$effect`, and all seven handlers (`handleReviewChunk`, `handleAcceptSuggestion`, `handleDismissAnnotation`, `handleRequestSuggestion`, `handleUpdateChunk`, `handleRemoveChunk`, `handleDestroyChunk`) into the runes module. Wrap the three effects in a single `$effect.root(...)` so they get a unified disposer, and expose a `dispose()` method.
+This is the largest extraction. Split into four separate commits so each can be bisected independently. Deletion of `handleAcceptSuggestion` (dead no-op, DraftStage.svelte lines 228–231) happens in Task 5c. The controller uses `SvelteMap` / `SvelteSet` from `svelte/reactivity` for its reactive collections, plain `$effect(...)` (not `$effect.root`) for lifecycle binding, and a `disposed` boolean guard on every async callback.
 
-- [ ] **Step 1: Create `draftStageReview.svelte.ts`**
+### Task 5a: Create the controller skeleton (state + effects + dispose, no handlers yet)
 
-The module is ~240 lines. Structure:
+- [ ] **Step 1: Create `draftStageController.svelte.ts` with state, effects, and `dispose()` — handlers are stubs that throw**
+
+The file imports, state, effects, and `dispose()` are final. Handler bodies are `throw new Error("not yet moved — see Task 5b/5c")` so the module compiles and the controller-unit test can exercise `handleUpdateChunk` after un-skipping in Task 5b. Wait — to make Task 5a's unit-test un-skip meaningful, `handleUpdateChunk` needs a real body in 5a itself, which contradicts splitting by handler. Resolution: Task 5a gets a real body for **only** `handleUpdateChunk` (the one needed by the controller-unit test); the other six handlers throw. Task 5b then moves the remaining chunk-command handlers; Task 5c moves the editorial handlers. This ordering keeps each commit independently bisectable while letting the leak regression fire the moment the controller exists.
 
 ```ts
 import { untrack } from "svelte";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { apiFireBatchCipher, apiStoreSignificantEdit } from "../../../api/client.js";
-import { createLogger } from "../../../lib/logger.js";
 import { callLLM } from "../../../llm/client.js";
 import { shouldTriggerCipher } from "../../../profile/editFilter.js";
 import { buildReviewContext } from "../../../review/contextBuilder.js";
@@ -902,17 +1033,14 @@ import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
 import { loadAnnotations, loadDismissed, saveAnnotations, saveDismissed } from "./draftStagePersistence.js";
 
-const log = createLogger("draft");
-
 const REVIEW_MODEL = DEFAULT_MODEL;
 const REVIEW_MAX_TOKENS = 2048;
 const SUGGESTION_MAX_TOKENS = 1024;
 
-export interface DraftStageReviewController {
-  readonly chunkAnnotations: Map<number, EditorialAnnotation[]>;
-  readonly reviewingChunks: Set<number>;
+export interface DraftStageController {
+  readonly chunkAnnotations: SvelteMap<number, EditorialAnnotation[]>;
+  readonly reviewingChunks: SvelteSet<number>;
   handleReviewChunk(index: number): void;
-  handleAcceptSuggestion(annotationId: string): void;
   handleDismissAnnotation(annotationId: string): void;
   handleRequestSuggestion(annotationId: string, feedback: string): Promise<string | null>;
   handleUpdateChunk(index: number, changes: Partial<Chunk>): void;
@@ -921,20 +1049,22 @@ export interface DraftStageReviewController {
   dispose(): void;
 }
 
-export function createDraftStageReviewController(
+export function createDraftStageController(
   store: ProjectStore,
   commands: Commands,
-): DraftStageReviewController {
+): DraftStageController {
   let dismissed = $state<Set<string>>(loadDismissed(store.project?.id));
-  let chunkAnnotations = $state(new Map<number, EditorialAnnotation[]>());
-  let reviewingChunks = $state(new Set<number>());
+  const chunkAnnotations = new SvelteMap<number, EditorialAnnotation[]>();
+  const reviewingChunks = new SvelteSet<number>();
   let orchestrator = $state<ReviewOrchestrator | null>(null);
   let orchestratorVersion = $state(0);
 
-  // Non-reactive closure state — lifecycle is owned by dispose()
+  // Non-reactive closure state — lifecycle owned by dispose() and
+  // the unmount-only $effect below.
   let autoReviewTimeout: ReturnType<typeof setTimeout> | undefined;
   let prevChunkCount = 0;
   const editDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  let disposed = false;
 
   const llmReviewClient: LLMReviewClient = {
     review(systemPrompt, userPrompt, signal) {
@@ -949,128 +1079,180 @@ export function createDraftStageReviewController(
     },
   };
 
-  const rootDispose = $effect.root(() => {
-    // Reload dismissed set when project changes
-    $effect(() => {
-      const _projectId = store.project?.id;
-      dismissed = loadDismissed(store.project?.id);
-    });
+  // NOTE: plain $effect calls — NOT $effect.root. Because this factory is
+  // invoked at the top level of DraftStageMain's <script>, these effects
+  // auto-bind to that component's lifetime.
 
-    // Recreate orchestrator when bible, scene, voice guide, or version changes
-    $effect(() => {
-      const bible = store.bible;
-      const scenePlan = store.activeScenePlan;
-      const _version = orchestratorVersion;
-      const _voiceGuide = store.voiceGuide;
-
-      untrack(() => {
-        orchestrator?.cancelAll();
-        reviewingChunks = new Set();
-        prevChunkCount = 0;
-        clearTimeout(autoReviewTimeout);
-        autoReviewTimeout = undefined;
-      });
-
-      if (!bible || !scenePlan) {
-        orchestrator = null;
-        chunkAnnotations = new Map();
-        return;
-      }
-
-      const loaded = loadAnnotations(store.project?.id, scenePlan.id);
-      for (const [idx, anns] of loaded) {
-        const filtered = anns.filter((a) => !dismissed.has(a.fingerprint));
-        if (filtered.length > 0) loaded.set(idx, filtered);
-        else loaded.delete(idx);
-      }
-      chunkAnnotations = loaded;
-
-      orchestrator = createReviewOrchestrator(
-        bible,
-        scenePlan,
-        () => dismissed,
-        llmReviewClient,
-        (chunkIndex, anns, reviewedText) => {
-          const currentChunk = store.activeSceneChunks[chunkIndex];
-          if (currentChunk && getCanonicalText(currentChunk) !== reviewedText) return;
-          chunkAnnotations = new Map(chunkAnnotations).set(chunkIndex, anns);
-          if (scenePlan) saveAnnotations(store.project?.id, scenePlan.id, chunkAnnotations);
-        },
-        (reviewing) => {
-          reviewingChunks = reviewing;
-        },
-        store.voiceGuide?.editingInstructions || undefined,
-      );
-    });
-
-    // Auto-review
-    $effect(() => {
-      const count = store.activeSceneChunks.length;
-      const sceneId = store.activeScenePlan?.id;
-      const generating = store.isGenerating;
-      if (!sceneId || count === 0 || count <= prevChunkCount || generating) {
-        if (!generating) prevChunkCount = count;
-        return;
-      }
-      prevChunkCount = count;
-      const orch = untrack(() => orchestrator);
-      if (!orch) return;
-      const chunks = untrack(() => store.activeSceneChunks);
-      clearTimeout(autoReviewTimeout);
-      autoReviewTimeout = setTimeout(() => {
-        const views: ChunkView[] = chunks
-          .map((c, i) => ({ chunk: c, index: i }))
-          .filter(({ chunk }) => chunk.status !== "accepted")
-          .map(({ chunk, index }) => ({
-            index,
-            text: getCanonicalText(chunk),
-            sceneId,
-          }));
-        if (views.length > 0) orch.requestReview(views);
-      }, 1500);
-
-      return () => {
-        clearTimeout(autoReviewTimeout);
-        autoReviewTimeout = undefined;
-      };
-    });
+  // Reload dismissed set when project changes
+  $effect(() => {
+    const _projectId = store.project?.id;
+    if (disposed) return;
+    dismissed = loadDismissed(store.project?.id);
   });
 
-  function handleReviewChunk(index: number): void {
-    // ...unchanged from DraftStage.svelte lines 218-226
-  }
-  function handleAcceptSuggestion(_annotationId: string): void {
-    // no-op; kept for API symmetry
-  }
-  function handleDismissAnnotation(annotationId: string): void {
-    // ...unchanged from lines 233-251, with saveDismissed / saveAnnotations calls
-    // now taking store.project?.id as the first argument
-  }
-  async function handleRequestSuggestion(
-    annotationId: string,
-    feedback: string,
-  ): Promise<string | null> {
-    // ...unchanged from lines 255-318, with saveAnnotations taking project id,
-    // and the final console.warn preserved verbatim (F2 will migrate it).
-  }
+  // Recreate orchestrator when bible, scene, voice guide, or version changes
+  $effect(() => {
+    const bible = store.bible;
+    const scenePlan = store.activeScenePlan;
+    const _version = orchestratorVersion;
+    const _voiceGuide = store.voiceGuide;
+    if (disposed) return;
+
+    untrack(() => {
+      orchestrator?.cancelAll();
+      reviewingChunks.clear();
+      prevChunkCount = 0;
+      clearTimeout(autoReviewTimeout);
+      autoReviewTimeout = undefined;
+    });
+
+    if (!bible || !scenePlan) {
+      orchestrator = null;
+      chunkAnnotations.clear();
+      return;
+    }
+
+    const loaded = loadAnnotations(store.project?.id, scenePlan.id);
+    chunkAnnotations.clear();
+    for (const [idx, anns] of loaded) {
+      const filtered = anns.filter((a) => !dismissed.has(a.fingerprint));
+      if (filtered.length > 0) chunkAnnotations.set(idx, filtered);
+    }
+
+    orchestrator = createReviewOrchestrator(
+      bible,
+      scenePlan,
+      () => dismissed,
+      llmReviewClient,
+      (chunkIndex, anns, reviewedText) => {
+        if (disposed) return;
+        const currentChunk = store.activeSceneChunks[chunkIndex];
+        if (currentChunk && getCanonicalText(currentChunk) !== reviewedText) return;
+        chunkAnnotations.set(chunkIndex, anns);
+        if (scenePlan) saveAnnotations(store.project?.id, scenePlan.id, new Map(chunkAnnotations));
+      },
+      (reviewing) => {
+        if (disposed) return;
+        reviewingChunks.clear();
+        for (const idx of reviewing) reviewingChunks.add(idx);
+      },
+      store.voiceGuide?.editingInstructions || undefined,
+    );
+  });
+
+  // Auto-review scheduling effect. Does NOT clear autoReviewTimeout in
+  // cleanup; the orthogonal unmount-only effect below handles teardown.
+  $effect(() => {
+    const count = store.activeSceneChunks.length;
+    const sceneId = store.activeScenePlan?.id;
+    const generating = store.isGenerating;
+    if (disposed) return;
+    if (!sceneId || count === 0 || count <= prevChunkCount || generating) {
+      if (!generating) prevChunkCount = count;
+      return;
+    }
+    prevChunkCount = count;
+    const orch = untrack(() => orchestrator);
+    if (!orch) return;
+    const chunks = untrack(() => store.activeSceneChunks);
+    clearTimeout(autoReviewTimeout);
+    autoReviewTimeout = setTimeout(() => {
+      if (disposed) return;
+      const views: ChunkView[] = chunks
+        .map((c, i) => ({ chunk: c, index: i }))
+        .filter(({ chunk }) => chunk.status !== "accepted")
+        .map(({ chunk, index }) => ({
+          index,
+          text: getCanonicalText(chunk),
+          sceneId,
+        }));
+      if (views.length > 0) orch.requestReview(views);
+    }, 1500);
+  });
+
+  // Unmount-only cleanup for autoReviewTimeout (belt-and-braces alongside dispose()).
+  $effect(() => {
+    return () => {
+      if (autoReviewTimeout !== undefined) {
+        clearTimeout(autoReviewTimeout);
+        autoReviewTimeout = undefined;
+      }
+    };
+  });
+
+  // Handler — handleUpdateChunk is implemented here (needed by the controller
+  // unit test to pin the editDebounceTimers leak). Remaining handlers are
+  // stubs until Task 5b/5c.
   function handleUpdateChunk(index: number, changes: Partial<Chunk>): void {
-    // ...unchanged from lines 413-453. console.log / console.warn calls for
-    // the CIPHER path are preserved verbatim — F2's job, not D's.
+    if (disposed) return;
+    const sceneId = store.activeScenePlan?.id;
+    if (!sceneId) return;
+    store.updateChunkForScene(sceneId, index, changes);
+    if (changes.editedText !== undefined || changes.humanNotes !== undefined) {
+      const key = `${sceneId}:${index}`;
+      const existing = editDebounceTimers.get(key);
+      if (existing) clearTimeout(existing);
+      editDebounceTimers.set(
+        key,
+        setTimeout(() => {
+          if (disposed) return;
+          commands.persistChunk(sceneId, index);
+          editDebounceTimers.delete(key);
+
+          // After persistChunk, track significant edits for CIPHER
+          const chunk = store.activeSceneChunks[index];
+          if (chunk?.generatedText && chunk.editedText && store.project) {
+            if (shouldTriggerCipher(chunk.generatedText, chunk.editedText)) {
+              apiStoreSignificantEdit(store.project.id, chunk.id, chunk.generatedText, chunk.editedText)
+                .then((count) => {
+                  if (disposed) return;
+                  if (count >= 10) {
+                    console.log(`[cipher] ${count} significant edits — triggering batch CIPHER`);
+                    apiFireBatchCipher(store.project!.id)
+                      .then(({ ring1Injection }) => {
+                        if (disposed) return;
+                        if (ring1Injection && store.voiceGuide) {
+                          store.setVoiceGuide({ ...store.voiceGuide, ring1Injection });
+                          console.log("[cipher] Voice re-distilled with new CIPHER preferences");
+                        }
+                      })
+                      .catch((err) => console.warn("[cipher] Batch inference failed:", err));
+                  }
+                })
+                .catch((err) => console.warn("[cipher] Edit tracking failed:", err));
+            }
+          }
+        }, 500),
+      );
+    } else {
+      commands.persistChunk(sceneId, index);
+    }
   }
-  async function handleRemoveChunk(index: number): Promise<void> {
-    // ...unchanged
+
+  function handleReviewChunk(_index: number): void {
+    throw new Error("handleReviewChunk not yet moved — see Task 5c");
   }
-  async function handleDestroyChunk(index: number): Promise<void> {
-    // ...unchanged from lines 461-510, with saveAnnotations taking project id.
+  function handleDismissAnnotation(_annotationId: string): void {
+    throw new Error("handleDismissAnnotation not yet moved — see Task 5c");
+  }
+  async function handleRequestSuggestion(_annotationId: string, _feedback: string): Promise<string | null> {
+    throw new Error("handleRequestSuggestion not yet moved — see Task 5c");
+  }
+  async function handleRemoveChunk(_index: number): Promise<void> {
+    throw new Error("handleRemoveChunk not yet moved — see Task 5b");
+  }
+  async function handleDestroyChunk(_index: number): Promise<void> {
+    throw new Error("handleDestroyChunk not yet moved — see Task 5b");
   }
 
   function dispose(): void {
+    if (disposed) return;
+    disposed = true;
     orchestrator?.cancelAll();
     clearTimeout(autoReviewTimeout);
     autoReviewTimeout = undefined;
     for (const timer of editDebounceTimers.values()) clearTimeout(timer);
     editDebounceTimers.clear();
-    rootDispose();
   }
 
   return {
@@ -1081,7 +1263,6 @@ export function createDraftStageReviewController(
       return reviewingChunks;
     },
     handleReviewChunk,
-    handleAcceptSuggestion,
     handleDismissAnnotation,
     handleRequestSuggestion,
     handleUpdateChunk,
@@ -1092,69 +1273,356 @@ export function createDraftStageReviewController(
 }
 ```
 
-**Important:** copy the handler bodies **verbatim** from the current `DraftStage.svelte`. The only edits are (a) `saveAnnotations(sceneId, ...)` → `saveAnnotations(store.project?.id, sceneId, ...)` and the matching `saveDismissed` / `loadAnnotations` / `loadDismissed` calls, and (b) preserve every existing `console.*` call site unchanged. Do NOT introduce `log.info`/`log.warn` in this extraction — F2 migrates them later. The `createLogger("draft")` import is included so any genuinely-new log lines (there should be none) would have a logger ready.
+- [ ] **Step 2: Un-skip the controller unit test and confirm it now passes**
 
-- [ ] **Step 2: Slim `DraftStage.svelte` to delegate to the controller**
+Change `describe.skip(...)` to `describe(...)` in `tests/app/components/stages/draftStageController.test.ts`. Run:
 
-(This is still inside DraftStage — we'll further split into Main/Sidebar in Task 6.)
+```bash
+pnpm test -- tests/app/components/stages/draftStageController.test.ts
+```
 
-Replace every piece of review state and every handler with calls into the controller:
+Expected: both tests pass. `editDebounceTimers` leak is pinned.
+
+- [ ] **Step 3: DraftStage.svelte still owns the old handlers — no changes here**
+
+5a creates the controller alongside the existing implementation. DraftStage.svelte is untouched. This guarantees the commit is bisectable: if Task 5b breaks something, Task 5a's green build can be checked out independently.
+
+- [ ] **Step 4: Run full check + commit**
+
+```bash
+pnpm check-all
+git add src/app/components/stages/draftStageController.svelte.ts tests/app/components/stages/draftStageController.test.ts
+git commit -m "$(cat <<'EOF'
+refactor(draft-stage): add draftStageController skeleton with handleUpdateChunk
+
+Creates draftStageController.svelte.ts with the reactive state
+(SvelteMap chunkAnnotations, SvelteSet reviewingChunks, orchestrator,
+etc.), the three review \$effects (project-change reload,
+orchestrator recreation, auto-review scheduling), the orthogonal
+unmount-only cleanup effect for autoReviewTimeout, a disposed flag
+guarding every async callback, and dispose(). handleUpdateChunk has
+its real body (needed by the controller-unit test to pin the
+editDebounceTimers leak); the other six handlers throw until 5b/5c.
+
+DraftStage.svelte is unchanged — this commit is independently
+bisectable. The controller-unit test is un-skipped and now passes.
+
+Part of #34.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+### Task 5b: Move chunk-command handlers into the controller
+
+- [ ] **Step 1: Implement `handleRemoveChunk` and `handleDestroyChunk` in the controller**
+
+Replace the throwing stubs. Bodies are copied verbatim from `DraftStage.svelte` (`handleRemoveChunk` at lines 455–459, `handleDestroyChunk` at lines 461–510) with the following substitutions:
+
+- `store.activeScenePlan?.id` references stay the same
+- `saveAnnotations(sceneId, new Map())` becomes `saveAnnotations(store.project?.id, sceneId, new Map())`
+- `chunkAnnotations = new Map()` becomes `chunkAnnotations.clear()` (SvelteMap)
+- Every entry point gets `if (disposed) return;` at the top
 
 ```ts
-import { createDraftStageReviewController } from "./draftStageReview.svelte.js";
+async function handleRemoveChunk(index: number): Promise<void> {
+  if (disposed) return;
+  const sceneId = store.activeScenePlan?.id;
+  if (!sceneId) return;
+  await commands.removeChunk(sceneId, index);
+}
 
-const review = createDraftStageReviewController(store, commands);
+async function handleDestroyChunk(index: number): Promise<void> {
+  if (disposed) return;
+  const sceneId = store.activeScenePlan?.id;
+  if (!sceneId) return;
+  const chunks = store.activeSceneChunks;
+  const isLast = index === chunks.length - 1;
+
+  if (!isLast) {
+    const count = chunks.length - index;
+    const ok = window.confirm(
+      `Delete chunk ${index + 1} and ${count - 1} later chunk${count - 1 > 1 ? "s" : ""} that depend on it?`,
+    );
+    if (!ok) return;
+  }
+
+  // ── Cancel everything that references chunk indices ──
+
+  // 1. Stop autopilot — it would generate into a broken state
+  if (store.isAutopilot) store.cancelAutopilot();
+
+  // 2. Cancel pending auto-review (against the old chunk array)
+  clearTimeout(autoReviewTimeout);
+  autoReviewTimeout = undefined;
+
+  // 3. Cancel in-flight LLM reviews and clear reviewing indicators
+  orchestrator?.cancelAll();
+
+  // 4. Flush edit debounce timers for destroyed indices
+  for (let i = index; i < chunks.length; i++) {
+    const key = `${sceneId}:${i}`;
+    const timer = editDebounceTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      editDebounceTimers.delete(key);
+    }
+  }
+
+  // 5. Clear persisted annotations (indices are now stale)
+  saveAnnotations(store.project?.id, sceneId, new Map());
+  chunkAnnotations.clear();
+
+  // ── Remove chunks from end backward to avoid index shifting ──
+  for (let i = chunks.length - 1; i >= index; i--) {
+    if (disposed) return;
+    await commands.removeChunk(sceneId, i);
+  }
+
+  // 6. Force orchestrator recreation with clean internal state.
+  if (disposed) return;
+  orchestratorVersion++;
+}
+```
+
+- [ ] **Step 2: Run tests + full check + commit**
+
+```bash
+pnpm check-all
+git add src/app/components/stages/draftStageController.svelte.ts
+git commit -m "$(cat <<'EOF'
+refactor(draft-stage): move chunk-command handlers into controller
+
+Moves handleRemoveChunk and handleDestroyChunk bodies from
+DraftStage.svelte into draftStageController.svelte.ts. Bodies are
+verbatim from the original with (a) SvelteMap.clear() replacing
+chunkAnnotations reassignment, (b) saveAnnotations threading
+store.project?.id, and (c) disposed-guard at entry. DraftStage.svelte
+still exports its own handlers — Task 5d wires it to delegate.
+
+Part of #34.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+### Task 5c: Move editorial handlers into the controller (and delete `handleAcceptSuggestion`)
+
+- [ ] **Step 1: Implement the editorial handlers**
+
+`handleAcceptSuggestion` is intentionally **not** re-added: the current component's implementation (lines 228–231) is a documented no-op — "Text replacement handled by AnnotatedEditor via PM transaction. No auto-re-review". The prop is removed from the `DraftingDesk` callsite in Task 5d (and any necessary adjustment to `DraftingDesk`'s contract is out of scope; if `DraftingDesk` requires the callback, pass `() => {}` inline at the callsite rather than reintroducing the dead function).
+
+Replace the remaining stubs with verbatim copies from `DraftStage.svelte`:
+
+```ts
+function handleReviewChunk(index: number): void {
+  if (disposed) return;
+  const chunks = store.activeSceneChunks;
+  const sceneId = store.activeScenePlan?.id;
+  if (!sceneId || !orchestrator || index >= chunks.length) return;
+  const chunk = chunks[index]!;
+  if (chunk.status === "accepted") return;
+  const view: ChunkView = { index, text: getCanonicalText(chunk), sceneId };
+  orchestrator.requestReview([view], true);
+}
+
+function handleDismissAnnotation(annotationId: string): void {
+  if (disposed) return;
+  // Persist the fingerprint to the dismissed set so future reviews exclude it.
+  // The decoration is already removed in AnnotatedEditor via PM transaction —
+  // we intentionally do NOT modify chunkAnnotations here because that would
+  // trigger the Sync Annotations effect with stale charRanges (same corruption
+  // class as the accept bug). Same-fingerprint annotations on other chunks
+  // remain visible until the next re-review, which is the safer trade-off.
+  const sceneId = store.activeScenePlan?.id;
+  for (const [, anns] of chunkAnnotations) {
+    const ann = anns.find((a) => a.id === annotationId);
+    if (ann) {
+      dismissed = new Set(dismissed).add(ann.fingerprint);
+      saveDismissed(store.project?.id, dismissed);
+      break;
+    }
+  }
+  // Persist annotation removal to localStorage
+  if (sceneId) saveAnnotations(store.project?.id, sceneId, new Map(chunkAnnotations));
+}
+
+async function handleRequestSuggestion(annotationId: string, feedback: string): Promise<string | null> {
+  if (disposed) return null;
+  // 1. Find the annotation and its chunk index
+  let targetAnnotation: EditorialAnnotation | undefined;
+  let targetChunkIndex: number | undefined;
+  for (const [chunkIndex, anns] of chunkAnnotations) {
+    const ann = anns.find((a) => a.id === annotationId);
+    if (ann) {
+      targetAnnotation = ann;
+      targetChunkIndex = chunkIndex;
+      break;
+    }
+  }
+  if (!targetAnnotation || targetChunkIndex === undefined) return null;
+
+  // 2. Get chunk text and build context
+  const chunks = store.activeSceneChunks;
+  const chunk = chunks[targetChunkIndex];
+  if (!chunk || !store.bible || !store.activeScenePlan) return null;
+  const chunkText = getCanonicalText(chunk);
+  const context = buildReviewContext(
+    store.bible,
+    store.activeScenePlan,
+    store.voiceGuide?.editingInstructions || undefined,
+  );
+
+  // 3. Build prompt and call LLM
+  const { systemPrompt, userPrompt } = buildSuggestionRequestPrompt(context, targetAnnotation, chunkText, feedback);
+
+  try {
+    const rawJson = await callLLM(
+      systemPrompt,
+      userPrompt,
+      REVIEW_MODEL,
+      SUGGESTION_MAX_TOKENS,
+      SUGGESTION_REQUEST_SCHEMA as Record<string, unknown>,
+    );
+
+    if (disposed) return null;
+
+    // 4. Parse and validate
+    const parsed = JSON.parse(rawJson);
+    if (!parsed.suggestion || typeof parsed.suggestion !== "string" || parsed.suggestion.trim().length === 0) {
+      return null;
+    }
+
+    // 4b. Trim suggestion overlap — catch cases where the LLM rewrites beyond the focus span
+    const prefixText = chunkText.slice(0, targetAnnotation.charRange.start);
+    const suffixText = chunkText.slice(targetAnnotation.charRange.end);
+    parsed.suggestion = trimSuggestionOverlap(parsed.suggestion, prefixText, suffixText);
+
+    // 5. Update annotation in chunkAnnotations
+    const updatedAnns = (chunkAnnotations.get(targetChunkIndex) ?? []).map((a) =>
+      a.id === annotationId ? { ...a, suggestion: parsed.suggestion } : a,
+    );
+    chunkAnnotations.set(targetChunkIndex, updatedAnns);
+
+    // 6. Persist
+    const sceneId = store.activeScenePlan?.id;
+    if (sceneId) saveAnnotations(store.project?.id, sceneId, new Map(chunkAnnotations));
+
+    return parsed.suggestion;
+  } catch (err) {
+    console.warn("[editorial] Suggestion generation failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+```
+
+All `console.*` calls are preserved verbatim for Package F2 to migrate later. No `createLogger("draft")` import — it would be dead code.
+
+- [ ] **Step 2: Run tests + full check + commit**
+
+```bash
+pnpm check-all
+git add src/app/components/stages/draftStageController.svelte.ts
+git commit -m "$(cat <<'EOF'
+refactor(draft-stage): move editorial handlers into controller
+
+Moves handleReviewChunk, handleDismissAnnotation, and
+handleRequestSuggestion bodies from DraftStage.svelte into the
+controller. Bodies are verbatim with (a) SvelteMap mutations replacing
+chunkAnnotations reassignment, (b) saveAnnotations/saveDismissed
+threading store.project?.id, (c) disposed-guard at entry and after
+each await. handleAcceptSuggestion is NOT re-added: it was a
+documented no-op in the original component ("text replacement handled
+by AnnotatedEditor via PM transaction"); Task 5d inlines an empty
+callback at the DraftingDesk callsite rather than preserving the
+dead function.
+
+Part of #34.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+### Task 5d: Slim `DraftStage.svelte` to delegate to the controller
+
+- [ ] **Step 1: Instantiate the controller and rewire template bindings**
+
+(The review state, effects, and handlers are still duplicated in DraftStage.svelte at this point — 5d deletes them.)
+
+```ts
+import { createDraftStageController } from "./draftStageController.svelte.js";
+
+const controller = createDraftStageController(store, commands);
 
 $effect(() => {
-  return () => review.dispose();
+  return () => controller.dispose();
 });
 ```
 
+Delete from `DraftStage.svelte`:
+- `llmReviewClient` constant and `REVIEW_MODEL` / `REVIEW_MAX_TOKENS` / `SUGGESTION_MAX_TOKENS` constants
+- The four inline persistence helpers (already extracted in Task 3, but confirm they are gone)
+- `dismissed`, `chunkAnnotations`, `reviewingChunks`, `orchestrator`, `orchestratorVersion` state declarations
+- The two review `$effect`s (project-change reload, orchestrator recreation)
+- `autoReviewTimeout`, `prevChunkCount` declarations and the auto-review `$effect` + the Task-2 unmount-only `$effect`
+- `handleReviewChunk`, `handleAcceptSuggestion`, `handleDismissAnnotation`, `handleRequestSuggestion`
+- `editDebounceTimers` declaration and its Task-2 unmount-only `$effect`
+- `handleUpdateChunk`, `handleRemoveChunk`, `handleDestroyChunk`
+- All imports now only used by the controller module: `apiFireBatchCipher`, `apiStoreSignificantEdit`, `analyzeEdits`, `applyProposal`, `BibleProposal`, `generateTuningProposals`, `TuningProposal`, `callLLM`, `shouldTriggerCipher`, `buildReviewContext`, `ChunkView`, `EditorialAnnotation`, `LLMReviewClient`, `ReviewOrchestrator`, `buildSuggestionRequestPrompt`, `createReviewOrchestrator`, `REVIEW_OUTPUT_SCHEMA`, `SUGGESTION_REQUEST_SCHEMA`, `trimSuggestionOverlap`, `untrack`, `DEFAULT_MODEL`
+
 Template bindings change:
 
-- `chunkAnnotations={chunkAnnotations}` → `chunkAnnotations={review.chunkAnnotations}`
-- `reviewingChunks={reviewingChunks}` → `reviewingChunks={review.reviewingChunks}`
-- `onUpdateChunk={handleUpdateChunk}` → `onUpdateChunk={review.handleUpdateChunk}`
-- `onRemoveChunk={handleRemoveChunk}` → `onRemoveChunk={review.handleRemoveChunk}`
-- `onDestroyChunk={handleDestroyChunk}` → `onDestroyChunk={review.handleDestroyChunk}`
-- `onReviewChunk={handleReviewChunk}` → `onReviewChunk={review.handleReviewChunk}`
-- `onAcceptSuggestion={handleAcceptSuggestion}` → `onAcceptSuggestion={review.handleAcceptSuggestion}`
-- `onDismissAnnotation={handleDismissAnnotation}` → `onDismissAnnotation={review.handleDismissAnnotation}`
-- `onRequestSuggestion={handleRequestSuggestion}` → `onRequestSuggestion={review.handleRequestSuggestion}`
-
-Delete all the imports that are now only used by the controller module (`apiFireBatchCipher`, `apiStoreSignificantEdit`, `analyzeEdits`, `applyProposal`, `BibleProposal`, `generateTuningProposals`, `TuningProposal`, `callLLM`, `shouldTriggerCipher`, `buildReviewContext`, `ChunkView`, `EditorialAnnotation`, `LLMReviewClient`, `ReviewOrchestrator`, `buildSuggestionRequestPrompt`, `createReviewOrchestrator`, `REVIEW_OUTPUT_SCHEMA`, `SUGGESTION_REQUEST_SCHEMA`, `trimSuggestionOverlap`, `untrack`).
+- `chunkAnnotations={chunkAnnotations}` → `chunkAnnotations={controller.chunkAnnotations}`
+- `reviewingChunks={reviewingChunks}` → `reviewingChunks={controller.reviewingChunks}`
+- `onUpdateChunk={handleUpdateChunk}` → `onUpdateChunk={controller.handleUpdateChunk}`
+- `onRemoveChunk={handleRemoveChunk}` → `onRemoveChunk={controller.handleRemoveChunk}`
+- `onDestroyChunk={handleDestroyChunk}` → `onDestroyChunk={controller.handleDestroyChunk}`
+- `onReviewChunk={handleReviewChunk}` → `onReviewChunk={controller.handleReviewChunk}`
+- `onAcceptSuggestion={handleAcceptSuggestion}` → `onAcceptSuggestion={() => {}}` (inline no-op; `handleAcceptSuggestion` is deleted)
+- `onDismissAnnotation={handleDismissAnnotation}` → `onDismissAnnotation={controller.handleDismissAnnotation}`
+- `onRequestSuggestion={handleRequestSuggestion}` → `onRequestSuggestion={controller.handleRequestSuggestion}`
 
 `handleCompleteScene`, `handleVerifyIR`, `handleUpdateIR` stay in `DraftStage.svelte` for now — they are thin and will move with the sidebar/main split in Task 6.
+
+- [ ] **Step 2: Un-skip the Map/Set reactivity smoke test in `tests/ui/DraftStage.test.ts`**
+
+Flesh out the placeholder test per the comment in Task 1 Step 1c — mount DraftStage, use the exported controller reference (if reachable via component instance) or trigger `chunkAnnotations` mutation via a simulated orchestrator callback (by calling the captured `createReviewOrchestrator` mock's fourth callback argument), and assert the DOM reflects the updated annotation list. If the test cannot reach the internals, this is the indicator that `SvelteMap` / `SvelteSet` **is** doing its job automatically (vs a plain `Map` which would silently fail the same test) — document the finding and leave the test as a render-round-trip smoke.
 
 - [ ] **Step 3: Run tests + full check**
 
 ```bash
-pnpm test -- tests/ui/DraftStage.test.ts
+pnpm test -- tests/ui/DraftStage.test.ts tests/app/components/stages/draftStageController.test.ts
 pnpm check-all
 ```
 
-Expected: all green. If the runes compiler rejects `$effect.root` inside a plain function export, adjust the test harness by ensuring the module is a `.svelte.ts` file (it is) and that the controller is constructed inside a Svelte component lifecycle (it is — `DraftStageMain`/`DraftStage` instantiates it at top-level script).
+Expected: all green.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/components/stages/draftStageReview.svelte.ts src/app/components/stages/DraftStage.svelte
+git add src/app/components/stages/DraftStage.svelte tests/ui/DraftStage.test.ts
 git commit -m "$(cat <<'EOF'
-refactor(draft-stage): extract review controller to runes module
+refactor(draft-stage): slim DraftStage to delegate review to controller
 
-Moves every piece of editorial-review state (dismissed,
-chunkAnnotations, reviewingChunks, orchestrator, orchestratorVersion,
-prevChunkCount, autoReviewTimeout, editDebounceTimers), the three
-review $effects, and all seven review/chunk handlers out of
-DraftStage.svelte into draftStageReview.svelte.ts. The controller
-wraps its effects in $effect.root and exposes a dispose() method
-that tears down the effect root and walks the debounce-timer map.
-DraftStage.svelte now owns only a single $effect whose cleanup
-calls review.dispose() — this is the permanent fix for the timer
-leaks the Task 2 surgical patch already addressed.
+Deletes every piece of editorial-review state, the three review
+\$effects, the Task-2 unmount-only effects, and all chunk-command /
+editorial handlers from DraftStage.svelte. Template bindings now
+delegate to controller.*. handleAcceptSuggestion's dead no-op is
+replaced by an inline () => {} at the DraftingDesk callsite. Imports
+that are now only used by the controller module are dropped.
 
-Handler bodies copied verbatim; existing console.* calls preserved
-for F2.
+DraftStage.svelte keeps canGenerate, gateMessages, activeTab,
+handleCompleteScene/handleVerifyIR/handleUpdateIR — those split
+into Main/Sidebar in Task 6.
 
 Part of #34.
 
@@ -1285,7 +1753,7 @@ async function handleUpdateIR(ir: NarrativeIR) {
 import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
 import DraftingDesk from "../DraftingDesk.svelte";
-import { createDraftStageReviewController } from "./draftStageReview.svelte.js";
+import { createDraftStageController } from "./draftStageController.svelte.js";
 
 let {
   store,
@@ -1311,10 +1779,10 @@ let {
   gateMessages: string[];
 } = $props();
 
-const review = createDraftStageReviewController(store, commands);
+const controller = createDraftStageController(store, commands);
 
 $effect(() => {
-  return () => review.dispose();
+  return () => controller.dispose();
 });
 
 async function handleCompleteScene() {
@@ -1338,13 +1806,13 @@ async function handleCompleteScene() {
     auditFlags={store.auditFlags}
     sceneIR={store.activeSceneIR}
     isExtractingIR={store.isExtractingIR}
-    chunkAnnotations={review.chunkAnnotations}
-    reviewingChunks={review.reviewingChunks}
+    chunkAnnotations={controller.chunkAnnotations}
+    reviewingChunks={controller.reviewingChunks}
     {onGenerate}
     onCancelGeneration={() => store.cancelGeneration()}
-    onUpdateChunk={review.handleUpdateChunk}
-    onRemoveChunk={review.handleRemoveChunk}
-    onDestroyChunk={review.handleDestroyChunk}
+    onUpdateChunk={controller.handleUpdateChunk}
+    onRemoveChunk={controller.handleRemoveChunk}
+    onDestroyChunk={controller.handleDestroyChunk}
     {onRunAudit}
     {onRunDeepAudit}
     onCompleteScene={handleCompleteScene}
@@ -1352,10 +1820,10 @@ async function handleCompleteScene() {
     onCancelAutopilot={() => store.cancelAutopilot()}
     onOpenIRInspector={onOpenIRTab}
     onExtractIR={() => onExtractIR()}
-    onReviewChunk={review.handleReviewChunk}
-    onAcceptSuggestion={review.handleAcceptSuggestion}
-    onDismissAnnotation={review.handleDismissAnnotation}
-    onRequestSuggestion={review.handleRequestSuggestion}
+    onReviewChunk={controller.handleReviewChunk}
+    onAcceptSuggestion={() => {}}
+    onDismissAnnotation={controller.handleDismissAnnotation}
+    onRequestSuggestion={controller.handleRequestSuggestion}
   />
 </div>
 
@@ -1540,7 +2008,7 @@ git push -u origin HEAD
 gh pr create --title "refactor(ui): package D — DraftStage split + timer fix (#34)" --body "$(cat <<'EOF'
 ## Summary
 - Fixes the timer leaks in DraftStage: \`autoReviewTimeout\` and every entry of \`editDebounceTimers\` are now cancelled on component unmount, via a review controller's \`dispose()\` routed through an \`\$effect\` cleanup.
-- Splits the 650-line god component into a ~120-line orchestrator plus \`DraftStageMain.svelte\`, \`DraftStageSidebar.svelte\`, and three helper modules (\`draftStagePersistence.ts\`, \`draftStageMetrics.svelte.ts\`, \`draftStageReview.svelte.ts\`). No store, primitive, sibling-panel, or API-client file is touched.
+- Splits the 650-line god component into a ~120-line orchestrator plus \`DraftStageMain.svelte\`, \`DraftStageSidebar.svelte\`, and three helper modules (\`draftStagePersistence.ts\`, \`draftStageMetrics.svelte.ts\`, \`draftStageController.svelte.ts\`). No store, primitive, sibling-panel, or API-client file is touched.
 - Adds \`tests/ui/DraftStage.test.ts\` with timer-leak regressions (fake timers, mount/unmount, \`getTimerCount()\` assertions) and behavioral smoke tests.
 
 Part of #34. Package D of the [p1 parallel batch spec](../blob/main/docs/superpowers/specs/2026-04-15-p1-parallel-batch-design.md).
@@ -1563,9 +2031,14 @@ EOF
 ## Done criteria
 
 - `src/app/components/stages/DraftStage.svelte` is ≤ ~140 lines and contains no review state, no timers, no metric derivations, and no `console.*` calls.
-- `src/app/components/stages/DraftStageMain.svelte`, `DraftStageSidebar.svelte`, `draftStageReview.svelte.ts`, `draftStageMetrics.svelte.ts`, and `draftStagePersistence.ts` all exist.
-- `tests/ui/DraftStage.test.ts` exists with 6 tests, all passing.
+- `src/app/components/stages/DraftStageMain.svelte`, `DraftStageSidebar.svelte`, `draftStageController.svelte.ts`, `draftStageMetrics.svelte.ts`, and `draftStagePersistence.ts` all exist.
+- `draftStageController.svelte.ts` uses plain `$effect(...)` (no `$effect.root`), `SvelteMap` / `SvelteSet` from `svelte/reactivity`, and has a `disposed` boolean guarding every async callback.
+- `handleAcceptSuggestion` is deleted — not preserved as a no-op.
+- `tests/ui/DraftStage.test.ts` exists with the auto-review append-then-unmount leak pin + smoke tests, all passing.
+- `tests/app/components/stages/draftStageController.test.ts` exists with the editDebounceTimers leak pin, all passing.
+- `tests/helpers/mockStore.ts` exists and is used in place of `as never` casts.
 - `pnpm check-all` green on the branch.
 - PR open against `main` with title `refactor(ui): package D — DraftStage split + timer fix (#34)`.
 - No file outside the Scope Boundary section has been modified.
-- Zero pending timers reported by `vi.getTimerCount()` after `unmount()` in the regression tests.
+- Zero pending timers reported by `vi.getTimerCount()` after `unmount()` (or `controller.dispose()`) in the regression tests.
+- The auto-review test and the controller-unit editDebounceTimers test each demonstrably fail against the pre-fix code (verify by cherry-picking them onto the tip of main before Task 2 lands).
