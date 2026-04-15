@@ -1,8 +1,8 @@
 import "dotenv/config";
-import Anthropic from "@anthropic-ai/sdk";
 import cors from "cors";
 import express from "express";
 import { DEFAULT_MODEL } from "../src/types/metadata.js";
+import { createAnthropicClient } from "./anthropicClient.js";
 import { createApiRouter } from "./api/routes.js";
 import { getDatabase } from "./db/connection.js";
 import { errorHandler, requestLogger } from "./middleware.js";
@@ -17,7 +17,7 @@ app.use(
 app.use(express.json({ limit: "5mb" }));
 app.use(requestLogger);
 
-const client = new Anthropic();
+const client = createAnthropicClient();
 
 // Initialize database and mount REST API
 const db = getDatabase();

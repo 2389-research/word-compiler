@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { createAnthropicClient } from "../server/anthropicClient.js";
 import { computeMetrics } from "../src/auditor/index.js";
 import {
   type Bible,
@@ -492,7 +493,7 @@ async function runEval(options: RunnerOptions): Promise<void> {
   const arc = defaultChapterArc();
   const config = createDefaultCompilationConfig(options.generatorModel);
 
-  const client = options.mock ? null : new Anthropic();
+  const client = options.mock ? null : createAnthropicClient();
 
   console.log(`\n=== Word Compiler Eval ===`);
   console.log(`Rollouts: ${options.rollouts}`);

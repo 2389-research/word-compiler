@@ -2,8 +2,8 @@
  * Run the profile pipeline against writing samples in the DB.
  * Usage: ANTHROPIC_API_KEY=... npx tsx scripts/run-profile-pipeline.ts
  */
-import Anthropic from "@anthropic-ai/sdk";
 import Database from "better-sqlite3";
+import { createAnthropicClient } from "../server/anthropicClient.js";
 import { listWritingSamples } from "../server/db/repositories/writing-samples.js";
 import { runPipeline } from "../server/profile/pipeline.js";
 import { createDefaultPipelineConfig } from "../src/profile/types.js";
@@ -27,7 +27,7 @@ async function main() {
   config.sourceDomain = "tech_journalism";
   config.targetDomain = "literary_fiction";
 
-  const client = new Anthropic();
+  const client = createAnthropicClient();
   const guide = await runPipeline(samples, config, client);
 
   console.log("---GUIDE_JSON---");

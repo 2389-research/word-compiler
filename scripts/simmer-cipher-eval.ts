@@ -6,7 +6,7 @@
  *
  * Usage: ANTHROPIC_API_KEY=... npx tsx scripts/simmer-cipher-eval.ts
  */
-import Anthropic from "@anthropic-ai/sdk";
+import { createAnthropicClient } from "../server/anthropicClient.js";
 import { textCall } from "../server/profile/llm.js";
 import { CIPHER_SYSTEM, buildBatchCipherPrompt } from "../server/profile/cipher.js";
 
@@ -95,7 +95,7 @@ const EDIT_PAIRS: Array<{ original: string; edited: string; _tag: string }> = [
 ];
 
 async function main() {
-  const client = new Anthropic();
+  const client = createAnthropicClient();
 
   // Run the CIPHER prompt against the edit pairs
   console.log(`[eval] Running CIPHER prompt on ${EDIT_PAIRS.length} edit pairs...`);

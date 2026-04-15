@@ -302,6 +302,39 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     }
   }
 
+  /**
+   * Plan an autopilot run: figure out how many chunks we need, how many this
+   * run is allowed to generate given the configured cap, and whether this
+   * run can take the scene all the way to completion. Cap applies to chunks
+   * remaining in this run (NOT the scene total) so resume-with-existing-
+   * chunks still works. Sanitizes malformed persisted config.
+   */
+  function planAutopilotRun(
+    sceneId: string,
+    sceneTarget: number,
+  ): {
+    runTarget: number;
+    willCompleteScene: boolean;
+  } {
+    const rawCap = store.compilationConfig.autopilotMaxChunks;
+    const hardCap = Number.isFinite(rawCap) && rawCap > 0 ? Math.floor(rawCap) : 20;
+    const alreadyGenerated = chunksForScene(sceneId).length;
+    const remaining = Math.max(0, sceneTarget - alreadyGenerated);
+    const allowedThisRun = Math.min(remaining, hardCap);
+
+    if (remaining > hardCap) {
+      console.warn(
+        `[autopilot] Capped at ${hardCap} chunks this run (${remaining} still needed). ` +
+          `Raise compilationConfig.autopilotMaxChunks to override, then run autopilot again to continue.`,
+      );
+    }
+
+    return {
+      runTarget: alreadyGenerated + allowedThisRun,
+      willCompleteScene: alreadyGenerated + allowedThisRun >= sceneTarget,
+    };
+  }
+
   /** Helper: run one iteration of the autopilot loop. Returns false to stop looping. */
   async function runAutopilotIteration(sceneId: string): Promise<boolean> {
     if (store.autopilotCancelled) return false;
@@ -339,6 +372,20 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     }
   }
 
+  /** Helper: drive the autopilot loop up to the run target, then optionally finalize. */
+  async function driveAutopilotLoop(sceneId: string, runTarget: number, willCompleteScene: boolean) {
+    while (chunksForScene(sceneId).length < runTarget) {
+      const shouldContinue = await runAutopilotIteration(sceneId);
+      if (!shouldContinue) break;
+    }
+    // Only finalize (completeScene + IR extraction) if this run fulfils the
+    // full scene target — otherwise we'd trip completeScene's chunk-count
+    // check and turn a guardrail stop into a hard error.
+    if (willCompleteScene) {
+      await finalizeAutopilot(sceneId);
+    }
+  }
+
   async function runAutopilot() {
     const plan = store.activeScenePlan;
     if (!plan || !store.compiledPayload || !store.bible) {
@@ -348,17 +395,14 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
 
     // Pin the scene context so switching scenes mid-autopilot can't break the loop
     const sceneId = plan.id;
+    const { runTarget, willCompleteScene } = planAutopilotRun(sceneId, plan.chunkCount ?? 3);
 
+    // Clear any stale error before a fresh run so the UI starts clean.
+    store.setError(null);
     store.setAutopilot(true);
-    const maxChunks = plan.chunkCount ?? 3;
 
     try {
-      while (chunksForScene(sceneId).length < maxChunks) {
-        const shouldContinue = await runAutopilotIteration(sceneId);
-        if (!shouldContinue) break;
-      }
-
-      await finalizeAutopilot(sceneId);
+      await driveAutopilotLoop(sceneId, runTarget, willCompleteScene);
     } catch (err) {
       store.setError(err instanceof Error ? err.message : "Autopilot failed");
     } finally {

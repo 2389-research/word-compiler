@@ -7,7 +7,8 @@
  *
  * Usage: ANTHROPIC_API_KEY=... npx tsx scripts/simmer-ring1-eval.ts
  */
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
+import { createAnthropicClient } from "../server/anthropicClient.js";
 import Database from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import { getVoiceGuide } from "../server/db/repositories/voice-guide.js";
@@ -89,7 +90,7 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new Anthropic();
+  const client = createAnthropicClient();
 
   // Step 1: Run Stage 6 distillation
   console.log("[eval] Distilling ring1Injection...");
