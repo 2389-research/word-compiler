@@ -63,6 +63,8 @@ describe("createLogger (server)", () => {
     log.info("hello", { rows: 3 });
     const raw = stdoutSpy.mock.calls[0]?.[0] as string;
     expect(raw.endsWith("\n")).toBe(true);
+    // Single-line contract: no embedded newlines before the terminating one.
+    expect(raw.slice(0, -1)).not.toContain("\n");
     const line = raw.trim();
     expect(line).toContain("[db]");
     expect(line).toContain("hello");
@@ -102,15 +104,37 @@ describe("createLogger (server)", () => {
     expect(typeof parsed.timestamp).toBe("string");
   });
 
-  it("serializes an Error passed to .error into name/message/stack", () => {
+  it("serializes an Error passed to .error as a nested error object", () => {
     setEnv("debug", "production");
     const log = createLogger("db");
     log.error("failed", new Error("boom"));
     const raw = stderrSpy.mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw.trim());
     expect(parsed.message).toBe("failed");
-    expect(parsed.error_name).toBe("Error");
-    expect(parsed.error_message).toBe("boom");
-    expect(typeof parsed.error_stack).toBe("string");
+    expect(parsed.error.name).toBe("Error");
+    expect(parsed.error.message).toBe("boom");
+    expect(typeof parsed.error.stack).toBe("string");
+  });
+
+  it("does not throw when context contains circular references", () => {
+    setEnv("debug", "production");
+    const log = createLogger("db");
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+    expect(() => log.info("cycle", circular)).not.toThrow();
+    const raw = stdoutSpy.mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(raw.trim());
+    expect(parsed.serialization_error).toBeDefined();
+    expect(typeof parsed.serialization_error).toBe("string");
+  });
+
+  it("does not throw when context contains a BigInt", () => {
+    setEnv("debug", "development");
+    const log = createLogger("db");
+    expect(() => log.info("bignum", { n: 10n })).not.toThrow();
+    const raw = stdoutSpy.mock.calls[0]?.[0] as string;
+    // Falls back to the serialization_error marker; must still write a single newline-terminated line.
+    expect(raw.endsWith("\n")).toBe(true);
+    expect(raw).toContain("serialization_error");
   });
 });

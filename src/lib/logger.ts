@@ -23,16 +23,17 @@ function resolveThreshold(): LogLevel {
 }
 
 function serializeError(err: Error): Record<string, unknown> {
-  return { name: err.name, message: err.message, stack: err.stack };
+  return { error: { name: err.name, message: err.message, stack: err.stack } };
 }
 
 function emit(
   level: LogLevel,
+  threshold: LogLevel,
   tag: string,
   message: string,
   context: Record<string, unknown> | Error | undefined,
 ): void {
-  if (LEVEL_ORDER[level] < LEVEL_ORDER[resolveThreshold()]) return;
+  if (LEVEL_ORDER[level] < LEVEL_ORDER[threshold]) return;
 
   const line = `[${tag}] ${message}`;
   const payload = context instanceof Error ? serializeError(context) : context;
@@ -46,10 +47,13 @@ function emit(
 }
 
 export function createLogger(tag: string): Logger {
+  // VITE_LOG_LEVEL is baked in at build time, so resolving once per logger
+  // instance is correct and avoids a per-emit env lookup in hot paths.
+  const threshold = resolveThreshold();
   return {
-    debug: (message, context) => emit("debug", tag, message, context),
-    info: (message, context) => emit("info", tag, message, context),
-    warn: (message, context) => emit("warn", tag, message, context),
-    error: (message, context) => emit("error", tag, message, context),
+    debug: (message, context) => emit("debug", threshold, tag, message, context),
+    info: (message, context) => emit("info", threshold, tag, message, context),
+    warn: (message, context) => emit("warn", threshold, tag, message, context),
+    error: (message, context) => emit("error", threshold, tag, message, context),
   };
 }

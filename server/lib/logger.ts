@@ -26,12 +26,21 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function errorFields(err: Error): Record<string, unknown> {
+function errorContext(err: Error): Record<string, unknown> {
   return {
-    error_name: err.name,
-    error_message: err.message,
-    error_stack: err.stack,
+    error: { name: err.name, message: err.message, stack: err.stack },
   };
+}
+
+// JSON.stringify can throw on circular refs or BigInt. Logging must never be
+// a failure path for callers, so fall back to a marker payload on any error.
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "unknown serialization error";
+    return JSON.stringify({ serialization_error: reason });
+  }
 }
 
 function formatPretty(
@@ -42,7 +51,7 @@ function formatPretty(
 ): string {
   const base = `[${tag}] ${level.toUpperCase()} ${message}`;
   if (!context || Object.keys(context).length === 0) return `${base}\n`;
-  return `${base} ${JSON.stringify(context)}\n`;
+  return `${base} ${safeStringify(context)}\n`;
 }
 
 function formatJson(
@@ -58,7 +67,7 @@ function formatJson(
     tag,
     message,
   };
-  return `${JSON.stringify(payload)}\n`;
+  return `${safeStringify(payload)}\n`;
 }
 
 function emit(
@@ -69,7 +78,7 @@ function emit(
 ): void {
   if (LEVEL_ORDER[level] < LEVEL_ORDER[resolveThreshold()]) return;
 
-  const ctx: Record<string, unknown> | undefined = context instanceof Error ? errorFields(context) : context;
+  const ctx: Record<string, unknown> | undefined = context instanceof Error ? errorContext(context) : context;
 
   const line = isProduction() ? formatJson(level, tag, message, ctx) : formatPretty(level, tag, message, ctx);
 

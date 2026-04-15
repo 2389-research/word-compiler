@@ -62,15 +62,15 @@ describe("createLogger (client)", () => {
     expect(infoSpy.mock.calls[0]?.[1]).toEqual({ userId: 42 });
   });
 
-  it("serializes an Error passed to .error into name/message/stack", () => {
+  it("serializes an Error passed to .error as a nested error object", () => {
     (import.meta.env as Record<string, unknown>).VITE_LOG_LEVEL = "debug";
     const log = createLogger("x");
     const err = new Error("boom");
     log.error("failed", err);
-    const ctx = errorSpy.mock.calls[0]?.[1] as { name: string; message: string; stack?: string };
-    expect(ctx.name).toBe("Error");
-    expect(ctx.message).toBe("boom");
-    expect(typeof ctx.stack).toBe("string");
+    const ctx = errorSpy.mock.calls[0]?.[1] as { error: { name: string; message: string; stack?: string } };
+    expect(ctx.error.name).toBe("Error");
+    expect(ctx.error.message).toBe("boom");
+    expect(typeof ctx.error.stack).toBe("string");
   });
 
   it("omits the context argument entirely when none is provided", () => {
