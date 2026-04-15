@@ -16,6 +16,12 @@ export interface CompilationConfig {
   defaultTopP: number;
   defaultModel: string;
   sceneTypeOverrides: Record<string, { temperature: number; topP: number }>;
+  /**
+   * Hard cap on chunks generated in a single autopilot run. Prevents runaway
+   * loops if a scene plan has an unreasonable chunkCount. The effective limit
+   * is `min(plan.chunkCount, autopilotMaxChunks)`.
+   */
+  autopilotMaxChunks: number;
 }
 
 export interface CompiledPayload {

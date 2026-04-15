@@ -11,7 +11,8 @@
  *
  * Usage: ANTHROPIC_API_KEY=... npx tsx scripts/eval-tier-cascade.ts
  */
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
+import { createAnthropicClient } from "../server/anthropicClient.js";
 import Database from "better-sqlite3";
 import { getVoiceGuide } from "../server/db/repositories/voice-guide.js";
 import { distillVoice } from "../server/profile/projectGuide.js";
@@ -79,7 +80,7 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new Anthropic();
+  const client = createAnthropicClient();
 
   // Build a synthetic project voice guide
   const projectGuide = createEmptyVoiceGuide();

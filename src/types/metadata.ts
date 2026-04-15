@@ -136,6 +136,7 @@ export function createDefaultCompilationConfig(modelId: string = DEFAULT_MODEL):
     defaultTopP: 0.92,
     defaultModel: spec.id,
     sceneTypeOverrides: {},
+    autopilotMaxChunks: 20,
   };
 }
 

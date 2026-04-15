@@ -302,6 +302,17 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     }
   }
 
+  /** Helper: apply the autopilot chunk cap and surface a warning if the scene plan exceeds it. */
+  function resolveAutopilotCap(requestedChunks: number): number {
+    const hardCap = store.compilationConfig.autopilotMaxChunks;
+    if (requestedChunks > hardCap) {
+      store.setError(
+        `Autopilot capped at ${hardCap} chunks (scene plan requested ${requestedChunks}). Raise compilationConfig.autopilotMaxChunks to override.`,
+      );
+    }
+    return Math.min(requestedChunks, hardCap);
+  }
+
   /** Helper: run one iteration of the autopilot loop. Returns false to stop looping. */
   async function runAutopilotIteration(sceneId: string): Promise<boolean> {
     if (store.autopilotCancelled) return false;
@@ -350,7 +361,7 @@ export function createGenerationActions(store: ProjectStore, commands: Commands)
     const sceneId = plan.id;
 
     store.setAutopilot(true);
-    const maxChunks = plan.chunkCount ?? 3;
+    const maxChunks = resolveAutopilotCap(plan.chunkCount ?? 3);
 
     try {
       while (chunksForScene(sceneId).length < maxChunks) {
