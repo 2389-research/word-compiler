@@ -57,16 +57,36 @@ describe("createLogger (server)", () => {
     expect(stdoutSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("emits pretty single-line output in development", () => {
+  it("emits pretty single-line output in development with trailing newline", () => {
     setEnv("debug", "development");
     const log = createLogger("db");
     log.info("hello", { rows: 3 });
-    const line = (stdoutSpy.mock.calls[0]?.[0] as string).trim();
+    const raw = stdoutSpy.mock.calls[0]?.[0] as string;
+    expect(raw.endsWith("\n")).toBe(true);
+    const line = raw.trim();
     expect(line).toContain("[db]");
     expect(line).toContain("hello");
     expect(line).toContain("rows");
     expect(line).toContain("3");
-    expect(line.endsWith("\n") || line.length > 0).toBe(true);
+  });
+
+  it("lets the envelope message/level/tag win over colliding context keys in JSON output", () => {
+    setEnv("debug", "production");
+    const log = createLogger("real-tag");
+    log.info("real message", {
+      message: "user supplied",
+      level: "trace",
+      tag: "spoofed",
+      timestamp: "fake",
+      other: 1,
+    });
+    const raw = stdoutSpy.mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(raw.trim());
+    expect(parsed.message).toBe("real message");
+    expect(parsed.level).toBe("info");
+    expect(parsed.tag).toBe("real-tag");
+    expect(parsed.timestamp).not.toBe("fake");
+    expect(parsed.other).toBe(1);
   });
 
   it("emits JSON output in production", () => {

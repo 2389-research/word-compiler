@@ -52,11 +52,11 @@ function formatJson(
   context: Record<string, unknown> | undefined,
 ): string {
   const payload = {
+    ...(context ?? {}),
     timestamp: new Date().toISOString(),
     level,
     tag,
     message,
-    ...(context ?? {}),
   };
   return `${JSON.stringify(payload)}\n`;
 }
