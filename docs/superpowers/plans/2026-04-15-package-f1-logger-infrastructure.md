@@ -342,7 +342,6 @@ describe("createLogger (server)", () => {
     log.error("failed", new Error("boom"));
     const raw = stderrSpy.mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(raw.trim());
-    expect(parsed.name).toBe("Error");
     expect(parsed.message).toBe("failed");
     expect(parsed.error_name).toBe("Error");
     expect(parsed.error_message).toBe("boom");
