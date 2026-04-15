@@ -76,7 +76,7 @@ The ring builder sites in `ring1/2/3.ts` are NOT redundant — they are the one 
 
 - [ ] **Step 1: Write the failing tests**
 
-Append the following `describe` block to `tests/compiler/budget.test.ts` (keep the existing tests above it untouched):
+`tests/compiler/budget.test.ts` already defines the local helpers `makeSection` and `config` near the top of the file — verified at plan-authoring time. Do NOT redeclare them. Append the following `describe` block at the bottom of the file, after all existing tests.
 
 ```ts
 import { countTokens } from "../../src/tokens/index.js";
