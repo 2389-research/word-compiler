@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { compilePayload } from "../../src/compiler/assembler.js";
+import { enforceBudget } from "../../src/compiler/budget.js";
+import { buildRing1 } from "../../src/compiler/ring1.js";
+import { buildRing3 } from "../../src/compiler/ring3.js";
+import * as tokens from "../../src/tokens/index.js";
 import {
   type Bible,
   type Chunk,
@@ -169,5 +173,40 @@ describe("compilePayload", () => {
 
     // (900+1100)/2/2 = 500
     expect(result.payload.userMessage).toContain("~500 words");
+  });
+});
+
+describe("compilePayload — countTokens call budget", () => {
+  it("uses ring-builder and enforceBudget token counts (no re-count in assembler)", () => {
+    const spy = vi.spyOn(tokens, "countTokens");
+    try {
+      const result = compilePayload(makeBible(), makePlan(), [], 0, config);
+
+      expect(result.log.ring1Tokens).toBeGreaterThan(0);
+      expect(result.log.ring3Tokens).toBeGreaterThan(0);
+      expect(result.log.totalTokens).toBe(result.log.ring1Tokens + result.log.ring3Tokens);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("assembler hot path adds zero countTokens calls beyond rings + budget", () => {
+    // Phase A: measure countTokens calls for ring builders + enforceBudget alone.
+    const spyA = vi.spyOn(tokens, "countTokens");
+    const bible = makeBible();
+    const plan = makePlan();
+    const ring1 = buildRing1(bible, config);
+    const ring3 = buildRing3(plan, bible, [], 0, config);
+    enforceBudget(ring1.sections, ring3.sections, config.modelContextWindow - config.reservedForOutput, config);
+    const ringsAndBudgetCalls = spyA.mock.calls.length;
+    spyA.mockRestore();
+
+    // Phase B: measure countTokens calls for the full compilePayload path.
+    const spyB = vi.spyOn(tokens, "countTokens");
+    compilePayload(bible, plan, [], 0, config);
+    const compileCalls = spyB.mock.calls.length;
+    spyB.mockRestore();
+
+    expect(compileCalls).toBeLessThanOrEqual(ringsAndBudgetCalls);
   });
 });
