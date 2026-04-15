@@ -33,6 +33,15 @@ let {
 let editorElement: HTMLDivElement;
 let editor: Editor | null = null;
 let applyingExternal = false;
+let mouseDown = false;
+let pendingSelection: {
+  text: string;
+  from: number;
+  to: number;
+  start: number;
+  end: number;
+  position: { top: number; left: number; anchorBottom?: number };
+} | null = null;
 
 // State machine
 let refinementState = $state<RefinementState>("idle");
@@ -66,7 +75,8 @@ $effect(() => {
       if (applyingExternal) return;
       const { from, to } = updatedEd.state.selection;
       if (from === to) {
-        // Collapsed selection — dismiss popover
+        // Collapsed selection — dismiss popover and clear pending
+        pendingSelection = null;
         if (refinementState === "selecting") {
           refinementState = "idle";
         }
@@ -74,24 +84,40 @@ $effect(() => {
       }
 
       const text = updatedEd.state.doc.textBetween(from, to, "\n\n");
-      if (!text.trim()) return;
+      if (!text.trim()) {
+        if (mouseDown) pendingSelection = null;
+        return;
+      }
 
-      selectedText = text;
-      selectionStart = posToOffset(updatedEd, from);
-      selectionEnd = posToOffset(updatedEd, to);
-
-      // Position popover below selection
+      // Position popover below selection end
       const coords = updatedEd.view.coordsAtPos(to);
       const wrapperRect = editorElement.getBoundingClientRect();
-      popoverPosition = {
+      const position = {
         top: coords.bottom - wrapperRect.top + 6,
         left: Math.max(0, coords.left - wrapperRect.left),
         anchorBottom: coords.top - wrapperRect.top,
       };
 
-      refinementState = "selecting";
-      variants = [];
-      cutPreviewText = null;
+      if (mouseDown) {
+        // User is mid-drag — stash but don't show popover yet
+        pendingSelection = {
+          text,
+          from,
+          to,
+          start: posToOffset(updatedEd, from),
+          end: posToOffset(updatedEd, to),
+          position,
+        };
+      } else {
+        // Keyboard selection (Shift+Arrow) — show immediately
+        selectedText = text;
+        selectionStart = posToOffset(updatedEd, from);
+        selectionEnd = posToOffset(updatedEd, to);
+        popoverPosition = position;
+        refinementState = "selecting";
+        variants = [];
+        cutPreviewText = null;
+      }
     },
   });
 
@@ -192,10 +218,45 @@ function handleCancel() {
   variants = [];
   cutPreviewText = null;
 }
+
+function handleEditorMousedown() {
+  mouseDown = true;
+  pendingSelection = null;
+  // Dismiss any existing popover so it doesn't block the new selection
+  if (refinementState === "selecting" || refinementState === "reviewing" || refinementState === "cutting") {
+    refinementState = "idle";
+    variants = [];
+    cutPreviewText = null;
+  }
+}
+
+function handleEditorMouseup() {
+  if (!mouseDown && !pendingSelection) return;
+  mouseDown = false;
+  if (pendingSelection) {
+    selectedText = pendingSelection.text;
+    selectionStart = pendingSelection.start;
+    selectionEnd = pendingSelection.end;
+    popoverPosition = pendingSelection.position;
+    pendingSelection = null;
+    refinementState = "selecting";
+    variants = [];
+    cutPreviewText = null;
+  }
+}
+
+// Listen on window so drags released outside the editor still resolve
+$effect(() => {
+  window.addEventListener("mouseup", handleEditorMouseup);
+  return () => {
+    window.removeEventListener("mouseup", handleEditorMouseup);
+  };
+});
 </script>
 
 <div class="prose-editor-wrapper">
-  <div bind:this={editorElement} class="prose-editor"></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div bind:this={editorElement} class="prose-editor" onmousedowncapture={handleEditorMousedown}></div>
 
   {#if refinementState === "cutting" && cutPreviewText !== null}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
