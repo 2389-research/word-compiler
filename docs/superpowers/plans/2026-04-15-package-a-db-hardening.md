@@ -17,6 +17,8 @@
 
 **Part of:** [2026-04-15 P1 Parallel Cleanup Batch](../specs/2026-04-15-p1-parallel-batch-design.md)
 
+**Coordination with Package E:** Package E adds new route tests that exercise `voiceGuideRepo.saveVoiceGuide`, `saveVoiceGuideVersion`, and `projectVoiceGuideRepo.saveProjectVoiceGuide`. Package A MUST preserve these functions as named exports (the `saveVoiceGuideAndVersion` helper is additive, not a replacement). Package A's CHECK triggers MUST accept every value from the corrected enum sets below — E's fixtures use the same TS union values. If a test fixture in `tests/server/routes/**` uses an enum value A's trigger would reject, that is a bug in the fixture and A's implementer should report it rather than weaken the trigger.
+
 ---
 
 ## Scope boundary
@@ -49,6 +51,8 @@ Package F1 has landed. The logger factory `createLogger(tag: string): Logger` is
 ---
 
 ## Task 1: Transactional repository wrappers (#25)
+
+**Alternatives considered:** `project_voice_guide` and `voice_guide` could skip the DELETE+INSERT pattern entirely by using `INSERT ... ON CONFLICT DO UPDATE` (UPSERT). We keep the `withTransaction`-wrapped DELETE+INSERT approach for two reasons: (1) the transaction wrapper is reusable for `saveVoiceGuideAndVersion`, the multi-table atomic case where UPSERT cannot help; and (2) consistency — every multi-step write in Task 1 goes through the same named helper, making the transactional intent greppable at call sites. UPSERT remains a future simplification if we later decide the single-table paths should diverge from the composite path.
 
 **Files:**
 - Create: `server/db/transaction.ts`
@@ -577,10 +581,13 @@ Create `server/db/migrations.ts`:
 ```ts
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
 import { createLogger } from "../lib/logger.js";
 
 const logger = createLogger("migrations");
+
+const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "migrations");
 
 export interface RunMigrationsOptions {
   /** Directory containing NNN_*.sql migration files. Defaults to server/db/migrations. */
@@ -611,7 +618,7 @@ interface MigrationFile {
  * and skipped on subsequent runs.
  */
 export function runMigrations(db: Database.Database, options: RunMigrationsOptions = {}): void {
-  const directory = options.directory ?? path.resolve(import.meta.dirname ?? __dirname, "migrations");
+  const directory = options.directory ?? MIGRATIONS_DIR;
 
   ensureMigrationsTable(db);
 
@@ -738,25 +745,38 @@ export function getDatabase(dbPath?: string): Database.Database {
 
 Leave `getMemoryDatabase` unchanged — in-memory test databases do not need to go through the filesystem-backed migration runner, and most existing tests construct ad-hoc in-memory DBs directly.
 
-- [ ] **Step 7: Run the full DB test suite**
+- [ ] **Step 7: Update `tests/server/db/connection.test.ts` to mock `./migrations.js`**
+
+`getDatabase` now calls `runMigrations(db)` after `createSchema(db)`. The existing `getDatabase` test blocks mock `./schema.js` but not `./migrations.js`, so without this edit the real `runMigrations` will execute against the test's fake Database object and blow up. This is a required edit (not conditional) and lives inside `tests/server/db/**` which is in scope.
+
+In BOTH `getDatabase` `describe`/`it` blocks in `tests/server/db/connection.test.ts` that currently call `vi.doMock("./schema.js", ...)` (or the equivalent relative path used by that file), add an adjacent mock for the migrations module:
+
+```ts
+vi.doMock("../../../server/db/migrations.js", () => ({ runMigrations: vi.fn() }));
+```
+
+Match the exact relative-path style already used in that file for `schema.js` (e.g. if the file uses `"./schema.js"` via a `vi.mock` at top-level scope, use `"./migrations.js"` there; if it uses `vi.doMock` with the long relative path inside a test body, use the long form for migrations too). The stub must return a `runMigrations` function — `vi.fn()` is sufficient because no test asserts on what it does.
+
+- [ ] **Step 8: Run the full DB test suite**
 
 Run: `pnpm test -- tests/server/db`
 
-Expected: green. The existing `connection.test.ts` mocks `schema.js` in the `getDatabase` tests, so `runMigrations` will operate on a fresh real directory only for the production code path; no test exercises the real `getDatabase` path against a filesystem. If a test does fail, re-read `tests/server/db/connection.test.ts` and update that test's mocks to also stub `./migrations.js`.
+Expected: green, including `connection.test.ts` with the new migrations mock in place.
 
-- [ ] **Step 8: Final gate**
+- [ ] **Step 9: Final gate**
 
 Run: `pnpm check-all`
 
 Expected: lint, typecheck, and full vitest suite all green.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add server/db/migrations.ts \
         server/db/migrations/001_baseline.sql \
         server/db/connection.ts \
-        tests/server/db/migrations.test.ts
+        tests/server/db/migrations.test.ts \
+        tests/server/db/connection.test.ts
 git commit -m "$(cat <<'EOF'
 feat(db): hand-rolled SQL migration system (#26)
 
@@ -787,14 +807,11 @@ EOF
 
 ---
 
-## Task 3: Graceful shutdown, indexes, CHECK constraints (#44)
+## Task 3a: Indexes + CHECK constraints migration (#44, part 1)
 
 **Files:**
-- Create: `server/db/shutdown.ts`
 - Create: `server/db/migrations/002_indexes_and_checks.sql`
-- Create: `tests/server/db/shutdown.test.ts`
 - Create: `tests/server/db/migration-002.test.ts`
-- Modify: `server/proxy.ts` (ONE addition: call `registerShutdownHandlers`)
 
 **Audit findings — indexes to add:**
 
@@ -803,12 +820,12 @@ EOF
 | `SELECT id FROM scene_plans WHERE project_id = ?` (projects.ts:62) | `idx_scene_plans_project` on `scene_plans(project_id)` | Full table scan on project delete. Called in `deleteProject`. |
 | `SELECT * FROM project_voice_guide WHERE project_id = ?` (project-voice-guide.ts:16) | Already covered by `UNIQUE(project_id)` in `CREATE TABLE` — SQLite auto-creates an index. NO new index needed. |
 | `SELECT * FROM edit_patterns WHERE project_id = ? ORDER BY created_at` | Existing `idx_edit_patterns_project (project_id, sub_type)` covers equality on `project_id`. NO new index. |
-| `SELECT * FROM voice_guide_versions ORDER BY created_at DESC` (voice-guide.ts:55) | `idx_voice_guide_versions_created_at` on `voice_guide_versions(created_at DESC)` | `listVoiceGuideVersions` orders by `created_at DESC` without a supporting index. |
+| `SELECT * FROM voice_guide_versions ORDER BY created_at DESC` (voice-guide.ts:55) | `idx_voice_guide_versions_created_at` on `voice_guide_versions(created_at)` | `listVoiceGuideVersions` orders by `created_at DESC` without a supporting index. SQLite happily scans an ASC index in reverse for `ORDER BY ... DESC`, and the ASC form avoids any Node/SQLite version concerns around descending-index support. |
 
 Net new indexes in `002_indexes_and_checks.sql`:
 
 - `CREATE INDEX IF NOT EXISTS idx_scene_plans_project ON scene_plans(project_id);`
-- `CREATE INDEX IF NOT EXISTS idx_voice_guide_versions_created_at ON voice_guide_versions(created_at DESC);`
+- `CREATE INDEX IF NOT EXISTS idx_voice_guide_versions_created_at ON voice_guide_versions(created_at);`
 
 **Audit findings — CHECK constraints to add:**
 
@@ -819,8 +836,8 @@ SQLite does not support `ALTER TABLE ... ADD CHECK`, so we install per-table `BE
 | `projects.status` | `bootstrap`, `bible`, `planning`, `drafting`, `revising` |
 | `scene_plans.status` | `planned`, `drafting`, `complete` |
 | `audit_flags.severity` | `critical`, `warning`, `info` |
-| `profile_adjustments.status` | `pending`, `approved`, `rejected`, `applied`, `dismissed` |
-| `learned_patterns.status` | `proposed`, `approved`, `rejected`, `applied` |
+| `profile_adjustments.status` | `pending`, `accepted`, `rejected` (source: `TuningProposal.status` in `src/learner/tuning.ts`) |
+| `learned_patterns.status` | `proposed`, `accepted`, `rejected`, `expired` (source: `LearnedPattern.status` in `src/learner/patterns.ts`) |
 
 Each gets one `BEFORE INSERT` and one `BEFORE UPDATE OF <column>` trigger.
 
@@ -961,7 +978,7 @@ describe("migration 002 — CHECK triggers: profile_adjustments.status", () => {
   });
 
   it("accepts valid statuses", () => {
-    for (const status of ["pending", "approved", "rejected", "applied", "dismissed"]) {
+    for (const status of ["pending", "accepted", "rejected"]) {
       const id = `a_${status}`;
       expect(() =>
         db
@@ -990,7 +1007,7 @@ describe("migration 002 — CHECK triggers: learned_patterns.status", () => {
   });
 
   it("accepts valid statuses", () => {
-    for (const status of ["proposed", "approved", "rejected", "applied"]) {
+    for (const status of ["proposed", "accepted", "rejected", "expired"]) {
       const id = `l_${status}`;
       expect(() =>
         db
@@ -1010,6 +1027,85 @@ describe("migration 002 — CHECK triggers: learned_patterns.status", () => {
         )
         .run(),
     ).toThrow(/learned_patterns\.status/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression guard: every value of every TS status/severity union must be
+// accepted by the corresponding CHECK trigger. If a union gains a new member
+// and this migration is not updated, this suite fails loudly instead of
+// silently crashing on first insert in production. The lists below MUST be
+// kept in sync with the TS unions in src/types/** and src/learner/**.
+// ---------------------------------------------------------------------------
+
+describe("migration 002 — CHECK triggers accept every TS union member", () => {
+  const PROJECT_STATUSES = ["bootstrap", "bible", "planning", "drafting", "revising"] as const;
+  const SCENE_STATUSES = ["planned", "drafting", "complete"] as const;
+  const AUDIT_SEVERITIES = ["critical", "warning", "info"] as const;
+  const PROFILE_ADJUSTMENT_STATUSES = ["pending", "accepted", "rejected"] as const;
+  const LEARNED_PATTERN_STATUSES = ["proposed", "accepted", "rejected", "expired"] as const;
+
+  it("projects.status: all TS union members", () => {
+    for (const status of PROJECT_STATUSES) {
+      expect(() =>
+        db.prepare("INSERT INTO projects (id, title, status) VALUES (?, 'T', ?)").run(`pu_${status}`, status),
+      ).not.toThrow();
+    }
+  });
+
+  it("scene_plans.status: all TS union members", () => {
+    db.prepare("INSERT INTO projects (id, title, status) VALUES ('pu', 'T', 'bootstrap')").run();
+    for (const status of SCENE_STATUSES) {
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO scene_plans (id, project_id, chapter_id, scene_order, status, data) VALUES (?, 'pu', NULL, 0, ?, '{}')",
+          )
+          .run(`su_${status}`, status),
+      ).not.toThrow();
+    }
+  });
+
+  it("audit_flags.severity: all TS union members", () => {
+    db.prepare("INSERT INTO projects (id, title, status) VALUES ('pu', 'T', 'bootstrap')").run();
+    db.prepare(
+      "INSERT INTO scene_plans (id, project_id, chapter_id, scene_order, status, data) VALUES ('su', 'pu', NULL, 0, 'planned', '{}')",
+    ).run();
+    for (const severity of AUDIT_SEVERITIES) {
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO audit_flags (id, scene_id, severity, category, message, resolved) VALUES (?, 'su', ?, 'voice', 'm', 0)",
+          )
+          .run(`fu_${severity}`, severity),
+      ).not.toThrow();
+    }
+  });
+
+  it("profile_adjustments.status: all TS union members", () => {
+    db.prepare("INSERT INTO projects (id, title, status) VALUES ('pu', 'T', 'bootstrap')").run();
+    for (const status of PROFILE_ADJUSTMENT_STATUSES) {
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO profile_adjustments (id, project_id, parameter, current_value, suggested_value, rationale, confidence, evidence, status) VALUES (?, 'pu', 'x', 0, 0, 'r', 0.5, '{}', ?)",
+          )
+          .run(`au_${status}`, status),
+      ).not.toThrow();
+    }
+  });
+
+  it("learned_patterns.status: all TS union members", () => {
+    db.prepare("INSERT INTO projects (id, title, status) VALUES ('pu', 'T', 'bootstrap')").run();
+    for (const status of LEARNED_PATTERN_STATUSES) {
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO learned_patterns (id, project_id, pattern_type, pattern_data, occurrences, confidence, status, created_at, updated_at) VALUES (?, 'pu', 't', '{}', 1, 0.5, ?, '2026-01-01', '2026-01-01')",
+          )
+          .run(`lu_${status}`, status),
+      ).not.toThrow();
+    }
   });
 });
 ```
@@ -1042,8 +1138,11 @@ Create `server/db/migrations/002_indexes_and_checks.sql`:
 CREATE INDEX IF NOT EXISTS idx_scene_plans_project
   ON scene_plans(project_id);
 
+-- ASC index: SQLite scans it in reverse to satisfy ORDER BY created_at DESC,
+-- so the ASC form is sufficient and avoids any version-floor concerns around
+-- descending-index support.
 CREATE INDEX IF NOT EXISTS idx_voice_guide_versions_created_at
-  ON voice_guide_versions(created_at DESC);
+  ON voice_guide_versions(created_at);
 
 -- ---------------------------------------------------------------------------
 -- projects.status
@@ -1109,40 +1208,42 @@ END;
 -- profile_adjustments.status
 -- ---------------------------------------------------------------------------
 
+-- Source of truth: TuningProposal.status in src/learner/tuning.ts
 CREATE TRIGGER IF NOT EXISTS chk_profile_adjustments_status_insert
 BEFORE INSERT ON profile_adjustments
 FOR EACH ROW
-WHEN NEW.status NOT IN ('pending', 'approved', 'rejected', 'applied', 'dismissed')
+WHEN NEW.status NOT IN ('pending', 'accepted', 'rejected')
 BEGIN
-  SELECT RAISE(ABORT, 'profile_adjustments.status must be one of pending|approved|rejected|applied|dismissed');
+  SELECT RAISE(ABORT, 'profile_adjustments.status must be one of pending|accepted|rejected');
 END;
 
 CREATE TRIGGER IF NOT EXISTS chk_profile_adjustments_status_update
 BEFORE UPDATE OF status ON profile_adjustments
 FOR EACH ROW
-WHEN NEW.status NOT IN ('pending', 'approved', 'rejected', 'applied', 'dismissed')
+WHEN NEW.status NOT IN ('pending', 'accepted', 'rejected')
 BEGIN
-  SELECT RAISE(ABORT, 'profile_adjustments.status must be one of pending|approved|rejected|applied|dismissed');
+  SELECT RAISE(ABORT, 'profile_adjustments.status must be one of pending|accepted|rejected');
 END;
 
 -- ---------------------------------------------------------------------------
 -- learned_patterns.status
 -- ---------------------------------------------------------------------------
 
+-- Source of truth: LearnedPattern.status in src/learner/patterns.ts
 CREATE TRIGGER IF NOT EXISTS chk_learned_patterns_status_insert
 BEFORE INSERT ON learned_patterns
 FOR EACH ROW
-WHEN NEW.status NOT IN ('proposed', 'approved', 'rejected', 'applied')
+WHEN NEW.status NOT IN ('proposed', 'accepted', 'rejected', 'expired')
 BEGIN
-  SELECT RAISE(ABORT, 'learned_patterns.status must be one of proposed|approved|rejected|applied');
+  SELECT RAISE(ABORT, 'learned_patterns.status must be one of proposed|accepted|rejected|expired');
 END;
 
 CREATE TRIGGER IF NOT EXISTS chk_learned_patterns_status_update
 BEFORE UPDATE OF status ON learned_patterns
 FOR EACH ROW
-WHEN NEW.status NOT IN ('proposed', 'approved', 'rejected', 'applied')
+WHEN NEW.status NOT IN ('proposed', 'accepted', 'rejected', 'expired')
 BEGIN
-  SELECT RAISE(ABORT, 'learned_patterns.status must be one of proposed|approved|rejected|applied');
+  SELECT RAISE(ABORT, 'learned_patterns.status must be one of proposed|accepted|rejected|expired');
 END;
 ```
 
@@ -1150,9 +1251,62 @@ END;
 
 Run: `pnpm test -- tests/server/db/migration-002.test.ts`
 
-Expected: all tests pass.
+Expected: all tests pass, including the regression guard that iterates every TS-union member.
 
-- [ ] **Step 5: Write the failing test for graceful shutdown**
+- [ ] **Step 5: Run the full DB test suite**
+
+Run: `pnpm test -- tests/server/db`
+
+Expected: green, including the pre-existing `repositories.test.ts`, `profile-repos.test.ts`, etc. If any existing test inserts rows with enum values outside the allowed sets above, treat that as a latent bug and update the test fixture to use a valid value — but **only** if the fixture lives in `tests/server/db/**`. If a fixture outside that tree would need updating, STOP and report the finding; do not edit files outside the scope boundary.
+
+- [ ] **Step 6: Final gate for Task 3a**
+
+Run: `pnpm check-all`
+
+Expected: lint, typecheck, and full vitest suite all green.
+
+- [ ] **Step 7: Commit Task 3a**
+
+```bash
+git add server/db/migrations/002_indexes_and_checks.sql \
+        tests/server/db/migration-002.test.ts
+git commit -m "$(cat <<'EOF'
+feat(db): migration 002 — missing indexes + CHECK triggers (#44)
+
+- Adds idx_scene_plans_project (project_id) — deleteProject was
+  full-scanning scene_plans on every project deletion.
+- Adds idx_voice_guide_versions_created_at — listVoiceGuideVersions
+  orders by created_at DESC without a supporting index. The ASC index
+  is sufficient because SQLite scans ASC indexes in reverse for DESC
+  ordering.
+- Installs BEFORE INSERT / BEFORE UPDATE triggers that emulate CHECK
+  constraints for enum columns: projects.status, scene_plans.status,
+  audit_flags.severity, profile_adjustments.status,
+  learned_patterns.status. SQLite does not support ALTER TABLE ADD
+  CHECK, so triggers + RAISE(ABORT) are the idiomatic workaround.
+  Allowed value sets are sourced directly from the TS unions in
+  src/learner/tuning.ts and src/learner/patterns.ts, and a regression
+  test iterates every union member to prevent drift.
+
+All new log lines use createLogger("migrations") from F1.
+
+Part of #44.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 3b: Graceful shutdown + proxy wiring (#44, part 2)
+
+**Files:**
+- Create: `server/db/shutdown.ts`
+- Create: `tests/server/db/shutdown.test.ts`
+- Modify: `server/proxy.ts` (ONE addition: call `registerShutdownHandlers`)
+
+- [ ] **Step 1: Write the failing test for graceful shutdown**
 
 Create `tests/server/db/shutdown.test.ts`:
 
@@ -1242,13 +1396,13 @@ describe("registerShutdownHandlers", () => {
 });
 ```
 
-- [ ] **Step 6: Run the shutdown test and confirm it fails**
+- [ ] **Step 2: Run the shutdown test and confirm it fails**
 
 Run: `pnpm test -- tests/server/db/shutdown.test.ts`
 
 Expected: all tests fail with a module-not-found error for `../../../server/db/shutdown.js`.
 
-- [ ] **Step 7: Implement `server/db/shutdown.ts`**
+- [ ] **Step 3: Implement `server/db/shutdown.ts`**
 
 Create `server/db/shutdown.ts`:
 
@@ -1320,13 +1474,13 @@ export function registerShutdownHandlers(server: Server, db: Database.Database):
 }
 ```
 
-- [ ] **Step 8: Run the shutdown tests and confirm they pass**
+- [ ] **Step 4: Run the shutdown tests and confirm they pass**
 
 Run: `pnpm test -- tests/server/db/shutdown.test.ts`
 
 Expected: three tests pass.
 
-- [ ] **Step 9: Wire `registerShutdownHandlers` into `server/proxy.ts`**
+- [ ] **Step 5: Wire `registerShutdownHandlers` into `server/proxy.ts`**
 
 Edit `server/proxy.ts`. This is the ONE allowed modification outside `server/db/**` in this package.
 
@@ -1357,45 +1511,31 @@ with:
 
 Do NOT migrate the existing `console.log` / `console.error` / `console.warn` calls in this file — that is Package F2's job.
 
-- [ ] **Step 10: Run the full DB test suite**
+- [ ] **Step 6: Run the full DB test suite**
 
 Run: `pnpm test -- tests/server/db`
 
-Expected: green, including the pre-existing `repositories.test.ts`, `profile-repos.test.ts`, etc. If any existing test inserts rows with enum values outside the allowed sets above, treat that as a latent bug and update the test fixture to use a valid value — but **only** if the fixture lives in `tests/server/db/**`. If a fixture outside that tree would need updating, STOP and report the finding; do not edit files outside the scope boundary.
+Expected: green.
 
-- [ ] **Step 11: Final gate**
+- [ ] **Step 7: Final gate**
 
 Run: `pnpm check-all`
 
 Expected: lint, typecheck, and full vitest suite all green.
 
-- [ ] **Step 12: Commit**
+- [ ] **Step 8: Commit Task 3b**
 
 ```bash
 git add server/db/shutdown.ts \
-        server/db/migrations/002_indexes_and_checks.sql \
         server/proxy.ts \
-        tests/server/db/shutdown.test.ts \
-        tests/server/db/migration-002.test.ts
+        tests/server/db/shutdown.test.ts
 git commit -m "$(cat <<'EOF'
-feat(db): graceful shutdown + missing indexes + CHECK constraints (#44)
+feat(db): graceful shutdown hook wired into proxy (#44)
 
-- server/db/shutdown.ts: registerShutdownHandlers(server, db) wires
-  SIGTERM/SIGINT to a drain sequence (server.close -> db.close ->
-  exit(0)) with a 10s force-exit safety net and idempotent handling
-  of repeat signals. Called once from server/proxy.ts at boot.
-
-- server/db/migrations/002_indexes_and_checks.sql:
-    * Adds idx_scene_plans_project (project_id) — deleteProject was
-      full-scanning scene_plans on every project deletion.
-    * Adds idx_voice_guide_versions_created_at — listVoiceGuideVersions
-      orders by created_at DESC without a supporting index.
-    * Installs BEFORE INSERT / BEFORE UPDATE triggers that emulate
-      CHECK constraints for enum columns: projects.status,
-      scene_plans.status, audit_flags.severity,
-      profile_adjustments.status, learned_patterns.status. SQLite
-      does not support ALTER TABLE ADD CHECK, so triggers + RAISE(ABORT)
-      are the idiomatic workaround.
+server/db/shutdown.ts: registerShutdownHandlers(server, db) wires
+SIGTERM/SIGINT to a drain sequence (server.close -> db.close ->
+exit(0)) with a 10s force-exit safety net and idempotent handling
+of repeat signals. Called once from server/proxy.ts at boot.
 
 All new log lines use createLogger("db") from F1. Existing console.*
 calls in server/proxy.ts are intentionally left for Package F2.
@@ -1443,7 +1583,7 @@ Touched only `server/db/**`, `tests/server/db/**`, and a single addition to `ser
 - [ ] `tests/server/db/transaction.test.ts` — 4 tests pass
 - [ ] `tests/server/db/transactions.repositories.test.ts` — 4 tests pass
 - [ ] `tests/server/db/migrations.test.ts` — 7 tests pass
-- [ ] `tests/server/db/migration-002.test.ts` — 12 tests pass
+- [ ] `tests/server/db/migration-002.test.ts` — 17 tests pass (12 original + 5 TS-union regression guards)
 - [ ] `tests/server/db/shutdown.test.ts` — 3 tests pass
 - [ ] Pre-existing `tests/server/db/**` suites remain green
 
