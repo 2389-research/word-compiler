@@ -6,33 +6,57 @@ function buildBudgetResult(
   r1Sections: RingSection[],
   r2Sections: RingSection[],
   r3Sections: RingSection[],
+  r1Tokens: number,
+  r2Tokens: number,
+  r3Tokens: number,
+  r1Text: string,
+  r2Text: string,
+  r3Text: string,
   wasCompressed: boolean,
   compressionLog: string[],
 ): BudgetResult {
   return {
-    r1: assembleSections(r1Sections),
-    r2: assembleSections(r2Sections) || undefined,
-    r3: assembleSections(r3Sections),
+    r1: r1Text,
+    r2: r2Sections.length > 0 ? r2Text : undefined,
+    r3: r3Text,
     r1Sections,
     r2Sections: r2Sections.length > 0 ? r2Sections : undefined,
     r3Sections,
+    r1Tokens,
+    r2Tokens: r2Sections.length > 0 ? r2Tokens : 0,
+    r3Tokens,
     wasCompressed,
     compressionLog,
   };
 }
 
-function tryCompressRing(
+/**
+ * Compress a ring to fit within `budget` tokens by removing non-immune
+ * sections in priority order (highest priority number cut first). Returns
+ * the trimmed section list AND the final assembled text + token count so
+ * callers don't have to re-count.
+ */
+function compressSections(
   sections: RingSection[],
   budget: number,
-  compressionLog: string[],
+  log: string[],
   ringLabel: string,
-): { sections: RingSection[]; compressed: boolean } {
-  const currentTokens = countTokens(assembleSections(sections));
-  if (budget > 0 && currentTokens > budget) {
-    compressionLog.push(`Compressing ${ringLabel} to fit ${budget} tokens`);
-    return { sections: compressSections(sections, budget, compressionLog, ringLabel), compressed: true };
+): { sections: RingSection[]; text: string; tokens: number } {
+  let current = [...sections];
+  let currentText = assembleSections(current);
+  let currentTokens = countTokens(currentText);
+
+  const removable = current.filter((s) => !s.immune).sort((a, b) => b.priority - a.priority);
+
+  for (const section of removable) {
+    if (currentTokens <= budget) break;
+    current = current.filter((s) => s !== section);
+    currentText = assembleSections(current);
+    currentTokens = countTokens(currentText);
+    log.push(`${ringLabel}: Removed ${section.name} (priority ${section.priority})`);
   }
-  return { sections, compressed: false };
+
+  return { sections: current, text: currentText, tokens: currentTokens };
 }
 
 export function enforceBudget(
@@ -48,88 +72,121 @@ export function enforceBudget(
   const compressionLog: string[] = [];
   let wasCompressed = false;
 
+  // Initial assemble-and-count, once per ring.
+  let r1Text = assembleSections(currentR1);
+  let r2Text = assembleSections(currentR2);
+  let r3Text = assembleSections(currentR3);
+  let r1Tokens = countTokens(r1Text);
+  let r2Tokens = countTokens(r2Text);
+  let r3Tokens = countTokens(r3Text);
+
   // Step 1: Ring 1 hard cap
-  const r1Text = assembleSections(currentR1);
-  if (countTokens(r1Text) > config.ring1HardCap) {
-    compressionLog.push(`Ring 1 exceeds hard cap (${countTokens(r1Text)} > ${config.ring1HardCap})`);
-    currentR1 = compressSections(currentR1, config.ring1HardCap, compressionLog, "R1");
+  if (r1Tokens > config.ring1HardCap) {
+    compressionLog.push(`Ring 1 exceeds hard cap (${r1Tokens} > ${config.ring1HardCap})`);
+    const compressed = compressSections(currentR1, config.ring1HardCap, compressionLog, "R1");
+    currentR1 = compressed.sections;
+    r1Text = compressed.text;
+    r1Tokens = compressed.tokens;
     wasCompressed = true;
   }
 
   // Step 2: Check total (R1 + R2 + R3)
-  const r1Final = assembleSections(currentR1);
-  const r2Final = assembleSections(currentR2);
-  const r3Final = assembleSections(currentR3);
-  const total = countTokens(r1Final) + countTokens(r2Final) + countTokens(r3Final);
-
-  if (total <= availableTokens) {
-    return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
+  if (r1Tokens + r2Tokens + r3Tokens <= availableTokens) {
+    return buildBudgetResult(
+      currentR1,
+      currentR2,
+      currentR3,
+      r1Tokens,
+      r2Tokens,
+      r3Tokens,
+      r1Text,
+      r2Text,
+      r3Text,
+      wasCompressed,
+      compressionLog,
+    );
   }
 
   // Step 3: Compress Ring 1 first (highest priority numbers cut first)
-  const r2Tokens = countTokens(r2Final);
-  const r3Tokens = countTokens(r3Final);
-  const r1Budget = availableTokens - r2Tokens - r3Tokens;
-
-  const r1Compress = tryCompressRing(currentR1, r1Budget, compressionLog, "R1");
-  currentR1 = r1Compress.sections;
-  wasCompressed = wasCompressed || r1Compress.compressed;
+  const r1BudgetForStep3 = availableTokens - r2Tokens - r3Tokens;
+  if (r1BudgetForStep3 > 0 && r1Tokens > r1BudgetForStep3) {
+    compressionLog.push(`Compressing R1 to fit ${r1BudgetForStep3} tokens`);
+    const compressed = compressSections(currentR1, r1BudgetForStep3, compressionLog, "R1");
+    currentR1 = compressed.sections;
+    r1Text = compressed.text;
+    r1Tokens = compressed.tokens;
+    wasCompressed = true;
+  }
 
   // Step 4: Re-check after Ring 1 compression
-  const r1After = assembleSections(currentR1);
-  const totalAfterR1 = countTokens(r1After) + r2Tokens + r3Tokens;
-
-  if (totalAfterR1 <= availableTokens) {
-    return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
+  if (r1Tokens + r2Tokens + r3Tokens <= availableTokens) {
+    return buildBudgetResult(
+      currentR1,
+      currentR2,
+      currentR3,
+      r1Tokens,
+      r2Tokens,
+      r3Tokens,
+      r1Text,
+      r2Text,
+      r3Text,
+      wasCompressed,
+      compressionLog,
+    );
   }
 
   // Step 5: Compress Ring 2 (if present)
   if (currentR2.length > 0) {
-    const r1TokensNow = countTokens(r1After);
-    const r2Budget = availableTokens - r1TokensNow - r3Tokens;
-    const r2Compress = tryCompressRing(currentR2, r2Budget, compressionLog, "R2");
-    currentR2 = r2Compress.sections;
-    wasCompressed = wasCompressed || r2Compress.compressed;
+    const r2Budget = availableTokens - r1Tokens - r3Tokens;
+    if (r2Budget > 0 && r2Tokens > r2Budget) {
+      compressionLog.push(`Compressing R2 to fit ${r2Budget} tokens`);
+      const compressed = compressSections(currentR2, r2Budget, compressionLog, "R2");
+      currentR2 = compressed.sections;
+      r2Text = compressed.text;
+      r2Tokens = compressed.tokens;
+      wasCompressed = true;
+    }
   }
 
   // Step 6: Re-check after Ring 2 compression
-  const r2After = assembleSections(currentR2);
-  const totalAfterR2 = countTokens(r1After) + countTokens(r2After) + r3Tokens;
-
-  if (totalAfterR2 <= availableTokens) {
-    return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
+  if (r1Tokens + r2Tokens + r3Tokens <= availableTokens) {
+    return buildBudgetResult(
+      currentR1,
+      currentR2,
+      currentR3,
+      r1Tokens,
+      r2Tokens,
+      r3Tokens,
+      r1Text,
+      r2Text,
+      r3Text,
+      wasCompressed,
+      compressionLog,
+    );
   }
 
   // Step 7: Compress Ring 3 if Ring 1+2 compression insufficient
-  const r1TokensFinal = countTokens(r1After);
-  const r2TokensFinal = countTokens(r2After);
-  const r3Budget = availableTokens - r1TokensFinal - r2TokensFinal;
-
+  const r3Budget = availableTokens - r1Tokens - r2Tokens;
   if (r3Budget > 0) {
     compressionLog.push(`Ring 1+2 compression insufficient. Compressing Ring 3 to fit ${r3Budget} tokens`);
-    currentR3 = compressSections(currentR3, r3Budget, compressionLog, "R3");
+    const compressed = compressSections(currentR3, r3Budget, compressionLog, "R3");
+    currentR3 = compressed.sections;
+    r3Text = compressed.text;
+    r3Tokens = compressed.tokens;
     wasCompressed = true;
   }
 
-  return buildBudgetResult(currentR1, currentR2, currentR3, wasCompressed, compressionLog);
-}
-
-/**
- * Remove non-immune sections by priority (highest priority number = cut first)
- * until totalTokens fits within budget.
- */
-function compressSections(sections: RingSection[], budget: number, log: string[], ringLabel: string): RingSection[] {
-  let current = [...sections];
-
-  // Sort removable sections by priority descending (cut highest first)
-  const removable = current.filter((s) => !s.immune).sort((a, b) => b.priority - a.priority);
-
-  for (const section of removable) {
-    if (countTokens(assembleSections(current)) <= budget) break;
-
-    current = current.filter((s) => s !== section);
-    log.push(`${ringLabel}: Removed ${section.name} (priority ${section.priority})`);
-  }
-
-  return current;
+  return buildBudgetResult(
+    currentR1,
+    currentR2,
+    currentR3,
+    r1Tokens,
+    r2Tokens,
+    r3Tokens,
+    r1Text,
+    r2Text,
+    r3Text,
+    wasCompressed,
+    compressionLog,
+  );
 }
