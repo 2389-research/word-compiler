@@ -84,7 +84,10 @@ $effect(() => {
       }
 
       const text = updatedEd.state.doc.textBetween(from, to, "\n\n");
-      if (!text.trim()) return;
+      if (!text.trim()) {
+        if (mouseDown) pendingSelection = null;
+        return;
+      }
 
       // Position popover below selection end
       const coords = updatedEd.view.coordsAtPos(to);
@@ -219,9 +222,16 @@ function handleCancel() {
 function handleEditorMousedown() {
   mouseDown = true;
   pendingSelection = null;
+  // Dismiss any existing popover so it doesn't block the new selection
+  if (refinementState === "selecting" || refinementState === "reviewing" || refinementState === "cutting") {
+    refinementState = "idle";
+    variants = [];
+    cutPreviewText = null;
+  }
 }
 
 function handleEditorMouseup() {
+  if (!mouseDown && !pendingSelection) return;
   mouseDown = false;
   if (pendingSelection) {
     selectedText = pendingSelection.text;
@@ -234,11 +244,19 @@ function handleEditorMouseup() {
     cutPreviewText = null;
   }
 }
+
+// Listen on window so drags released outside the editor still resolve
+$effect(() => {
+  window.addEventListener("mouseup", handleEditorMouseup);
+  return () => {
+    window.removeEventListener("mouseup", handleEditorMouseup);
+  };
+});
 </script>
 
 <div class="prose-editor-wrapper">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div bind:this={editorElement} class="prose-editor" onmousedown={handleEditorMousedown} onmouseup={handleEditorMouseup}></div>
+  <div bind:this={editorElement} class="prose-editor" onmousedowncapture={handleEditorMousedown}></div>
 
   {#if refinementState === "cutting" && cutPreviewText !== null}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
