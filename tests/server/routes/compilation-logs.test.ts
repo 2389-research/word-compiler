@@ -23,7 +23,8 @@ describe("POST /api/compilation-logs", () => {
 
     const res = await request(app).post("/api/compilation-logs").send(log);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: log.id,
         chunkId,
@@ -50,7 +51,8 @@ describe("GET /api/compilation-logs/:id", () => {
 
     const res = await request(app).get(`/api/compilation-logs/${log.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: log.id,
         chunkId,
@@ -62,17 +64,17 @@ describe("GET /api/compilation-logs/:id", () => {
   it("returns 404 for a nonexistent log", async () => {
     const res = await request(app).get("/api/compilation-logs/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Log not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Log not found" } });
   });
 });
 
 describe("GET /api/chunks/:chunkId/compilation-logs", () => {
-  it("returns an empty array when no logs exist for the chunk", async () => {
+  it("returns an empty list envelope when no logs exist for the chunk", async () => {
     const chunkId = generateId();
 
     const res = await request(app).get(`/api/chunks/${chunkId}/compilation-logs`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 
   it("lists logs for a chunk ordered by timestamp descending", async () => {
@@ -92,9 +94,10 @@ describe("GET /api/chunks/:chunkId/compilation-logs", () => {
 
     const res = await request(app).get(`/api/chunks/${chunkId}/compilation-logs`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
     // Newer should come first (descending by created_at / timestamp)
-    expect(res.body[0].totalTokens).toBe(500);
-    expect(res.body[1].totalTokens).toBe(100);
+    expect(res.body.data[0].totalTokens).toBe(500);
+    expect(res.body.data[1].totalTokens).toBe(100);
   });
 });

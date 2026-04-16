@@ -43,18 +43,19 @@ describe("GET /api/scenes/:sceneId/chunks", () => {
 
     const res = await request(app).get(`/api/scenes/${scene.id}/chunks`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(3);
-    expect(res.body[0].sequenceNumber).toBe(1);
-    expect(res.body[1].sequenceNumber).toBe(2);
-    expect(res.body[2].sequenceNumber).toBe(3);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].sequenceNumber).toBe(1);
+    expect(res.body.data[1].sequenceNumber).toBe(2);
+    expect(res.body.data[2].sequenceNumber).toBe(3);
   });
 
-  it("returns an empty array when no chunks exist for the scene", async () => {
+  it("returns an empty list envelope when no chunks exist for the scene", async () => {
     const { scene } = seedSceneChain();
 
     const res = await request(app).get(`/api/scenes/${scene.id}/chunks`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 });
 
@@ -66,7 +67,8 @@ describe("GET /api/chunks/:id", () => {
 
     const res = await request(app).get(`/api/chunks/${c.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: c.id,
         sceneId: scene.id,
@@ -80,7 +82,7 @@ describe("GET /api/chunks/:id", () => {
   it("returns 404 for a nonexistent chunk", async () => {
     const res = await request(app).get("/api/chunks/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Chunk not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Chunk not found" } });
   });
 });
 
@@ -91,7 +93,8 @@ describe("POST /api/chunks", () => {
 
     const res = await request(app).post("/api/chunks").send(c);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: c.id,
         sceneId: scene.id,
@@ -115,21 +118,22 @@ describe("PUT /api/chunks/:id", () => {
     const updated = { ...c, status: "accepted", editedText: "Revised prose", humanNotes: "Looks good" };
     const res = await request(app).put(`/api/chunks/${c.id}`).send(updated);
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("accepted");
-    expect(res.body.editedText).toBe("Revised prose");
-    expect(res.body.humanNotes).toBe("Looks good");
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.status).toBe("accepted");
+    expect(res.body.data.editedText).toBe("Revised prose");
+    expect(res.body.data.humanNotes).toBe("Looks good");
   });
 });
 
 describe("DELETE /api/chunks/:id", () => {
-  it("deletes an existing chunk and returns { ok: true }", async () => {
+  it("deletes an existing chunk and returns { ok: true, data: { deleted: true } }", async () => {
     const { scene } = seedSceneChain();
     const c = makeChunk(scene.id, 1);
     chunks.createChunk(db, c);
 
     const res = await request(app).delete(`/api/chunks/${c.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { deleted: true } });
 
     const stored = chunks.getChunk(db, c.id);
     expect(stored).toBeNull();
@@ -138,6 +142,6 @@ describe("DELETE /api/chunks/:id", () => {
   it("returns 404 when deleting a nonexistent chunk", async () => {
     const res = await request(app).delete("/api/chunks/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Chunk not found" });
+    expect(res.body.error.code).toBe("NOT_FOUND");
   });
 });

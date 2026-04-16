@@ -19,7 +19,7 @@ beforeEach(() => {
   db = testApp.db;
 });
 
-/** Seed project → chapter arc → scene plan and return the sceneId. */
+/** Seed project -> chapter arc -> scene plan and return the sceneId. */
 function seedSceneChain(): { projectId: string; chapterId: string; sceneId: string } {
   const project = makeProject();
   projects.createProject(db, project);
@@ -35,12 +35,12 @@ function seedSceneChain(): { projectId: string; chapterId: string; sceneId: stri
 }
 
 describe("GET /api/scenes/:sceneId/audit-flags", () => {
-  it("returns an empty array when no flags exist", async () => {
+  it("returns an empty list envelope when no flags exist", async () => {
     const { sceneId } = seedSceneChain();
 
     const res = await request(app).get(`/api/scenes/${sceneId}/audit-flags`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 
   it("returns flags ordered by severity: critical > warning > info", async () => {
@@ -57,10 +57,11 @@ describe("GET /api/scenes/:sceneId/audit-flags", () => {
 
     const res = await request(app).get(`/api/scenes/${sceneId}/audit-flags`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(3);
-    expect(res.body[0].severity).toBe("critical");
-    expect(res.body[1].severity).toBe("warning");
-    expect(res.body[2].severity).toBe("info");
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].severity).toBe("critical");
+    expect(res.body.data[1].severity).toBe("warning");
+    expect(res.body.data[2].severity).toBe("info");
   });
 });
 
@@ -71,7 +72,8 @@ describe("POST /api/audit-flags", () => {
 
     const res = await request(app).post("/api/audit-flags").send(flag);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: flag.id,
         sceneId,
@@ -92,15 +94,16 @@ describe("POST /api/audit-flags", () => {
 
     const res = await request(app).post("/api/audit-flags").send(flags);
     expect(res.status).toBe(201);
-    expect(res.body).toHaveLength(3);
-    expect(res.body[0].id).toBe(flags[0]!.id);
-    expect(res.body[1].id).toBe(flags[1]!.id);
-    expect(res.body[2].id).toBe(flags[2]!.id);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].id).toBe(flags[0]!.id);
+    expect(res.body.data[1].id).toBe(flags[1]!.id);
+    expect(res.body.data[2].id).toBe(flags[2]!.id);
   });
 });
 
 describe("PATCH /api/audit-flags/:id/resolve", () => {
-  it("resolves an existing flag and returns { ok: true }", async () => {
+  it("resolves an existing flag and returns { ok: true, data: { resolved: true } }", async () => {
     const { sceneId } = seedSceneChain();
     const flag = makeAuditFlag(sceneId);
     await request(app).post("/api/audit-flags").send(flag);
@@ -110,11 +113,11 @@ describe("PATCH /api/audit-flags/:id/resolve", () => {
       .send({ action: "fixed the prose", wasActionable: true });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { resolved: true } });
 
     // Verify the flag is now resolved in the database
     const listRes = await request(app).get(`/api/scenes/${sceneId}/audit-flags`);
-    const resolved = listRes.body.find((f: any) => f.id === flag.id);
+    const resolved = listRes.body.data.find((f: { id: string }) => f.id === flag.id);
     expect(resolved.resolved).toBe(true);
     expect(resolved.resolvedAction).toBe("fixed the prose");
     expect(resolved.wasActionable).toBe(true);
@@ -126,7 +129,7 @@ describe("PATCH /api/audit-flags/:id/resolve", () => {
       .send({ action: "n/a", wasActionable: false });
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Audit flag not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Audit flag not found" } });
   });
 });
 
@@ -136,7 +139,8 @@ describe("GET /api/scenes/:sceneId/audit-stats", () => {
 
     const res = await request(app).get(`/api/scenes/${sceneId}/audit-stats`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual({
       total: 0,
       resolved: 0,
       actionable: 0,
@@ -164,12 +168,13 @@ describe("GET /api/scenes/:sceneId/audit-stats", () => {
 
     const res = await request(app).get(`/api/scenes/${sceneId}/audit-stats`);
     expect(res.status).toBe(200);
-    expect(res.body.total).toBe(4);
-    expect(res.body.resolved).toBe(2);
-    expect(res.body.actionable).toBe(1);
-    expect(res.body.dismissed).toBe(1);
-    expect(res.body.signalToNoiseRatio).toBe(0.5);
-    expect(res.body.byCategory).toEqual({
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.total).toBe(4);
+    expect(res.body.data.resolved).toBe(2);
+    expect(res.body.data.actionable).toBe(1);
+    expect(res.body.data.dismissed).toBe(1);
+    expect(res.body.data.signalToNoiseRatio).toBe(0.5);
+    expect(res.body.data.byCategory).toEqual({
       kill_list: { total: 2, actionable: 1 },
       sentence_variance: { total: 2, actionable: 0 },
     });

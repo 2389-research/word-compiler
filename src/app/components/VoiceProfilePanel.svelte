@@ -33,9 +33,9 @@ async function loadData() {
   loading = true;
   error = null;
   try {
-    const [g, s] = await Promise.all([apiGetVoiceGuide(), apiListWritingSamples()]);
+    const [g, sPage] = await Promise.all([apiGetVoiceGuide(), apiListWritingSamples()]);
     guide = g;
-    samples = s;
+    samples = sPage.data;
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load voice profile";
   } finally {

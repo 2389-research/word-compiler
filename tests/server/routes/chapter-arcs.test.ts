@@ -34,18 +34,19 @@ describe("GET /api/projects/:projectId/chapters", () => {
 
     const res = await request(app).get(`/api/projects/${project.id}/chapters`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].chapterNumber).toBe(1);
-    expect(res.body[1].chapterNumber).toBe(2);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].chapterNumber).toBe(1);
+    expect(res.body.data[1].chapterNumber).toBe(2);
   });
 
-  it("returns an empty array when no arcs exist", async () => {
+  it("returns an empty list envelope when no arcs exist", async () => {
     const p = makeProject();
     projects.createProject(db, p);
 
     const res = await request(app).get(`/api/projects/${p.id}/chapters`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 });
 
@@ -55,7 +56,8 @@ describe("GET /api/chapters/:id", () => {
 
     const res = await request(app).get(`/api/chapters/${arc1.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: arc1.id,
         chapterNumber: 1,
@@ -67,7 +69,7 @@ describe("GET /api/chapters/:id", () => {
   it("returns 404 for a nonexistent chapter arc", async () => {
     const res = await request(app).get("/api/chapters/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Chapter arc not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Chapter arc not found" } });
   });
 });
 
@@ -79,7 +81,8 @@ describe("POST /api/chapters", () => {
 
     const res = await request(app).post("/api/chapters").send(arc);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: arc.id,
         projectId: p.id,
@@ -108,7 +111,8 @@ describe("PUT /api/chapters/:id", () => {
     const updated = { ...arc1, workingTitle: "Revised Opening", narrativeFunction: "Setup and hook" };
     const res = await request(app).put(`/api/chapters/${arc1.id}`).send(updated);
     expect(res.status).toBe(200);
-    expect(res.body.workingTitle).toBe("Revised Opening");
-    expect(res.body.narrativeFunction).toBe("Setup and hook");
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.workingTitle).toBe("Revised Opening");
+    expect(res.body.data.narrativeFunction).toBe("Setup and hook");
   });
 });

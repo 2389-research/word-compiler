@@ -19,7 +19,7 @@ beforeEach(() => {
   db = testApp.db;
 });
 
-/** Seed project → chapter arc → scene plan and return IDs. */
+/** Seed project -> chapter arc -> scene plan and return IDs. */
 function seedSceneChain(): { projectId: string; chapterId: string; sceneId: string } {
   const project = makeProject();
   projects.createProject(db, project);
@@ -48,7 +48,7 @@ describe("GET /api/scenes/:sceneId/ir", () => {
 
     const res = await request(app).get(`/api/scenes/${sceneId}/ir`);
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "IR not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "IR not found" } });
   });
 
   it("returns the IR when it exists", async () => {
@@ -61,7 +61,8 @@ describe("GET /api/scenes/:sceneId/ir", () => {
 
     const res = await request(app).get(`/api/scenes/${sceneId}/ir`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         sceneId,
         verified: false,
@@ -80,7 +81,8 @@ describe("POST /api/scenes/:sceneId/ir", () => {
 
     const res = await request(app).post(`/api/scenes/${sceneId}/ir`).send(ir);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         sceneId,
         verified: false,
@@ -99,29 +101,30 @@ describe("PUT /api/scenes/:sceneId/ir", () => {
     const updated = { ...ir, events: ["Updated event"], factsIntroduced: ["New fact"] };
     const res = await request(app).put(`/api/scenes/${sceneId}/ir`).send(updated);
     expect(res.status).toBe(200);
-    expect(res.body.events).toEqual(["Updated event"]);
-    expect(res.body.factsIntroduced).toEqual(["New fact"]);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.events).toEqual(["Updated event"]);
+    expect(res.body.data.factsIntroduced).toEqual(["New fact"]);
 
     // Verify persistence
     const getRes = await request(app).get(`/api/scenes/${sceneId}/ir`);
-    expect(getRes.body.events).toEqual(["Updated event"]);
-    expect(getRes.body.factsIntroduced).toEqual(["New fact"]);
+    expect(getRes.body.data.events).toEqual(["Updated event"]);
+    expect(getRes.body.data.factsIntroduced).toEqual(["New fact"]);
   });
 });
 
 describe("PATCH /api/scenes/:sceneId/ir/verify", () => {
-  it("verifies an existing IR and returns { ok: true }", async () => {
+  it("verifies an existing IR and returns envelope", async () => {
     const { sceneId } = seedSceneChain();
     const ir = createEmptyNarrativeIR(sceneId);
     await request(app).post(`/api/scenes/${sceneId}/ir`).send(ir);
 
     const res = await request(app).patch(`/api/scenes/${sceneId}/ir/verify`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { verified: true } });
 
     // Verify the IR is now marked as verified
     const getRes = await request(app).get(`/api/scenes/${sceneId}/ir`);
-    expect(getRes.body.verified).toBe(true);
+    expect(getRes.body.data.verified).toBe(true);
   });
 
   it("returns 404 when no IR exists for the scene", async () => {
@@ -129,7 +132,7 @@ describe("PATCH /api/scenes/:sceneId/ir/verify", () => {
 
     const res = await request(app).patch(`/api/scenes/${sceneId}/ir/verify`);
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "IR not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "IR not found" } });
   });
 });
 
@@ -148,17 +151,18 @@ describe("GET /api/chapters/:chapterId/irs", () => {
 
     const res = await request(app).get(`/api/chapters/${chapterId}/irs`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].sceneId).toBe(sceneId);
-    expect(res.body[1].sceneId).toBe(sceneId2);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].sceneId).toBe(sceneId);
+    expect(res.body.data[1].sceneId).toBe(sceneId2);
   });
 
-  it("returns an empty array when no IRs exist", async () => {
+  it("returns an empty list envelope when no IRs exist", async () => {
     const { chapterId } = seedSceneChain();
 
     const res = await request(app).get(`/api/chapters/${chapterId}/irs`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 });
 
@@ -180,12 +184,13 @@ describe("GET /api/chapters/:chapterId/irs/verified", () => {
 
     const res = await request(app).get(`/api/chapters/${chapterId}/irs/verified`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].sceneId).toBe(sceneId);
-    expect(res.body[0].verified).toBe(true);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].sceneId).toBe(sceneId);
+    expect(res.body.data[0].verified).toBe(true);
   });
 
-  it("returns an empty array when no IRs are verified", async () => {
+  it("returns an empty list envelope when no IRs are verified", async () => {
     const { chapterId, sceneId } = seedSceneChain();
 
     const ir = createEmptyNarrativeIR(sceneId);
@@ -193,6 +198,6 @@ describe("GET /api/chapters/:chapterId/irs/verified", () => {
 
     const res = await request(app).get(`/api/chapters/${chapterId}/irs/verified`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 });

@@ -28,7 +28,7 @@ beforeEach(() => {
   db = testApp.db;
 });
 
-/** Seed project → chapter arc → scene plan → chunk and return IDs. */
+/** Seed project -> chapter arc -> scene plan -> chunk and return IDs. */
 function seedFullChain(): {
   projectId: string;
   chapterId: string;
@@ -58,17 +58,17 @@ function seedProject(): string {
   return project.id;
 }
 
-// ═══════════════════════════════════════════════════════════
+// ===============================================================
 //  Edit Patterns
-// ═══════════════════════════════════════════════════════════
+// ===============================================================
 
 describe("GET /api/projects/:projectId/edit-patterns", () => {
-  it("returns an empty array when no patterns exist", async () => {
+  it("returns an empty list envelope when no patterns exist", async () => {
     const projectId = seedProject();
 
     const res = await request(app).get(`/api/projects/${projectId}/edit-patterns`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 
   it("lists edit patterns for the project", async () => {
@@ -82,19 +82,20 @@ describe("GET /api/projects/:projectId/edit-patterns", () => {
 
     const res = await request(app).get(`/api/projects/${projectId}/edit-patterns`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].projectId).toBe(projectId);
-    expect(res.body[1].projectId).toBe(projectId);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].projectId).toBe(projectId);
+    expect(res.body.data[1].projectId).toBe(projectId);
   });
 });
 
 describe("GET /api/scenes/:sceneId/edit-patterns", () => {
-  it("returns an empty array when no patterns exist for the scene", async () => {
+  it("returns an empty list envelope when no patterns exist for the scene", async () => {
     const { sceneId } = seedFullChain();
 
     const res = await request(app).get(`/api/scenes/${sceneId}/edit-patterns`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 
   it("lists edit patterns scoped to the scene", async () => {
@@ -108,9 +109,10 @@ describe("GET /api/scenes/:sceneId/edit-patterns", () => {
 
     const res = await request(app).get(`/api/scenes/${sceneId}/edit-patterns`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].sceneId).toBe(sceneId);
-    expect(res.body[1].sceneId).toBe(sceneId);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].sceneId).toBe(sceneId);
+    expect(res.body.data[1].sceneId).toBe(sceneId);
   });
 });
 
@@ -125,8 +127,9 @@ describe("POST /api/edit-patterns", () => {
 
     const res = await request(app).post("/api/edit-patterns").send(patterns);
     expect(res.status).toBe(201);
-    expect(res.body).toHaveLength(3);
-    expect(res.body[0]).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0]).toEqual(
       expect.objectContaining({
         id: patterns[0]!.id,
         projectId,
@@ -137,17 +140,17 @@ describe("POST /api/edit-patterns", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════
+// ===============================================================
 //  Learned Patterns
-// ═══════════════════════════════════════════════════════════
+// ===============================================================
 
 describe("GET /api/projects/:projectId/learned-patterns", () => {
-  it("returns an empty array when no patterns exist", async () => {
+  it("returns an empty list envelope when no patterns exist", async () => {
     const projectId = seedProject();
 
     const res = await request(app).get(`/api/projects/${projectId}/learned-patterns`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 
   it("lists all learned patterns for the project", async () => {
@@ -160,10 +163,11 @@ describe("GET /api/projects/:projectId/learned-patterns", () => {
 
     const res = await request(app).get(`/api/projects/${projectId}/learned-patterns`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
     // Ordered by confidence DESC, so 0.9 comes before 0.65
-    expect(res.body[0].confidence).toBe(0.9);
-    expect(res.body[1].confidence).toBe(0.65);
+    expect(res.body.data[0].confidence).toBe(0.9);
+    expect(res.body.data[1].confidence).toBe(0.65);
   });
 
   it("filters learned patterns by status query param", async () => {
@@ -180,8 +184,9 @@ describe("GET /api/projects/:projectId/learned-patterns", () => {
 
     const res = await request(app).get(`/api/projects/${projectId}/learned-patterns?status=proposed`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    for (const pattern of res.body) {
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    for (const pattern of res.body.data) {
       expect(pattern.status).toBe("proposed");
     }
   });
@@ -194,7 +199,8 @@ describe("POST /api/learned-patterns", () => {
 
     const res = await request(app).post("/api/learned-patterns").send(input);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         projectId,
         patternType: "CUT_FILLER",
@@ -204,9 +210,9 @@ describe("POST /api/learned-patterns", () => {
       }),
     );
     // Server generates an id and timestamps
-    expect(res.body.id).toBeDefined();
-    expect(res.body.createdAt).toBeDefined();
-    expect(res.body.updatedAt).toBeDefined();
+    expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.createdAt).toBeDefined();
+    expect(res.body.data.updatedAt).toBeDefined();
   });
 });
 
@@ -215,37 +221,37 @@ describe("PATCH /api/learned-patterns/:id/status", () => {
     const projectId = seedProject();
     const input = makeLearnedPatternInput({ projectId, status: "proposed" });
     const createRes = await request(app).post("/api/learned-patterns").send(input);
-    const patternId = createRes.body.id;
+    const patternId = createRes.body.data.id;
 
     const res = await request(app).patch(`/api/learned-patterns/${patternId}/status`).send({ status: "accepted" });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { updated: true } });
 
     // Verify the status change persisted
     const listRes = await request(app).get(`/api/projects/${projectId}/learned-patterns?status=accepted`);
-    expect(listRes.body).toHaveLength(1);
-    expect(listRes.body[0].id).toBe(patternId);
-    expect(listRes.body[0].status).toBe("accepted");
+    expect(listRes.body.data).toHaveLength(1);
+    expect(listRes.body.data[0].id).toBe(patternId);
+    expect(listRes.body.data[0].status).toBe("accepted");
   });
 
   it("returns 404 for a nonexistent pattern", async () => {
     const res = await request(app).patch("/api/learned-patterns/nonexistent-id/status").send({ status: "rejected" });
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Learned pattern not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Learned pattern not found" } });
   });
 });
 
-// ═══════════════════════════════════════════════════════════
+// ===============================================================
 //  Profile Adjustments
-// ═══════════════════════════════════════════════════════════
+// ===============================================================
 
 describe("GET /api/projects/:projectId/profile-adjustments", () => {
-  it("returns an empty array when no adjustments exist", async () => {
+  it("returns an empty list envelope when no adjustments exist", async () => {
     const projectId = seedProject();
 
     const res = await request(app).get(`/api/projects/${projectId}/profile-adjustments`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 
   it("lists all profile adjustments for the project", async () => {
@@ -259,7 +265,8 @@ describe("GET /api/projects/:projectId/profile-adjustments", () => {
 
     const res = await request(app).get(`/api/projects/${projectId}/profile-adjustments`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
   });
 
   it("filters profile adjustments by status query param", async () => {
@@ -276,8 +283,9 @@ describe("GET /api/projects/:projectId/profile-adjustments", () => {
 
     const res = await request(app).get(`/api/projects/${projectId}/profile-adjustments?status=pending`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    for (const adj of res.body) {
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    for (const adj of res.body.data) {
       expect(adj.status).toBe("pending");
     }
   });
@@ -290,7 +298,8 @@ describe("POST /api/profile-adjustments", () => {
 
     const res = await request(app).post("/api/profile-adjustments").send(input);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         projectId,
         parameter: "defaultTemperature",
@@ -302,8 +311,8 @@ describe("POST /api/profile-adjustments", () => {
       }),
     );
     // Server generates an id and timestamp
-    expect(res.body.id).toBeDefined();
-    expect(res.body.createdAt).toBeDefined();
+    expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.createdAt).toBeDefined();
   });
 });
 
@@ -312,24 +321,24 @@ describe("PATCH /api/profile-adjustments/:id/status", () => {
     const projectId = seedProject();
     const input = makeProfileAdjustmentInput({ projectId, status: "pending" });
     const createRes = await request(app).post("/api/profile-adjustments").send(input);
-    const adjustmentId = createRes.body.id;
+    const adjustmentId = createRes.body.data.id;
 
     const res = await request(app)
       .patch(`/api/profile-adjustments/${adjustmentId}/status`)
       .send({ status: "accepted" });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { updated: true } });
 
     // Verify the status change persisted
     const listRes = await request(app).get(`/api/projects/${projectId}/profile-adjustments?status=accepted`);
-    expect(listRes.body).toHaveLength(1);
-    expect(listRes.body[0].id).toBe(adjustmentId);
-    expect(listRes.body[0].status).toBe("accepted");
+    expect(listRes.body.data).toHaveLength(1);
+    expect(listRes.body.data[0].id).toBe(adjustmentId);
+    expect(listRes.body.data[0].status).toBe("accepted");
   });
 
   it("returns 404 for a nonexistent adjustment", async () => {
     const res = await request(app).patch("/api/profile-adjustments/nonexistent-id/status").send({ status: "rejected" });
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Profile adjustment not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Profile adjustment not found" } });
   });
 });

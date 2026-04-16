@@ -16,25 +16,139 @@ import type {
   Project,
   ScenePlan,
 } from "../types/index.js";
+import { ApiError, type ApiErrorCode } from "./errors.js";
 
 const BASE = "/api/data";
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+// ─── Envelope helpers ───────────────────────────────
+
+function isErrEnvelope(body: unknown): body is { ok: false; error: { code: string; message: string } } {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    (body as { ok?: unknown }).ok === false &&
+    typeof (body as { error?: unknown }).error === "object"
+  );
+}
+
+function isOkEnvelope<T>(body: unknown): body is { ok: true; data: T } {
+  return (
+    typeof body === "object" && body !== null && (body as { ok?: unknown }).ok === true && "data" in (body as object)
+  );
+}
+
+function isListEnvelope<T>(body: unknown): body is { ok: true; data: T[]; nextPageToken: string | null } {
+  return isOkEnvelope<T[]>(body) && "nextPageToken" in (body as object);
+}
+
+async function readBody(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
   }
-  return res.json() as Promise<T>;
+}
+
+function requestIdOf(res: Response): string | undefined {
+  return res.headers.get("x-request-id") ?? undefined;
+}
+
+// ─── Core fetch wrappers ────────────────────────────
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch (caught) {
+    throw new ApiError("UNKNOWN", "Network error", 0, { cause: caught });
+  }
+
+  // DELETE endpoints return 204 No Content with no body. Envelope contract
+  // only applies when a body exists.
+  if (res.status === 204) {
+    return undefined as unknown as T;
+  }
+
+  const body = await readBody(res);
+
+  if (isErrEnvelope(body)) {
+    throw new ApiError(body.error.code as ApiErrorCode, body.error.message, res.status, {
+      body,
+      requestId: requestIdOf(res),
+    });
+  }
+  if (!res.ok) {
+    throw new ApiError("UNKNOWN", `HTTP ${res.status}`, res.status, {
+      body,
+      requestId: requestIdOf(res),
+    });
+  }
+  if (isOkEnvelope<T>(body)) {
+    return body.data;
+  }
+  throw new ApiError("UNKNOWN", "Malformed API response", res.status, {
+    body,
+    requestId: requestIdOf(res),
+  });
+}
+
+export interface PageRequest {
+  limit?: number;
+  pageToken?: string | null;
+}
+
+export interface Page<T> {
+  data: T[];
+  nextPageToken: string | null;
+}
+
+async function fetchList<T>(url: string, page?: PageRequest, init?: RequestInit): Promise<Page<T>> {
+  const params = new URLSearchParams();
+  if (page?.limit !== undefined) params.set("limit", String(page.limit));
+  if (page?.pageToken) params.set("pageToken", page.pageToken);
+  const sep = url.includes("?") ? "&" : "?";
+  const full = params.toString() ? `${url}${sep}${params.toString()}` : url;
+
+  let res: Response;
+  try {
+    res = await fetch(full, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch (caught) {
+    throw new ApiError("UNKNOWN", "Network error", 0, { cause: caught });
+  }
+
+  const body = await readBody(res);
+
+  if (isErrEnvelope(body)) {
+    throw new ApiError(body.error.code as ApiErrorCode, body.error.message, res.status, {
+      body,
+      requestId: requestIdOf(res),
+    });
+  }
+  if (!res.ok) {
+    throw new ApiError("UNKNOWN", `HTTP ${res.status}`, res.status, {
+      body,
+      requestId: requestIdOf(res),
+    });
+  }
+  if (isListEnvelope<T>(body)) {
+    return { data: body.data, nextPageToken: body.nextPageToken };
+  }
+  throw new ApiError("UNKNOWN", "Malformed list response", res.status, {
+    body,
+    requestId: requestIdOf(res),
+  });
 }
 
 // ─── Projects ─────────────────────────────────────────
 
-export function apiListProjects(): Promise<Project[]> {
-  return fetchJson(`${BASE}/projects`);
+export function apiListProjects(page?: PageRequest): Promise<Page<Project>> {
+  return fetchList(`${BASE}/projects`, page);
 }
 
 export function apiGetProject(id: string): Promise<Project> {
@@ -65,8 +179,11 @@ export function apiGetBibleVersion(projectId: string, version: number): Promise<
   return fetchJson(`${BASE}/projects/${projectId}/bibles/${version}`);
 }
 
-export function apiListBibleVersions(projectId: string): Promise<Array<{ version: number; createdAt: string }>> {
-  return fetchJson(`${BASE}/projects/${projectId}/bibles`);
+export function apiListBibleVersions(
+  projectId: string,
+  page?: PageRequest,
+): Promise<Page<{ version: number; createdAt: string }>> {
+  return fetchList(`${BASE}/projects/${projectId}/bibles`, page);
 }
 
 export function apiSaveBible(bible: Bible): Promise<Bible> {
@@ -78,8 +195,8 @@ export function apiSaveBible(bible: Bible): Promise<Bible> {
 
 // ─── Chapter Arcs ────────────────────────────────────
 
-export function apiListChapterArcs(projectId: string): Promise<ChapterArc[]> {
-  return fetchJson(`${BASE}/projects/${projectId}/chapters`);
+export function apiListChapterArcs(projectId: string, page?: PageRequest): Promise<Page<ChapterArc>> {
+  return fetchList(`${BASE}/projects/${projectId}/chapters`, page);
 }
 
 export function apiGetChapterArc(id: string): Promise<ChapterArc> {
@@ -106,8 +223,9 @@ type SceneStatus = "planned" | "drafting" | "complete";
 
 export function apiListScenePlans(
   chapterId: string,
-): Promise<Array<{ plan: ScenePlan; status: SceneStatus; sceneOrder: number }>> {
-  return fetchJson(`${BASE}/chapters/${chapterId}/scenes`);
+  page?: PageRequest,
+): Promise<Page<{ plan: ScenePlan; status: SceneStatus; sceneOrder: number }>> {
+  return fetchList(`${BASE}/chapters/${chapterId}/scenes`, page);
 }
 
 export function apiGetScenePlan(id: string): Promise<{ plan: ScenePlan; status: SceneStatus; sceneOrder: number }> {
@@ -137,8 +255,8 @@ export function apiUpdateSceneStatus(id: string, status: SceneStatus): Promise<v
 
 // ─── Chunks ──────────────────────────────────────────
 
-export function apiListChunks(sceneId: string): Promise<Chunk[]> {
-  return fetchJson(`${BASE}/scenes/${sceneId}/chunks`);
+export function apiListChunks(sceneId: string, page?: PageRequest): Promise<Page<Chunk>> {
+  return fetchList(`${BASE}/scenes/${sceneId}/chunks`, page);
 }
 
 export function apiSaveChunk(chunk: Chunk): Promise<Chunk> {
@@ -155,14 +273,14 @@ export function apiUpdateChunk(chunk: Chunk): Promise<Chunk> {
   });
 }
 
-export function apiDeleteChunk(id: string): Promise<void> {
-  return fetchJson(`${BASE}/chunks/${id}`, { method: "DELETE" });
+export async function apiDeleteChunk(id: string): Promise<void> {
+  await fetchJson<void>(`${BASE}/chunks/${id}`, { method: "DELETE" });
 }
 
 // ─── Audit Flags ─────────────────────────────────────
 
-export function apiListAuditFlags(sceneId: string): Promise<AuditFlag[]> {
-  return fetchJson(`${BASE}/scenes/${sceneId}/audit-flags`);
+export function apiListAuditFlags(sceneId: string, page?: PageRequest): Promise<Page<AuditFlag>> {
+  return fetchList(`${BASE}/scenes/${sceneId}/audit-flags`, page);
 }
 
 export function apiSaveAuditFlags(flags: AuditFlag[]): Promise<AuditFlag[]> {
@@ -194,6 +312,10 @@ export function apiSaveCompilationLog(log: CompilationLog): Promise<CompilationL
   });
 }
 
+export function apiListCompilationLogs(chunkId: string, page?: PageRequest): Promise<Page<CompilationLog>> {
+  return fetchList(`${BASE}/chunks/${chunkId}/compilation-logs`, page);
+}
+
 // ─── Narrative IRs ────────────────────────────────────
 
 export function apiGetSceneIR(sceneId: string): Promise<NarrativeIR> {
@@ -218,12 +340,29 @@ export function apiVerifySceneIR(sceneId: string): Promise<void> {
   return fetchJson(`${BASE}/scenes/${sceneId}/ir/verify`, { method: "PATCH" });
 }
 
-export function apiListChapterIRs(chapterId: string): Promise<NarrativeIR[]> {
-  return fetchJson(`${BASE}/chapters/${chapterId}/irs`);
+export function apiListChapterIRs(chapterId: string, page?: PageRequest): Promise<Page<NarrativeIR>> {
+  return fetchList(`${BASE}/chapters/${chapterId}/irs`, page);
 }
 
-export function apiListVerifiedChapterIRs(chapterId: string): Promise<NarrativeIR[]> {
-  return fetchJson(`${BASE}/chapters/${chapterId}/irs/verified`);
+export function apiListVerifiedChapterIRs(chapterId: string, page?: PageRequest): Promise<Page<NarrativeIR>> {
+  return fetchList(`${BASE}/chapters/${chapterId}/irs/verified`, page);
+}
+
+// ─── Edit Patterns (Learner) ─────────────────────────
+
+export function apiListEditPatterns(projectId: string, page?: PageRequest): Promise<Page<unknown>> {
+  return fetchList(`${BASE}/projects/${projectId}/edit-patterns`, page);
+}
+
+export function apiListEditPatternsForScene(sceneId: string, page?: PageRequest): Promise<Page<unknown>> {
+  return fetchList(`${BASE}/scenes/${sceneId}/edit-patterns`, page);
+}
+
+// ─── Learned Patterns (Learner) ──────────────────────
+
+export function apiListLearnedPatterns(projectId: string, status?: string, page?: PageRequest): Promise<Page<unknown>> {
+  const query = status ? `?status=${status}` : "";
+  return fetchList(`${BASE}/projects/${projectId}/learned-patterns${query}`, page);
 }
 
 // ─── Profile Adjustments (Auto-Tuning) ──────────
@@ -241,9 +380,13 @@ export interface ProfileAdjustmentData {
   createdAt: string;
 }
 
-export function apiListProfileAdjustments(projectId: string, status?: string): Promise<ProfileAdjustmentData[]> {
+export function apiListProfileAdjustments(
+  projectId: string,
+  status?: string,
+  page?: PageRequest,
+): Promise<Page<ProfileAdjustmentData>> {
   const query = status ? `?status=${status}` : "";
-  return fetchJson(`${BASE}/projects/${projectId}/profile-adjustments${query}`);
+  return fetchList(`${BASE}/projects/${projectId}/profile-adjustments${query}`, page);
 }
 
 export function apiCreateProfileAdjustment(
@@ -281,14 +424,14 @@ export async function apiGenerateVoiceGuide(
   });
 }
 
-export async function apiListVoiceGuideVersions(): Promise<VoiceGuideVersion[]> {
-  return fetchJson<VoiceGuideVersion[]>(`${BASE}/voice-guide/versions`);
+export function apiListVoiceGuideVersions(page?: PageRequest): Promise<Page<VoiceGuideVersion>> {
+  return fetchList(`${BASE}/voice-guide/versions`, page);
 }
 
 // ─── Writing Samples ─────────────────────────────────
 
-export function apiListWritingSamples(): Promise<WritingSample[]> {
-  return fetchJson<WritingSample[]>(`${BASE}/writing-samples`);
+export function apiListWritingSamples(page?: PageRequest): Promise<Page<WritingSample>> {
+  return fetchList(`${BASE}/writing-samples`, page);
 }
 
 export function apiCreateWritingSample(filename: string | null, domain: string, text: string): Promise<WritingSample> {
@@ -300,11 +443,7 @@ export function apiCreateWritingSample(filename: string | null, domain: string, 
 }
 
 export async function apiDeleteWritingSample(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/writing-samples/${id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(`Failed to delete writing sample: ${(body as { error: string }).error}`);
-  }
+  await fetchJson<void>(`${BASE}/writing-samples/${id}`, { method: "DELETE" });
 }
 
 // ─── Project Voice Learning ─────────────────────────

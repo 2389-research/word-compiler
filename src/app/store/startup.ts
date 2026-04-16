@@ -6,7 +6,7 @@ export type StartupResult = "loaded" | "no-projects" | "multiple-projects" | "er
 
 export async function initializeApp(store: ProjectStore): Promise<StartupResult> {
   try {
-    const projects = await api.apiListProjects();
+    const { data: projects } = await api.apiListProjects();
 
     if (projects.length === 0) return "no-projects";
     if (projects.length > 1) return "multiple-projects";
@@ -30,14 +30,14 @@ export async function loadProject(store: ProjectStore, projectId: string): Promi
       // No bible yet — that's fine
     }
 
-    const bibleVersions = await api.apiListBibleVersions(projectId);
-    const chapters = await api.apiListChapterArcs(projectId);
+    const { data: bibleVersions } = await api.apiListBibleVersions(projectId);
+    const { data: chapters } = await api.apiListChapterArcs(projectId);
     const chapterArc = chapters.length > 0 ? chapters[0]! : null;
 
     // Fetch scenes for the chapter (if one exists)
     let scenes: SceneEntry[] = [];
     if (chapterArc) {
-      const sceneRows = await api.apiListScenePlans(chapterArc.id);
+      const { data: sceneRows } = await api.apiListScenePlans(chapterArc.id);
       scenes = sceneRows.map((row) => ({
         plan: row.plan,
         status: row.status as SceneStatus,
@@ -50,7 +50,7 @@ export async function loadProject(store: ProjectStore, projectId: string): Promi
     const chunkResults = await Promise.all(
       scenes.map(async (scene) => ({
         sceneId: scene.plan.id,
-        chunks: await api.apiListChunks(scene.plan.id),
+        chunks: (await api.apiListChunks(scene.plan.id)).data,
       })),
     );
     for (const { sceneId, chunks } of chunkResults) {
@@ -61,7 +61,7 @@ export async function loadProject(store: ProjectStore, projectId: string): Promi
     const sceneIRs: Record<string, NarrativeIR> = {};
     if (chapterArc) {
       try {
-        const irs = await api.apiListChapterIRs(chapterArc.id);
+        const { data: irs } = await api.apiListChapterIRs(chapterArc.id);
         for (const ir of irs) {
           sceneIRs[ir.sceneId] = ir;
         }
