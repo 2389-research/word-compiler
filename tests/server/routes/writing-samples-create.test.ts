@@ -35,9 +35,7 @@ describe("POST /api/writing-samples", () => {
   });
 
   it("accepts a missing filename (defaults to null)", async () => {
-    const res = await request(app)
-      .post("/api/writing-samples")
-      .send({ domain: "nonfiction", text: "A body of text." });
+    const res = await request(app).post("/api/writing-samples").send({ domain: "nonfiction", text: "A body of text." });
 
     expect(res.status).toBe(201);
     const body = unwrap<{ filename: string | null }>(res);

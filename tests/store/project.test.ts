@@ -10,12 +10,7 @@ vi.mock("../../src/llm/client.js", () => ({
 }));
 
 import { ProjectStore } from "../../src/app/store/project.svelte.js";
-import {
-  makeAuditFlag,
-  makeChunk,
-  makeNarrativeIR,
-  makeScenePlan,
-} from "../../src/app/stories/factories.js";
+import { makeAuditFlag, makeChunk, makeNarrativeIR, makeScenePlan } from "../../src/app/stories/factories.js";
 import { createDefaultCompilationConfig, createEmptyBible } from "../../src/types/index.js";
 
 describe("ProjectStore", () => {
@@ -298,16 +293,12 @@ describe("ProjectStore", () => {
     });
 
     it("setEditorialAnnotations and getEditorialAnnotations round-trip", () => {
-      store.setEditorialAnnotations("s1", 0, [
-        // biome-ignore lint/suspicious/noExplicitAny: minimal annotation shape
-        { id: "a1", chunkIndex: 0, comment: "nice" } as any,
-      ]);
+      store.setEditorialAnnotations("s1", 0, [{ id: "a1", chunkIndex: 0, comment: "nice" } as any]);
       const anns = store.getEditorialAnnotations("s1");
       expect(anns.get(0)).toHaveLength(1);
     });
 
     it("clearEditorialAnnotations removes the scene's annotations", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: annotation shape
       store.setEditorialAnnotations("s1", 0, [{ id: "a1" } as any]);
       store.clearEditorialAnnotations("s1");
       expect(store.getEditorialAnnotations("s1").size).toBe(0);
@@ -396,7 +387,6 @@ describe("ProjectStore", () => {
 
   describe("setCompiled", () => {
     it("stores compiled payload, log, and lint together", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: partial fixtures for this store-level test
       store.setCompiled({ systemMessage: "s", userMessage: "u" } as any, { steps: [] } as any, { issues: [] } as any);
       expect(store.compiledPayload).not.toBeNull();
       expect(store.compilationLog).not.toBeNull();
@@ -419,7 +409,6 @@ describe("ProjectStore", () => {
 
   describe("voice guide setters", () => {
     it("setVoiceGuide / setProjectVoiceGuide store and clear", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: minimal guide
       const g = { version: 1, createdAt: "", ring1Injection: "x" } as any;
       store.setVoiceGuide(g);
       expect(store.voiceGuide).toEqual(g);
@@ -432,7 +421,6 @@ describe("ProjectStore", () => {
 
   describe("setChapterArc", () => {
     it("stores and clears the chapter arc", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: minimal arc
       const arc = { id: "a1", title: "Ch1" } as any;
       store.setChapterArc(arc);
       expect(store.chapterArc).toEqual(arc);

@@ -34,7 +34,9 @@ describe("POST /api/voice-guide/generate", () => {
 
   it("returns 404 when no writing samples match the supplied IDs", async () => {
     const { app } = makeApiTestAppWithAnthropic();
-    const res = await request(app).post("/api/voice-guide/generate").send({ sampleIds: ["nonexistent-id"] });
+    const res = await request(app)
+      .post("/api/voice-guide/generate")
+      .send({ sampleIds: ["nonexistent-id"] });
     expect(res.status).toBe(404);
     expect(res.body.error).toContain("No writing samples");
   });
@@ -44,7 +46,9 @@ describe("POST /api/voice-guide/generate", () => {
     const sample = makeWritingSample({ id: "s1" });
     writingSampleRepo.createWritingSampleRecord(db, sample);
 
-    const res = await request(app).post("/api/voice-guide/generate").send({ sampleIds: [sample.id] });
+    const res = await request(app)
+      .post("/api/voice-guide/generate")
+      .send({ sampleIds: [sample.id] });
     expect(res.status).toBe(500);
     expect(res.body.error).toContain("Anthropic");
   });
@@ -54,7 +58,9 @@ describe("POST /api/voice-guide/generate", () => {
     const { app, db } = makeApiTestAppWithAnthropic();
     const sample = makeWritingSample({ id: "s-throw" });
     writingSampleRepo.createWritingSampleRecord(db, sample);
-    const res = await request(app).post("/api/voice-guide/generate").send({ sampleIds: ["s-throw"] });
+    const res = await request(app)
+      .post("/api/voice-guide/generate")
+      .send({ sampleIds: ["s-throw"] });
     expect(res.status).toBe(500);
     const body = res.body as { error?: string | { message?: string } };
     const msg = typeof body.error === "string" ? body.error : body.error?.message;
@@ -66,7 +72,9 @@ describe("POST /api/voice-guide/generate", () => {
     const sample = makeWritingSample({ id: "s2" });
     writingSampleRepo.createWritingSampleRecord(db, sample);
 
-    const res = await request(app).post("/api/voice-guide/generate").send({ sampleIds: [sample.id] });
+    const res = await request(app)
+      .post("/api/voice-guide/generate")
+      .send({ sampleIds: [sample.id] });
     expect(res.status).toBe(201);
     expect(res.body.ring1Injection).toBe("generated injection");
   });

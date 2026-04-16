@@ -27,7 +27,6 @@ export function makeApiTestAppWithAnthropic() {
 
   const app = express();
   app.use(express.json());
-  // biome-ignore lint/suspicious/noExplicitAny: test stub
   app.use("/api", createApiRouter(db, makeAnthropicStub() as any));
 
   return { app, db };
