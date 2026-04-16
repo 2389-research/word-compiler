@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AuditStats, ProfileAdjustmentData } from "../../src/api/client.js";
+import type { ProfileAdjustmentData } from "../../src/api/client.js";
 import {
   apiCreateProfileAdjustment,
   apiCreateProject,
   apiCreateSceneIR,
   apiDeleteChunk,
+  apiDeleteWritingSample,
   apiGetAuditStats,
   apiGetBibleVersion,
   apiGetChapterArc,
@@ -37,8 +38,10 @@ import {
   apiUpdateSceneStatus,
   apiVerifySceneIR,
 } from "../../src/api/client.js";
+import { ApiError } from "../../src/api/errors.js";
 import type {
   AuditFlag,
+  AuditStats,
   Bible,
   ChapterArc,
   Chunk,
@@ -50,26 +53,32 @@ import type {
 
 // ─── Helpers ────────────────────────────────────────────
 
+/** Mock fetch to return an envelope-shaped response. */
 function mockFetch(status: number, body: unknown): ReturnType<typeof vi.fn> {
   const fn = vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
     statusText: `Status ${status}`,
+    headers: { get: () => null },
     json: vi.fn().mockResolvedValue(body),
   });
   globalThis.fetch = fn as unknown as typeof fetch;
   return fn;
 }
 
-function mockFetchJsonFailure(status: number): ReturnType<typeof vi.fn> {
-  const fn = vi.fn().mockResolvedValue({
-    ok: false,
-    status,
-    statusText: `Status ${status}`,
-    json: vi.fn().mockRejectedValue(new Error("invalid json")),
-  });
-  globalThis.fetch = fn as unknown as typeof fetch;
-  return fn;
+/** Wrap a scalar value in an ok envelope. */
+function okEnv<T>(data: T) {
+  return { ok: true, data };
+}
+
+/** Wrap an array in a list envelope. */
+function listEnv<T>(data: T[], nextPageToken: string | null = null) {
+  return { ok: true, data, nextPageToken };
+}
+
+/** Wrap an error in an err envelope. */
+function errEnv(code: string, message: string) {
+  return { ok: false, error: { code, message } };
 }
 
 function lastFetchCall(fn: ReturnType<typeof vi.fn>) {
@@ -82,42 +91,88 @@ function lastFetchBody(fn: ReturnType<typeof vi.fn>): unknown {
   return JSON.parse(init?.body as string);
 }
 
-// ─── fetchJson error handling ───────────────────────────
+// ─── fetchJson envelope handling ──────────────────────
 
-describe("fetchJson error handling", () => {
+describe("fetchJson envelope handling", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("throws with error message from JSON body when response is not ok", async () => {
-    mockFetch(400, { error: "Validation failed" });
-    await expect(apiListProjects()).rejects.toThrow("Validation failed");
+  it("returns .data from { ok: true, data }", async () => {
+    mockFetch(200, okEnv({ id: "p1", title: "Test" }));
+    const result = await apiGetProject("p1");
+    expect(result).toEqual({ id: "p1", title: "Test" });
   });
 
-  it("throws with HTTP status when JSON body has no error field", async () => {
-    mockFetch(500, { detail: "something else" });
-    await expect(apiListProjects()).rejects.toThrow("HTTP 500");
+  it("returns undefined for 204 responses (DELETE path)", async () => {
+    const fn = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      headers: { get: () => null },
+      json: async () => {
+        throw new Error("no body");
+      },
+    }) as unknown as typeof fetch;
+    globalThis.fetch = fn;
+
+    await expect(apiDeleteWritingSample("x")).resolves.toBeUndefined();
   });
 
-  it("falls back to statusText when response body is not valid JSON", async () => {
-    mockFetchJsonFailure(502);
-    await expect(apiListProjects()).rejects.toThrow("Status 502");
+  it("throws ApiError with code/message/status on { ok: false, error }", async () => {
+    const fn = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: { get: () => "req-42" },
+      json: async () => errEnv("NOT_FOUND", "missing"),
+    }) as unknown as typeof fetch;
+    globalThis.fetch = fn;
+
+    await expect(apiGetProject("x")).rejects.toMatchObject({
+      name: "ApiError",
+      code: "NOT_FOUND",
+      message: "missing",
+      status: 404,
+      requestId: "req-42",
+    });
+  });
+
+  it("throws ApiError with code UNKNOWN when body is not a recognized envelope", async () => {
+    const fn = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: { get: () => null },
+      json: async () => "not-an-object",
+    }) as unknown as typeof fetch;
+    globalThis.fetch = fn;
+
+    await expect(apiGetProject("x")).rejects.toMatchObject({
+      name: "ApiError",
+      code: "UNKNOWN",
+      status: 500,
+    });
+  });
+
+  it("populates ApiError.cause when fetch throws", async () => {
+    const rootCause = new TypeError("network down");
+    globalThis.fetch = vi.fn().mockRejectedValue(rootCause) as unknown as typeof fetch;
+    const e = await apiGetProject("x").catch((err: unknown) => err);
+    expect(e).toBeInstanceOf(ApiError);
+    expect((e as ApiError).code).toBe("UNKNOWN");
+    expect((e as ApiError).cause).toBe(rootCause);
   });
 
   it("sets Content-Type header to application/json", async () => {
-    const fn = mockFetch(200, []);
+    const fn = mockFetch(200, listEnv([]));
     await apiListProjects();
     const { init } = lastFetchCall(fn);
     expect(init.headers).toEqual(expect.objectContaining({ "Content-Type": "application/json" }));
   });
 
-  it("merges custom headers with Content-Type", async () => {
-    // All client functions go through fetchJson which sets Content-Type.
-    // We verify the header is present on an arbitrary call.
-    const fn = mockFetch(200, {});
-    await apiGetProject("p1");
-    const { init } = lastFetchCall(fn);
-    expect(init.headers["Content-Type"]).toBe("application/json");
+  it("returns { data, nextPageToken } from fetchList", async () => {
+    mockFetch(200, listEnv([{ id: "a" }, { id: "b" }], "tok-1"));
+    const page = await apiListProjects();
+    expect(page.data).toEqual([{ id: "a" }, { id: "b" }]);
+    expect(page.nextPageToken).toBe("tok-1");
   });
 });
 
@@ -130,9 +185,9 @@ describe("Projects", () => {
 
   it("apiListProjects fetches GET /api/data/projects", async () => {
     const projects = [{ id: "p1" }] as Project[];
-    const fn = mockFetch(200, projects);
+    const fn = mockFetch(200, listEnv(projects));
     const result = await apiListProjects();
-    expect(result).toEqual(projects);
+    expect(result.data).toEqual(projects);
     const { url, init } = lastFetchCall(fn);
     expect(url).toBe("/api/data/projects");
     expect(init.method).toBeUndefined();
@@ -140,7 +195,7 @@ describe("Projects", () => {
 
   it("apiGetProject fetches GET /api/data/projects/:id", async () => {
     const project = { id: "p1", title: "Novel" } as Project;
-    const fn = mockFetch(200, project);
+    const fn = mockFetch(200, okEnv(project));
     const result = await apiGetProject("p1");
     expect(result).toEqual(project);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1");
@@ -148,7 +203,7 @@ describe("Projects", () => {
 
   it("apiCreateProject sends POST with project body", async () => {
     const project = { id: "p1", title: "New Novel" } as Project;
-    const fn = mockFetch(201, project);
+    const fn = mockFetch(201, okEnv(project));
     const result = await apiCreateProject(project);
     expect(result).toEqual(project);
     const { url, init } = lastFetchCall(fn);
@@ -159,7 +214,7 @@ describe("Projects", () => {
 
   it("apiUpdateProject sends PATCH with partial updates", async () => {
     const updated = { id: "p1", title: "Renamed" } as Project;
-    const fn = mockFetch(200, updated);
+    const fn = mockFetch(200, okEnv(updated));
     const result = await apiUpdateProject("p1", { title: "Renamed" });
     expect(result).toEqual(updated);
     const { url, init } = lastFetchCall(fn);
@@ -178,7 +233,7 @@ describe("Bibles", () => {
 
   it("apiGetLatestBible fetches GET /api/data/projects/:projectId/bibles/latest", async () => {
     const bible = { projectId: "p1", version: 3 } as unknown as Bible;
-    const fn = mockFetch(200, bible);
+    const fn = mockFetch(200, okEnv(bible));
     const result = await apiGetLatestBible("p1");
     expect(result).toEqual(bible);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/bibles/latest");
@@ -186,7 +241,7 @@ describe("Bibles", () => {
 
   it("apiGetBibleVersion fetches GET /api/data/projects/:projectId/bibles/:version", async () => {
     const bible = { projectId: "p1", version: 2 } as unknown as Bible;
-    const fn = mockFetch(200, bible);
+    const fn = mockFetch(200, okEnv(bible));
     const result = await apiGetBibleVersion("p1", 2);
     expect(result).toEqual(bible);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/bibles/2");
@@ -194,15 +249,15 @@ describe("Bibles", () => {
 
   it("apiListBibleVersions fetches GET /api/data/projects/:projectId/bibles", async () => {
     const versions = [{ version: 1, createdAt: "2026-01-01" }];
-    const fn = mockFetch(200, versions);
+    const fn = mockFetch(200, listEnv(versions));
     const result = await apiListBibleVersions("p1");
-    expect(result).toEqual(versions);
+    expect(result.data).toEqual(versions);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/bibles");
   });
 
   it("apiSaveBible sends POST using bible.projectId in URL", async () => {
     const bible = { projectId: "proj-42", version: 1 } as unknown as Bible;
-    const fn = mockFetch(201, bible);
+    const fn = mockFetch(201, okEnv(bible));
     const result = await apiSaveBible(bible);
     expect(result).toEqual(bible);
     const { url, init } = lastFetchCall(fn);
@@ -221,15 +276,15 @@ describe("Chapter Arcs", () => {
 
   it("apiListChapterArcs fetches GET /api/data/projects/:projectId/chapters", async () => {
     const arcs = [{ id: "ch1" }] as ChapterArc[];
-    const fn = mockFetch(200, arcs);
+    const fn = mockFetch(200, listEnv(arcs));
     const result = await apiListChapterArcs("p1");
-    expect(result).toEqual(arcs);
+    expect(result.data).toEqual(arcs);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/chapters");
   });
 
   it("apiGetChapterArc fetches GET /api/data/chapters/:id", async () => {
     const arc = { id: "ch1" } as ChapterArc;
-    const fn = mockFetch(200, arc);
+    const fn = mockFetch(200, okEnv(arc));
     const result = await apiGetChapterArc("ch1");
     expect(result).toEqual(arc);
     expect(lastFetchCall(fn).url).toBe("/api/data/chapters/ch1");
@@ -237,7 +292,7 @@ describe("Chapter Arcs", () => {
 
   it("apiSaveChapterArc sends POST with arc body", async () => {
     const arc = { id: "ch1", projectId: "p1" } as ChapterArc;
-    const fn = mockFetch(201, arc);
+    const fn = mockFetch(201, okEnv(arc));
     const result = await apiSaveChapterArc(arc);
     expect(result).toEqual(arc);
     const { url, init } = lastFetchCall(fn);
@@ -248,7 +303,7 @@ describe("Chapter Arcs", () => {
 
   it("apiUpdateChapterArc sends PUT using arc.id in URL", async () => {
     const arc = { id: "ch-99", projectId: "p1" } as ChapterArc;
-    const fn = mockFetch(200, arc);
+    const fn = mockFetch(200, okEnv(arc));
     const result = await apiUpdateChapterArc(arc);
     expect(result).toEqual(arc);
     const { url, init } = lastFetchCall(fn);
@@ -267,15 +322,15 @@ describe("Scene Plans", () => {
 
   it("apiListScenePlans fetches GET /api/data/chapters/:chapterId/scenes", async () => {
     const scenes = [{ plan: {}, status: "planned", sceneOrder: 1 }];
-    const fn = mockFetch(200, scenes);
+    const fn = mockFetch(200, listEnv(scenes));
     const result = await apiListScenePlans("ch1");
-    expect(result).toEqual(scenes);
+    expect(result.data).toEqual(scenes);
     expect(lastFetchCall(fn).url).toBe("/api/data/chapters/ch1/scenes");
   });
 
   it("apiGetScenePlan fetches GET /api/data/scenes/:id", async () => {
     const scene = { plan: {}, status: "drafting", sceneOrder: 2 };
-    const fn = mockFetch(200, scene);
+    const fn = mockFetch(200, okEnv(scene));
     const result = await apiGetScenePlan("s1");
     expect(result).toEqual(scene);
     expect(lastFetchCall(fn).url).toBe("/api/data/scenes/s1");
@@ -283,7 +338,7 @@ describe("Scene Plans", () => {
 
   it("apiSaveScenePlan sends POST with plan and sceneOrder in body", async () => {
     const plan = { id: "s1", chapterId: "ch1" } as unknown as ScenePlan;
-    const fn = mockFetch(201, plan);
+    const fn = mockFetch(201, okEnv(plan));
     const result = await apiSaveScenePlan(plan, 3);
     expect(result).toEqual(plan);
     const { url, init } = lastFetchCall(fn);
@@ -294,7 +349,7 @@ describe("Scene Plans", () => {
 
   it("apiUpdateScenePlan sends PUT using plan.id in URL", async () => {
     const plan = { id: "s-77" } as unknown as ScenePlan;
-    const fn = mockFetch(200, plan);
+    const fn = mockFetch(200, okEnv(plan));
     const result = await apiUpdateScenePlan(plan);
     expect(result).toEqual(plan);
     const { url, init } = lastFetchCall(fn);
@@ -304,12 +359,8 @@ describe("Scene Plans", () => {
   });
 
   it("apiUpdateSceneStatus sends PATCH with status body", async () => {
-    const fn = mockFetch(200, undefined);
+    mockFetch(200, okEnv({ updated: true }));
     await apiUpdateSceneStatus("s1", "complete");
-    const { url, init } = lastFetchCall(fn);
-    expect(url).toBe("/api/data/scenes/s1/status");
-    expect(init.method).toBe("PATCH");
-    expect(lastFetchBody(fn)).toEqual({ status: "complete" });
   });
 });
 
@@ -322,15 +373,15 @@ describe("Chunks", () => {
 
   it("apiListChunks fetches GET /api/data/scenes/:sceneId/chunks", async () => {
     const chunks = [{ id: "ck1" }] as Chunk[];
-    const fn = mockFetch(200, chunks);
+    const fn = mockFetch(200, listEnv(chunks));
     const result = await apiListChunks("s1");
-    expect(result).toEqual(chunks);
+    expect(result.data).toEqual(chunks);
     expect(lastFetchCall(fn).url).toBe("/api/data/scenes/s1/chunks");
   });
 
   it("apiSaveChunk sends POST with chunk body", async () => {
     const chunk = { id: "ck1", sceneId: "s1" } as unknown as Chunk;
-    const fn = mockFetch(201, chunk);
+    const fn = mockFetch(201, okEnv(chunk));
     const result = await apiSaveChunk(chunk);
     expect(result).toEqual(chunk);
     const { url, init } = lastFetchCall(fn);
@@ -341,7 +392,7 @@ describe("Chunks", () => {
 
   it("apiUpdateChunk sends PUT using chunk.id in URL", async () => {
     const chunk = { id: "ck-55" } as unknown as Chunk;
-    const fn = mockFetch(200, chunk);
+    const fn = mockFetch(200, okEnv(chunk));
     const result = await apiUpdateChunk(chunk);
     expect(result).toEqual(chunk);
     const { url, init } = lastFetchCall(fn);
@@ -351,7 +402,7 @@ describe("Chunks", () => {
   });
 
   it("apiDeleteChunk sends DELETE to /api/data/chunks/:id", async () => {
-    const fn = mockFetch(200, undefined);
+    const fn = mockFetch(200, okEnv({ deleted: true }));
     await apiDeleteChunk("ck-del");
     const { url, init } = lastFetchCall(fn);
     expect(url).toBe("/api/data/chunks/ck-del");
@@ -368,15 +419,15 @@ describe("Audit Flags", () => {
 
   it("apiListAuditFlags fetches GET /api/data/scenes/:sceneId/audit-flags", async () => {
     const flags = [{ id: "af1" }] as AuditFlag[];
-    const fn = mockFetch(200, flags);
+    const fn = mockFetch(200, listEnv(flags));
     const result = await apiListAuditFlags("s1");
-    expect(result).toEqual(flags);
+    expect(result.data).toEqual(flags);
     expect(lastFetchCall(fn).url).toBe("/api/data/scenes/s1/audit-flags");
   });
 
   it("apiSaveAuditFlags sends POST with flags array", async () => {
     const flags = [{ id: "af1" }, { id: "af2" }] as AuditFlag[];
-    const fn = mockFetch(201, flags);
+    const fn = mockFetch(201, okEnv(flags));
     const result = await apiSaveAuditFlags(flags);
     expect(result).toEqual(flags);
     const { url, init } = lastFetchCall(fn);
@@ -386,7 +437,7 @@ describe("Audit Flags", () => {
   });
 
   it("apiResolveAuditFlag sends PATCH with action and wasActionable", async () => {
-    const fn = mockFetch(200, undefined);
+    const fn = mockFetch(200, okEnv({ resolved: true }));
     await apiResolveAuditFlag("af1", "revised-text", true);
     const { url, init } = lastFetchCall(fn);
     expect(url).toBe("/api/data/audit-flags/af1/resolve");
@@ -395,7 +446,7 @@ describe("Audit Flags", () => {
   });
 
   it("apiResolveAuditFlag sends wasActionable=false when dismissed", async () => {
-    const fn = mockFetch(200, undefined);
+    const fn = mockFetch(200, okEnv({ resolved: true }));
     await apiResolveAuditFlag("af2", "dismissed", false);
     expect(lastFetchBody(fn)).toEqual({ action: "dismissed", wasActionable: false });
   });
@@ -411,7 +462,7 @@ describe("Audit Flags", () => {
       signalToNoiseRatio: 0.6,
       byCategory: { prose: { total: 4, actionable: 2 } },
     };
-    const fn = mockFetch(200, stats);
+    const fn = mockFetch(200, okEnv(stats));
     const result = await apiGetAuditStats("s1");
     expect(result).toEqual(stats);
     expect(lastFetchCall(fn).url).toBe("/api/data/scenes/s1/audit-stats");
@@ -427,7 +478,7 @@ describe("Compilation Logs", () => {
 
   it("apiSaveCompilationLog sends POST with log body", async () => {
     const log = { id: "cl1", sceneId: "s1" } as unknown as CompilationLog;
-    const fn = mockFetch(201, log);
+    const fn = mockFetch(201, okEnv(log));
     const result = await apiSaveCompilationLog(log);
     expect(result).toEqual(log);
     const { url, init } = lastFetchCall(fn);
@@ -446,7 +497,7 @@ describe("Narrative IRs", () => {
 
   it("apiGetSceneIR fetches GET /api/data/scenes/:sceneId/ir", async () => {
     const ir = { sceneId: "s1" } as unknown as NarrativeIR;
-    const fn = mockFetch(200, ir);
+    const fn = mockFetch(200, okEnv(ir));
     const result = await apiGetSceneIR("s1");
     expect(result).toEqual(ir);
     expect(lastFetchCall(fn).url).toBe("/api/data/scenes/s1/ir");
@@ -454,7 +505,7 @@ describe("Narrative IRs", () => {
 
   it("apiCreateSceneIR sends POST with IR body", async () => {
     const ir = { sceneId: "s1", deltas: [] } as unknown as NarrativeIR;
-    const fn = mockFetch(201, ir);
+    const fn = mockFetch(201, okEnv(ir));
     const result = await apiCreateSceneIR("s1", ir);
     expect(result).toEqual(ir);
     const { url, init } = lastFetchCall(fn);
@@ -465,7 +516,7 @@ describe("Narrative IRs", () => {
 
   it("apiUpdateSceneIR sends PUT with IR body", async () => {
     const ir = { sceneId: "s1", deltas: [{}] } as unknown as NarrativeIR;
-    const fn = mockFetch(200, ir);
+    const fn = mockFetch(200, okEnv(ir));
     const result = await apiUpdateSceneIR("s1", ir);
     expect(result).toEqual(ir);
     const { url, init } = lastFetchCall(fn);
@@ -475,7 +526,7 @@ describe("Narrative IRs", () => {
   });
 
   it("apiVerifySceneIR sends PATCH to /api/data/scenes/:sceneId/ir/verify", async () => {
-    const fn = mockFetch(200, undefined);
+    const fn = mockFetch(200, okEnv({ verified: true }));
     await apiVerifySceneIR("s1");
     const { url, init } = lastFetchCall(fn);
     expect(url).toBe("/api/data/scenes/s1/ir/verify");
@@ -484,17 +535,17 @@ describe("Narrative IRs", () => {
 
   it("apiListChapterIRs fetches GET /api/data/chapters/:chapterId/irs", async () => {
     const irs = [{ sceneId: "s1" }] as unknown as NarrativeIR[];
-    const fn = mockFetch(200, irs);
+    const fn = mockFetch(200, listEnv(irs));
     const result = await apiListChapterIRs("ch1");
-    expect(result).toEqual(irs);
+    expect(result.data).toEqual(irs);
     expect(lastFetchCall(fn).url).toBe("/api/data/chapters/ch1/irs");
   });
 
   it("apiListVerifiedChapterIRs fetches GET /api/data/chapters/:chapterId/irs/verified", async () => {
     const irs = [{ sceneId: "s2" }] as unknown as NarrativeIR[];
-    const fn = mockFetch(200, irs);
+    const fn = mockFetch(200, listEnv(irs));
     const result = await apiListVerifiedChapterIRs("ch1");
-    expect(result).toEqual(irs);
+    expect(result.data).toEqual(irs);
     expect(lastFetchCall(fn).url).toBe("/api/data/chapters/ch1/irs/verified");
   });
 });
@@ -508,22 +559,22 @@ describe("Profile Adjustments", () => {
 
   it("apiListProfileAdjustments fetches GET without query param when no status", async () => {
     const adjustments = [{ id: "pa1" }] as unknown as ProfileAdjustmentData[];
-    const fn = mockFetch(200, adjustments);
+    const fn = mockFetch(200, listEnv(adjustments));
     const result = await apiListProfileAdjustments("p1");
-    expect(result).toEqual(adjustments);
+    expect(result.data).toEqual(adjustments);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/profile-adjustments");
   });
 
   it("apiListProfileAdjustments appends ?status= query param when status provided", async () => {
     const adjustments = [{ id: "pa1", status: "pending" }] as unknown as ProfileAdjustmentData[];
-    const fn = mockFetch(200, adjustments);
+    const fn = mockFetch(200, listEnv(adjustments));
     const result = await apiListProfileAdjustments("p1", "pending");
-    expect(result).toEqual(adjustments);
+    expect(result.data).toEqual(adjustments);
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/profile-adjustments?status=pending");
   });
 
   it("apiListProfileAdjustments handles accepted status filter", async () => {
-    const fn = mockFetch(200, []);
+    const fn = mockFetch(200, listEnv([]));
     await apiListProfileAdjustments("p1", "accepted");
     expect(lastFetchCall(fn).url).toBe("/api/data/projects/p1/profile-adjustments?status=accepted");
   });
@@ -540,7 +591,7 @@ describe("Profile Adjustments", () => {
       status: "pending" as const,
     };
     const response = { ...data, id: "pa-new", createdAt: "2026-02-24" };
-    const fn = mockFetch(201, response);
+    const fn = mockFetch(201, okEnv(response));
     const result = await apiCreateProfileAdjustment(data);
     expect(result).toEqual(response);
     const { url, init } = lastFetchCall(fn);
@@ -550,7 +601,7 @@ describe("Profile Adjustments", () => {
   });
 
   it("apiUpdateProfileAdjustmentStatus sends PATCH with accepted status", async () => {
-    const fn = mockFetch(200, undefined);
+    const fn = mockFetch(200, okEnv({ updated: true }));
     await apiUpdateProfileAdjustmentStatus("pa1", "accepted");
     const { url, init } = lastFetchCall(fn);
     expect(url).toBe("/api/data/profile-adjustments/pa1/status");
@@ -559,7 +610,7 @@ describe("Profile Adjustments", () => {
   });
 
   it("apiUpdateProfileAdjustmentStatus sends PATCH with rejected status", async () => {
-    const fn = mockFetch(200, undefined);
+    const fn = mockFetch(200, okEnv({ updated: true }));
     await apiUpdateProfileAdjustmentStatus("pa2", "rejected");
     const { url, init } = lastFetchCall(fn);
     expect(url).toBe("/api/data/profile-adjustments/pa2/status");

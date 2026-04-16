@@ -75,7 +75,7 @@ onMount(async () => {
     currentView = "project";
   } else if (result === "multiple-projects") {
     try {
-      projectList = await apiListProjects();
+      projectList = (await apiListProjects()).data;
     } catch {
       // Fall through to show the placeholder
     }
@@ -150,7 +150,7 @@ function handleBackToProjects() {
   currentView = "project-list";
   startupStatus = "multiple-projects";
   apiListProjects()
-    .then((list) => {
+    .then(({ data: list }) => {
       projectList = list;
     })
     .catch(() => {});

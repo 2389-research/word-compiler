@@ -9,6 +9,11 @@ vi.mock("../../src/api/client.js");
 
 const mockedApi = vi.mocked(apiClient);
 
+/** Wrap an array in a Page envelope for mocked list helpers. */
+function page<T>(data: T[]) {
+  return { data, nextPageToken: null };
+}
+
 describe("initializeApp", () => {
   let store: ProjectStore;
 
@@ -25,13 +30,13 @@ describe("initializeApp", () => {
     plan.chapterId = "ch-1";
     const chunk = makeChunk({ sceneId: plan.id });
 
-    mockedApi.apiListProjects.mockResolvedValue([project]);
+    mockedApi.apiListProjects.mockResolvedValue(page([project]));
     mockedApi.apiGetProject.mockResolvedValue(project);
     mockedApi.apiGetLatestBible.mockResolvedValue(bible);
-    mockedApi.apiListBibleVersions.mockResolvedValue([{ version: 1, createdAt: "" }]);
-    mockedApi.apiListChapterArcs.mockResolvedValue([arc]);
-    mockedApi.apiListScenePlans.mockResolvedValue([{ plan, status: "drafting" as const, sceneOrder: 0 }]);
-    mockedApi.apiListChunks.mockResolvedValue([chunk]);
+    mockedApi.apiListBibleVersions.mockResolvedValue(page([{ version: 1, createdAt: "" }]));
+    mockedApi.apiListChapterArcs.mockResolvedValue(page([arc]));
+    mockedApi.apiListScenePlans.mockResolvedValue(page([{ plan, status: "drafting" as const, sceneOrder: 0 }]));
+    mockedApi.apiListChunks.mockResolvedValue(page([chunk]));
 
     const result = await initializeApp(store);
 
@@ -44,7 +49,7 @@ describe("initializeApp", () => {
   });
 
   it("returns 'no-projects' when project list is empty", async () => {
-    mockedApi.apiListProjects.mockResolvedValue([]);
+    mockedApi.apiListProjects.mockResolvedValue(page([]));
 
     const result = await initializeApp(store);
 
@@ -55,7 +60,7 @@ describe("initializeApp", () => {
   it("returns 'multiple-projects' when more than one project", async () => {
     const p1 = { id: "proj-1", title: "A", status: "drafting" as const, createdAt: "", updatedAt: "" };
     const p2 = { id: "proj-2", title: "B", status: "drafting" as const, createdAt: "", updatedAt: "" };
-    mockedApi.apiListProjects.mockResolvedValue([p1, p2]);
+    mockedApi.apiListProjects.mockResolvedValue(page([p1, p2]));
 
     const result = await initializeApp(store);
 
@@ -64,11 +69,11 @@ describe("initializeApp", () => {
 
   it("handles missing bible gracefully", async () => {
     const project = { id: "proj-1", title: "Novel", status: "bootstrap" as const, createdAt: "", updatedAt: "" };
-    mockedApi.apiListProjects.mockResolvedValue([project]);
+    mockedApi.apiListProjects.mockResolvedValue(page([project]));
     mockedApi.apiGetProject.mockResolvedValue(project);
     mockedApi.apiGetLatestBible.mockRejectedValue(new Error("No bible found"));
-    mockedApi.apiListBibleVersions.mockResolvedValue([]);
-    mockedApi.apiListChapterArcs.mockResolvedValue([]);
+    mockedApi.apiListBibleVersions.mockResolvedValue(page([]));
+    mockedApi.apiListChapterArcs.mockResolvedValue(page([]));
 
     const result = await initializeApp(store);
 
