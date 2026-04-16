@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { enforceBudget } from "../../src/compiler/budget.js";
+import { countTokens } from "../../src/tokens/index.js";
 import type { RingSection } from "../../src/types/index.js";
 import { createDefaultCompilationConfig } from "../../src/types/index.js";
 
@@ -151,5 +152,44 @@ describe("enforceBudget", () => {
     const result = enforceBudget(r1, r3, 100000, tightConfig);
 
     expect(result.compressionLog.some((l) => l.includes("hard cap"))).toBe(true);
+  });
+});
+
+describe("enforceBudget — threaded token counts", () => {
+  it("returns token counts that match countTokens on the final strings", () => {
+    const r1 = [makeSection("KILL_LIST", 10, 0, true), makeSection("VOCAB", 8, 4, false)];
+    const r2 = [makeSection("CHAPTER_BRIEF", 12, 0, true)];
+    const r3 = [makeSection("CONTRACT", 15, 0, true)];
+
+    const result = enforceBudget(r1, r3, 10_000, config, r2);
+
+    expect(result.r1Tokens).toBe(countTokens(result.r1));
+    expect(result.r2Tokens).toBe(result.r2 ? countTokens(result.r2) : 0);
+    expect(result.r3Tokens).toBe(countTokens(result.r3));
+  });
+
+  it("r2Tokens is 0 when r2 is absent", () => {
+    const r1 = [makeSection("A", 5, 0, true)];
+    const r3 = [makeSection("B", 5, 0, true)];
+
+    const result = enforceBudget(r1, r3, 1000, config);
+
+    expect(result.r2).toBeUndefined();
+    expect(result.r2Tokens).toBe(0);
+  });
+
+  it("token counts remain consistent after compression", () => {
+    const r1 = [
+      makeSection("KILL_LIST", 10, 0, true),
+      makeSection("EXEMPLARS", 50, 6, false),
+      makeSection("VOCAB", 10, 4, false),
+    ];
+    const r3 = [makeSection("CONTRACT", 10, 0, true)];
+
+    const result = enforceBudget(r1, r3, 60, config);
+
+    expect(result.wasCompressed).toBe(true);
+    expect(result.r1Tokens).toBe(countTokens(result.r1));
+    expect(result.r3Tokens).toBe(countTokens(result.r3));
   });
 });

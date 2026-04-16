@@ -1,6 +1,5 @@
 import { lintPayload } from "../linter/index.js";
 import type { VoiceGuide } from "../profile/types.js";
-import { countTokens } from "../tokens/index.js";
 import type {
   Bible,
   ChapterArc,
@@ -62,21 +61,21 @@ export function compilePayload(
     ring2Result?.sections,
   );
 
-  // 3. Lint (using post-budget values)
+  // 3. Lint (using post-budget values). Token counts are threaded from
+  // enforceBudget — do not re-count.
   const postBudgetR1 = {
     ...ring1Result,
     text: budgetResult.r1,
-    tokenCount: countTokens(budgetResult.r1),
+    tokenCount: budgetResult.r1Tokens,
     sections: budgetResult.r1Sections,
   };
   const postBudgetR3 = {
     ...ring3Result,
     text: budgetResult.r3,
-    tokenCount: countTokens(budgetResult.r3),
+    tokenCount: budgetResult.r3Tokens,
     sections: budgetResult.r3Sections,
   };
-  const r2TokenCount = budgetResult.r2 ? countTokens(budgetResult.r2) : 0;
-  const lintResult = lintPayload(postBudgetR1, postBudgetR3, plan, bible, config, r2TokenCount);
+  const lintResult = lintPayload(postBudgetR1, postBudgetR3, plan, bible, config, budgetResult.r2Tokens);
 
   // 4. Generation instruction
   const chunkDesc = plan.chunkDescriptions[chunkNumber] ?? "";
@@ -113,13 +112,10 @@ export function compilePayload(
     id: generateId(),
     chunkId: `${plan.id}_chunk${chunkNumber}`,
     payloadHash,
-    ring1Tokens: countTokens(budgetResult.r1),
-    ring2Tokens: budgetResult.r2 ? countTokens(budgetResult.r2) : 0,
-    ring3Tokens: countTokens(budgetResult.r3),
-    totalTokens:
-      countTokens(budgetResult.r1) +
-      (budgetResult.r2 ? countTokens(budgetResult.r2) : 0) +
-      countTokens(budgetResult.r3),
+    ring1Tokens: budgetResult.r1Tokens,
+    ring2Tokens: budgetResult.r2Tokens,
+    ring3Tokens: budgetResult.r3Tokens,
+    totalTokens: budgetResult.r1Tokens + budgetResult.r2Tokens + budgetResult.r3Tokens,
     availableBudget: available,
     ring1Contents: budgetResult.r1Sections.map((s) => s.name),
     ring2Contents: budgetResult.r2Sections?.map((s) => s.name) ?? [],

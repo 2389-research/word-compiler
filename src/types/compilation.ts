@@ -80,6 +80,9 @@ export interface BudgetResult {
   r1Sections: RingSection[];
   r2Sections?: RingSection[];
   r3Sections: RingSection[];
+  r1Tokens: number;
+  r2Tokens: number;
+  r3Tokens: number;
   wasCompressed: boolean;
   compressionLog: string[];
 }

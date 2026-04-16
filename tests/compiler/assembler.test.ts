@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { compilePayload } from "../../src/compiler/assembler.js";
+import { enforceBudget } from "../../src/compiler/budget.js";
+import { buildRing1 } from "../../src/compiler/ring1.js";
+import { buildRing3 } from "../../src/compiler/ring3.js";
+import * as tokens from "../../src/tokens/index.js";
 import {
   type Bible,
   type Chunk,
@@ -169,5 +173,38 @@ describe("compilePayload", () => {
 
     // (900+1100)/2/2 = 500
     expect(result.payload.userMessage).toContain("~500 words");
+  });
+});
+
+describe("compilePayload — countTokens call budget", () => {
+  it("assembler adds zero countTokens calls beyond rings + budget and threads counts into the log", () => {
+    const bible = makeBible();
+    const plan = makePlan();
+
+    let ringsAndBudgetCalls: number;
+    const spyA = vi.spyOn(tokens, "countTokens");
+    try {
+      const ring1 = buildRing1(bible, config);
+      const ring3 = buildRing3(plan, bible, [], 0, config);
+      enforceBudget(ring1.sections, ring3.sections, config.modelContextWindow - config.reservedForOutput, config);
+      ringsAndBudgetCalls = spyA.mock.calls.length;
+    } finally {
+      spyA.mockRestore();
+    }
+
+    let compileCalls: number;
+    let result: ReturnType<typeof compilePayload>;
+    const spyB = vi.spyOn(tokens, "countTokens");
+    try {
+      result = compilePayload(bible, plan, [], 0, config);
+      compileCalls = spyB.mock.calls.length;
+    } finally {
+      spyB.mockRestore();
+    }
+
+    expect(compileCalls).toBeLessThanOrEqual(ringsAndBudgetCalls);
+    expect(result.log.ring1Tokens).toBeGreaterThan(0);
+    expect(result.log.ring3Tokens).toBeGreaterThan(0);
+    expect(result.log.totalTokens).toBe(result.log.ring1Tokens + result.log.ring3Tokens);
   });
 });
