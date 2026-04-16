@@ -31,7 +31,6 @@ export function createDraftStageController(store: ProjectStore, commands: Comman
   const chunkAnnotations = new SvelteMap<number, EditorialAnnotation[]>();
   const reviewingChunks = new SvelteSet<number>();
   let orchestrator = $state<ReviewOrchestrator | null>(null);
-  // biome-ignore lint/style/useConst: $state rune requires let for reassignment (orchestratorVersion++)
   let orchestratorVersion = $state(0);
 
   // Non-reactive closure state — lifecycle owned by dispose() and
@@ -214,11 +213,64 @@ export function createDraftStageController(store: ProjectStore, commands: Comman
   async function handleRequestSuggestion(_annotationId: string, _feedback: string): Promise<string | null> {
     throw new Error("handleRequestSuggestion not yet moved — see Task 5c");
   }
-  async function handleRemoveChunk(_index: number): Promise<void> {
-    throw new Error("handleRemoveChunk not yet moved — see Task 5b");
+  async function handleRemoveChunk(index: number): Promise<void> {
+    if (disposed) return;
+    const sceneId = store.activeScenePlan?.id;
+    if (!sceneId) return;
+    await commands.removeChunk(sceneId, index);
   }
-  async function handleDestroyChunk(_index: number): Promise<void> {
-    throw new Error("handleDestroyChunk not yet moved — see Task 5b");
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: verbatim port of existing destroy handler with multiple cancellation steps
+  async function handleDestroyChunk(index: number): Promise<void> {
+    if (disposed) return;
+    const sceneId = store.activeScenePlan?.id;
+    if (!sceneId) return;
+    const chunks = store.activeSceneChunks;
+    const isLast = index === chunks.length - 1;
+
+    if (!isLast) {
+      const count = chunks.length - index;
+      const ok = window.confirm(
+        `Delete chunk ${index + 1} and ${count - 1} later chunk${count - 1 > 1 ? "s" : ""} that depend on it?`,
+      );
+      if (!ok) return;
+    }
+
+    // ── Cancel everything that references chunk indices ──
+
+    // 1. Stop autopilot — it would generate into a broken state
+    if (store.isAutopilot) store.cancelAutopilot();
+
+    // 2. Cancel pending auto-review (against the old chunk array)
+    clearTimeout(autoReviewTimeout);
+    autoReviewTimeout = undefined;
+
+    // 3. Cancel in-flight LLM reviews and clear reviewing indicators
+    orchestrator?.cancelAll();
+
+    // 4. Flush edit debounce timers for destroyed indices
+    for (let i = index; i < chunks.length; i++) {
+      const key = `${sceneId}:${i}`;
+      const timer = editDebounceTimers.get(key);
+      if (timer) {
+        clearTimeout(timer);
+        editDebounceTimers.delete(key);
+      }
+    }
+
+    // 5. Clear persisted annotations (indices are now stale)
+    saveAnnotations(store.project?.id, sceneId, new Map());
+    chunkAnnotations.clear();
+
+    // ── Remove chunks from end backward to avoid index shifting ──
+    for (let i = chunks.length - 1; i >= index; i--) {
+      if (disposed) return;
+      await commands.removeChunk(sceneId, i);
+    }
+
+    // 6. Force orchestrator recreation with clean internal state.
+    if (disposed) return;
+    orchestratorVersion++;
   }
 
   function dispose(): void {
