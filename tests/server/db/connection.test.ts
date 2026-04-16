@@ -54,6 +54,7 @@ describe("connection", () => {
     vi.doMock("../../../server/db/schema.js", () => ({
       createSchema: vi.fn(),
     }));
+    vi.doMock("../../../server/db/migrations.js", () => ({ runMigrations: vi.fn() }));
 
     const { getDatabase, closeDatabase } = await import("../../../server/db/connection.js");
     getDatabase("/tmp/test-wc/nested/dir/test.db");
@@ -80,6 +81,7 @@ describe("connection", () => {
     vi.doMock("../../../server/db/schema.js", () => ({
       createSchema: vi.fn(),
     }));
+    vi.doMock("../../../server/db/migrations.js", () => ({ runMigrations: vi.fn() }));
 
     const { getDatabase, closeDatabase } = await import("../../../server/db/connection.js");
     const first = getDatabase("/tmp/singleton-test.db");

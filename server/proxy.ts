@@ -5,6 +5,7 @@ import { DEFAULT_MODEL } from "../src/types/metadata.js";
 import { createAnthropicClient } from "./anthropicClient.js";
 import { createApiRouter } from "./api/routes.js";
 import { getDatabase } from "./db/connection.js";
+import { registerShutdownHandlers } from "./db/shutdown.js";
 import { errorHandler, requestLogger } from "./middleware.js";
 
 const app = express();
@@ -210,8 +211,9 @@ if (process.env.NODE_ENV !== "test") {
     process.exit(1);
   });
 
-  app.listen(Number(PORT), HOST, () => {
+  const server = app.listen(Number(PORT), HOST, () => {
     const displayHost = HOST === "0.0.0.0" || HOST === "::" ? "localhost" : HOST;
     console.log(`Proxy listening on http://${displayHost}:${PORT}`);
   });
+  registerShutdownHandlers(server, db);
 }

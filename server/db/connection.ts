@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { runMigrations } from "./migrations.js";
 import { createSchema } from "./schema.js";
 
 let db: Database.Database | null = null;
@@ -18,6 +19,7 @@ export function getDatabase(dbPath?: string): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   createSchema(db);
+  runMigrations(db);
   return db;
 }
 
