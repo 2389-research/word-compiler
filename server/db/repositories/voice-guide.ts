@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import type { VoiceGuide, VoiceGuideVersion } from "../../../src/profile/types.js";
 import { generateId } from "../../../src/types/index.js";
 import { safeJsonParse } from "../helpers.js";
+import { withTransaction } from "../transaction.js";
 
 interface VoiceGuideRow {
   id: string;
@@ -28,11 +29,13 @@ export function getVoiceGuide(db: Database.Database): VoiceGuide | null {
 
 export function saveVoiceGuide(db: Database.Database, guide: VoiceGuide): void {
   const now = new Date().toISOString();
-  db.prepare("DELETE FROM voice_guide").run();
-  db.prepare(
-    `INSERT INTO voice_guide (id, version, data, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(generateId(), guide.version, JSON.stringify(guide), now, now);
+  withTransaction(db, () => {
+    db.prepare("DELETE FROM voice_guide").run();
+    db.prepare(
+      `INSERT INTO voice_guide (id, version, data, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(generateId(), guide.version, JSON.stringify(guide), now, now);
+  });
 }
 
 export function saveVoiceGuideVersion(db: Database.Database, guide: VoiceGuide): void {
@@ -69,5 +72,19 @@ export function listVoiceGuideVersions(db: Database.Database): VoiceGuideVersion
       contradictedFeatures: [],
       newFeatures: [],
     };
+  });
+}
+
+/**
+ * Atomically saves the current voice guide AND appends a version history row.
+ * Used by the CIPHER batch flow so a partial write cannot leave the guide
+ * and its version history out of sync. Callers that need only one of the
+ * two operations should continue to use saveVoiceGuide / saveVoiceGuideVersion
+ * directly.
+ */
+export function saveVoiceGuideAndVersion(db: Database.Database, guide: VoiceGuide): void {
+  withTransaction(db, () => {
+    saveVoiceGuide(db, guide);
+    saveVoiceGuideVersion(db, guide);
   });
 }
