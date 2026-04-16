@@ -6,8 +6,6 @@ import { analyzeEdits } from "../../../learner/diff.js";
 import { applyProposal, type BibleProposal } from "../../../learner/proposals.js";
 import { generateTuningProposals, type TuningProposal } from "../../../learner/tuning.js";
 import { callLLM } from "../../../llm/client.js";
-import { computeStyleDriftFromProse } from "../../../metrics/styleDrift.js";
-import { measureVoiceSeparability } from "../../../metrics/voiceSeparability.js";
 import { shouldTriggerCipher } from "../../../profile/editFilter.js";
 import { buildReviewContext } from "../../../review/contextBuilder.js";
 import type { ChunkView, EditorialAnnotation, LLMReviewClient, ReviewOrchestrator } from "../../../review/index.js";
@@ -18,7 +16,7 @@ import {
   SUGGESTION_REQUEST_SCHEMA,
   trimSuggestionOverlap,
 } from "../../../review/index.js";
-import type { Chunk, NarrativeIR, StyleDriftReport, VoiceSeparabilityReport } from "../../../types/index.js";
+import type { Chunk, NarrativeIR } from "../../../types/index.js";
 import { DEFAULT_MODEL, getCanonicalText } from "../../../types/index.js";
 import { Tabs } from "../../primitives/index.js";
 import type { Commands } from "../../store/commands.js";
@@ -31,6 +29,7 @@ import SceneSequencer from "../SceneSequencer.svelte";
 import SetupPayoffPanel from "../SetupPayoffPanel.svelte";
 import StyleDriftPanel from "../StyleDriftPanel.svelte";
 import VoiceSeparabilityView from "../VoiceSeparabilityView.svelte";
+import { createDraftStageMetrics } from "./draftStageMetrics.svelte.js";
 import { loadAnnotations, loadDismissed, saveAnnotations, saveDismissed } from "./draftStagePersistence.js";
 
 let {
@@ -326,61 +325,7 @@ let gateMessages = $derived.by(() => {
   return msgs;
 });
 
-// Skip expensive NLP computations during streaming to avoid recomputing on every token
-let cachedStyleDrift: StyleDriftReport[] = [];
-let styleDriftReports = $derived.by((): StyleDriftReport[] => {
-  if (store.isGenerating) return cachedStyleDrift;
-  if (!store.bible) {
-    cachedStyleDrift = [];
-    return [];
-  }
-  const completedScenes = store.scenes.filter((s) => s.status === "complete");
-  if (completedScenes.length < 2) {
-    cachedStyleDrift = [];
-    return [];
-  }
-  const reports: StyleDriftReport[] = [];
-  const baselineId = completedScenes[0]!.plan.id;
-  const baselineChunks = store.sceneChunks[baselineId] ?? [];
-  if (baselineChunks.length === 0) {
-    cachedStyleDrift = [];
-    return [];
-  }
-  const baselineProse = baselineChunks.map((c) => getCanonicalText(c)).join("\n\n");
-  for (let i = 1; i < completedScenes.length; i++) {
-    const scene = completedScenes[i]!;
-    const chunks = store.sceneChunks[scene.plan.id] ?? [];
-    if (chunks.length === 0) continue;
-    const prose = chunks.map((c) => getCanonicalText(c)).join("\n\n");
-    reports.push(computeStyleDriftFromProse(baselineId, baselineProse, scene.plan.id, prose));
-  }
-  cachedStyleDrift = reports;
-  return reports;
-});
-
-let baselineSceneTitle = $derived(store.scenes.find((s) => s.status === "complete")?.plan.title ?? "Scene 1");
-let sceneTitles = $derived(Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.plan.title])));
-
-let cachedVoiceReport: VoiceSeparabilityReport | null = null;
-let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {
-  if (store.isGenerating) return cachedVoiceReport;
-  if (!store.bible || store.bible.characters.length < 2) {
-    cachedVoiceReport = null;
-    return null;
-  }
-  const sceneTexts = store.scenes
-    .map((s) => ({
-      sceneId: s.plan.id,
-      prose: (store.sceneChunks[s.plan.id] ?? []).map((c) => getCanonicalText(c)).join("\n\n"),
-    }))
-    .filter((s) => s.prose.length > 0);
-  if (sceneTexts.length === 0) {
-    cachedVoiceReport = null;
-    return null;
-  }
-  cachedVoiceReport = measureVoiceSeparability(sceneTexts, store.bible);
-  return cachedVoiceReport;
-});
+const metrics = createDraftStageMetrics(store);
 
 // ─── Handlers ───────────────────────────────────
 let editDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -567,11 +512,11 @@ async function handleUpdateIR(ir: NarrativeIR) {
             onDismissFlag={async (flagId) => { await commands.dismissAuditFlag(flagId); }}
           />
         {:else if activeTab === "drift"}
-          <StyleDriftPanel reports={styleDriftReports} {baselineSceneTitle} {sceneTitles} />
+          <StyleDriftPanel reports={metrics.styleDriftReports} baselineSceneTitle={metrics.baselineSceneTitle} sceneTitles={metrics.sceneTitles} />
         {:else if activeTab === "voice"}
-          <VoiceSeparabilityView report={voiceReport} />
+          <VoiceSeparabilityView report={metrics.voiceReport} />
         {:else if activeTab === "setups"}
-          <SetupPayoffPanel sceneIRs={store.sceneIRs} {sceneTitles} sceneOrders={Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.sceneOrder]))} />
+          <SetupPayoffPanel sceneIRs={store.sceneIRs} sceneTitles={metrics.sceneTitles} sceneOrders={Object.fromEntries(store.scenes.map((s) => [s.plan.id, s.sceneOrder]))} />
         {:else if activeTab === "ir"}
           <IRInspector
             ir={store.activeSceneIR}
