@@ -16,7 +16,7 @@ vi.mock("../../../../src/review/index.js", async () => {
 // Dynamic import path — module created in Task 5a
 const CONTROLLER_MODULE = "../../../../src/app/components/stages/draftStageController.svelte.js";
 
-describe.skip("draftStageController — timer leak regression (unskip in Task 5a)", () => {
+describe("draftStageController — timer leak regression", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
