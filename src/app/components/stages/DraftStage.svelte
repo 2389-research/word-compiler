@@ -181,11 +181,12 @@ $effect(() => {
 // Text edits, status changes, and note updates are invisible to this effect.
 // The author works through suggestions at their own pace, then clicks "Re-review".
 //
-// IMPORTANT: The timeout lives in a module-level variable, NOT returned as an
-// effect cleanup. This prevents a race condition: when store.activeSceneChunks
-// changes reference (e.g. status update on existing chunk), the effect re-runs,
-// but count hasn't changed so it early-returns. If the timeout were in cleanup,
-// it would be cancelled by that re-run, silently dropping the pending review.
+// IMPORTANT: The auto-review timeout is owned at module scope (not returned
+// from an effect cleanup) so that when store.activeSceneChunks changes
+// reference due to an unrelated update (e.g. a status flip on an existing
+// chunk), the re-running effect's early-return (count <= prevChunkCount)
+// does not cancel a valid pending review. An orthogonal no-dep $effect
+// (below) clears this timeout on component unmount.
 let autoReviewTimeout: ReturnType<typeof setTimeout> | undefined;
 let prevChunkCount = 0;
 
@@ -213,6 +214,20 @@ $effect(() => {
       }));
     if (views.length > 0) orch.requestReview(views);
   }, 1500);
+});
+
+// Unmount-only cleanup: the auto-review timeout is owned at module scope so
+// mid-edit re-runs of the scheduling effect (e.g. when store.activeSceneChunks
+// changes reference but count hasn't increased) don't cancel a valid pending
+// timer. This orthogonal effect has no reactive dependencies, so its body
+// runs once on mount and its cleanup runs once on unmount.
+$effect(() => {
+  return () => {
+    if (autoReviewTimeout !== undefined) {
+      clearTimeout(autoReviewTimeout);
+      autoReviewTimeout = undefined;
+    }
+  };
 });
 
 function handleReviewChunk(index: number) {
@@ -409,6 +424,13 @@ let voiceReport = $derived.by((): VoiceSeparabilityReport | null => {
 
 // ─── Handlers ───────────────────────────────────
 let editDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+$effect(() => {
+  return () => {
+    for (const timer of editDebounceTimers.values()) clearTimeout(timer);
+    editDebounceTimers.clear();
+  };
+});
 
 function handleUpdateChunk(index: number, changes: Partial<Chunk>) {
   const sceneId = store.activeScenePlan?.id;
