@@ -41,19 +41,20 @@ describe("GET /api/chapters/:chapterId/scenes", () => {
 
     const res = await request(app).get(`/api/chapters/${chapter.id}/scenes`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].sceneOrder).toBe(0);
-    expect(res.body[0].plan.id).toBe(scene1.id);
-    expect(res.body[1].sceneOrder).toBe(1);
-    expect(res.body[1].plan.id).toBe(scene2.id);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].sceneOrder).toBe(0);
+    expect(res.body.data[0].plan.id).toBe(scene1.id);
+    expect(res.body.data[1].sceneOrder).toBe(1);
+    expect(res.body.data[1].plan.id).toBe(scene2.id);
   });
 
-  it("returns an empty array when no scenes exist for the chapter", async () => {
+  it("returns an empty list envelope when no scenes exist for the chapter", async () => {
     const { chapter } = seedProjectAndChapter();
 
     const res = await request(app).get(`/api/chapters/${chapter.id}/scenes`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 });
 
@@ -64,7 +65,8 @@ describe("GET /api/scenes/:id", () => {
 
     const res = await request(app).get(`/api/scenes/${plan.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         plan: expect.objectContaining({ id: plan.id, projectId: project.id }),
         status: "planned",
@@ -76,7 +78,7 @@ describe("GET /api/scenes/:id", () => {
   it("returns 404 for a nonexistent scene plan", async () => {
     const res = await request(app).get("/api/scenes/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Scene plan not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Scene plan not found" } });
   });
 });
 
@@ -87,7 +89,8 @@ describe("POST /api/scenes", () => {
 
     const res = await request(app).post("/api/scenes").send({ plan, sceneOrder: 5 });
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: plan.id,
         projectId: project.id,
@@ -129,8 +132,9 @@ describe("PUT /api/scenes/:id", () => {
     const updated = { ...plan, title: "Revised Scene Title", narrativeGoal: "Build tension" };
     const res = await request(app).put(`/api/scenes/${plan.id}`).send(updated);
     expect(res.status).toBe(200);
-    expect(res.body.title).toBe("Revised Scene Title");
-    expect(res.body.narrativeGoal).toBe("Build tension");
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.title).toBe("Revised Scene Title");
+    expect(res.body.data.narrativeGoal).toBe("Build tension");
   });
 
   it("round-trips presentCharacterIds through JSON storage", async () => {
@@ -144,7 +148,7 @@ describe("PUT /api/scenes/:id", () => {
 
     const res = await request(app).get(`/api/scenes/${plan.id}`);
     expect(res.status).toBe(200);
-    expect(res.body.plan.presentCharacterIds).toEqual(["char-1", "char-2", "char-3"]);
+    expect(res.body.data.plan.presentCharacterIds).toEqual(["char-1", "char-2", "char-3"]);
   });
 });
 
@@ -155,7 +159,7 @@ describe("PATCH /api/scenes/:id/status", () => {
 
     const res = await request(app).patch(`/api/scenes/${plan.id}/status`).send({ status: "drafting" });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { updated: true } });
 
     const stored = scenePlans.getScenePlan(db, plan.id);
     expect(stored!.status).toBe("drafting");
@@ -164,6 +168,6 @@ describe("PATCH /api/scenes/:id/status", () => {
   it("returns 404 for a nonexistent scene", async () => {
     const res = await request(app).patch("/api/scenes/nonexistent-id/status").send({ status: "drafting" });
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Scene not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Scene not found" } });
   });
 });

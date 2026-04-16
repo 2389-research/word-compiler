@@ -18,10 +18,12 @@ beforeEach(() => {
 });
 
 describe("GET /api/projects", () => {
-  it("returns an empty array when no projects exist", async () => {
+  it("returns an empty list envelope when no projects exist", async () => {
     const res = await request(app).get("/api/projects");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.nextPageToken).toBeNull();
   });
 
   it("lists projects ordered by updatedAt descending", async () => {
@@ -32,9 +34,10 @@ describe("GET /api/projects", () => {
 
     const res = await request(app).get("/api/projects");
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].id).toBe(newer.id);
-    expect(res.body[1].id).toBe(older.id);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].id).toBe(newer.id);
+    expect(res.body.data[1].id).toBe(older.id);
   });
 });
 
@@ -45,7 +48,8 @@ describe("GET /api/projects/:id", () => {
 
     const res = await request(app).get(`/api/projects/${p.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: p.id,
         title: "My Novel",
@@ -57,7 +61,7 @@ describe("GET /api/projects/:id", () => {
   it("returns 404 for a nonexistent project", async () => {
     const res = await request(app).get("/api/projects/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Project not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Project not found" } });
   });
 });
 
@@ -67,7 +71,8 @@ describe("POST /api/projects", () => {
 
     const res = await request(app).post("/api/projects").send(p);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         id: p.id,
         title: "Brand New Book",
@@ -87,25 +92,26 @@ describe("PATCH /api/projects/:id", () => {
 
     const res = await request(app).patch(`/api/projects/${p.id}`).send({ title: "Updated Title", status: "drafting" });
     expect(res.status).toBe(200);
-    expect(res.body.title).toBe("Updated Title");
-    expect(res.body.status).toBe("drafting");
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.title).toBe("Updated Title");
+    expect(res.body.data.status).toBe("drafting");
   });
 
   it("returns 404 when updating a nonexistent project", async () => {
     const res = await request(app).patch("/api/projects/nonexistent-id").send({ title: "Nope" });
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Project not found" });
+    expect(res.body.error.code).toBe("NOT_FOUND");
   });
 });
 
 describe("DELETE /api/projects/:id", () => {
-  it("deletes an existing project and returns { ok: true }", async () => {
+  it("deletes an existing project and returns { ok: true, data: { deleted: true } }", async () => {
     const p = makeProject();
     projects.createProject(db, p);
 
     const res = await request(app).delete(`/api/projects/${p.id}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, data: { deleted: true } });
 
     const stored = projects.getProject(db, p.id);
     expect(stored).toBeNull();
@@ -114,6 +120,6 @@ describe("DELETE /api/projects/:id", () => {
   it("returns 404 when deleting a nonexistent project", async () => {
     const res = await request(app).delete("/api/projects/nonexistent-id");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Project not found" });
+    expect(res.body.error.code).toBe("NOT_FOUND");
   });
 });

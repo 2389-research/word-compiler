@@ -49,6 +49,8 @@ describe("ensureProject auto-creation", () => {
 
     const res = await post("/api/projects/proj-new/bibles", bible);
     expect(res.status).toBe(201);
+    const body = (await res.json()) as { ok: boolean };
+    expect(body.ok).toBe(true);
 
     const project = projects.getProject(db, "proj-new");
     expect(project).not.toBeNull();

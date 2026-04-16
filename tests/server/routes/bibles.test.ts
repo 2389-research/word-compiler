@@ -37,8 +37,9 @@ describe("GET /api/projects/:projectId/bibles/latest", () => {
 
     const res = await request(app).get(`/api/projects/${p.id}/bibles/latest`);
     expect(res.status).toBe(200);
-    expect(res.body.version).toBe(2);
-    expect(res.body.projectId).toBe(p.id);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.version).toBe(2);
+    expect(res.body.data.projectId).toBe(p.id);
   });
 
   it("returns 404 when no bible exists for the project", async () => {
@@ -47,7 +48,7 @@ describe("GET /api/projects/:projectId/bibles/latest", () => {
 
     const res = await request(app).get(`/api/projects/${p.id}/bibles/latest`);
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "No bible found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "No bible found" } });
   });
 });
 
@@ -57,8 +58,9 @@ describe("GET /api/projects/:projectId/bibles/:version", () => {
 
     const res = await request(app).get(`/api/projects/${project.id}/bibles/3`);
     expect(res.status).toBe(200);
-    expect(res.body.version).toBe(3);
-    expect(res.body.projectId).toBe(project.id);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.version).toBe(3);
+    expect(res.body.data.projectId).toBe(project.id);
   });
 
   it("returns 404 for a nonexistent version", async () => {
@@ -66,7 +68,7 @@ describe("GET /api/projects/:projectId/bibles/:version", () => {
 
     const res = await request(app).get(`/api/projects/${project.id}/bibles/99`);
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "Bible version not found" });
+    expect(res.body).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Bible version not found" } });
   });
 });
 
@@ -81,18 +83,19 @@ describe("GET /api/projects/:projectId/bibles", () => {
 
     const res = await request(app).get(`/api/projects/${p.id}/bibles`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].version).toBe(2);
-    expect(res.body[1].version).toBe(1);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].version).toBe(2);
+    expect(res.body.data[1].version).toBe(1);
   });
 
-  it("returns an empty array when no bibles exist", async () => {
+  it("returns an empty list envelope when no bibles exist", async () => {
     const p = makeProject();
     projects.createProject(db, p);
 
     const res = await request(app).get(`/api/projects/${p.id}/bibles`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ ok: true, data: [], nextPageToken: null });
   });
 });
 
@@ -104,7 +107,8 @@ describe("POST /api/projects/:projectId/bibles", () => {
 
     const res = await request(app).post(`/api/projects/${p.id}/bibles`).send(bible);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual(
       expect.objectContaining({
         projectId: p.id,
         version: 1,
