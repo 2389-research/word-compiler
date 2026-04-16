@@ -31,6 +31,7 @@ import SceneSequencer from "../SceneSequencer.svelte";
 import SetupPayoffPanel from "../SetupPayoffPanel.svelte";
 import StyleDriftPanel from "../StyleDriftPanel.svelte";
 import VoiceSeparabilityView from "../VoiceSeparabilityView.svelte";
+import { loadAnnotations, loadDismissed, saveAnnotations, saveDismissed } from "./draftStagePersistence.js";
 
 let {
   store,
@@ -67,49 +68,8 @@ const llmReviewClient: LLMReviewClient = {
   },
 };
 
-// ─── Persistence helpers ─────────────────────────
-function loadDismissed(): Set<string> {
-  try {
-    const key = `review-dismissed:${store.project?.id ?? "default"}`;
-    const raw = localStorage.getItem(key);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDismissed(dismissed: Set<string>) {
-  try {
-    const key = `review-dismissed:${store.project?.id ?? "default"}`;
-    localStorage.setItem(key, JSON.stringify([...dismissed]));
-  } catch {
-    // Ignore storage failures; dismissed state just won't persist.
-  }
-}
-
-function loadAnnotations(sceneId: string): Map<number, EditorialAnnotation[]> {
-  try {
-    const key = `review-annotations:${store.project?.id ?? "default"}:${sceneId}`;
-    const raw = localStorage.getItem(key);
-    if (!raw) return new Map();
-    const entries = JSON.parse(raw) as [number, EditorialAnnotation[]][];
-    return new Map(entries);
-  } catch {
-    return new Map();
-  }
-}
-
-function saveAnnotations(sceneId: string, anns: Map<number, EditorialAnnotation[]>) {
-  try {
-    const key = `review-annotations:${store.project?.id ?? "default"}:${sceneId}`;
-    localStorage.setItem(key, JSON.stringify([...anns]));
-  } catch {
-    // Ignore storage failures; annotations just won't persist.
-  }
-}
-
 // ─── Reactive state ──────────────────────────────
-let dismissed = $state(loadDismissed());
+let dismissed = $state(loadDismissed(store.project?.id));
 let chunkAnnotations = $state(new Map<number, EditorialAnnotation[]>());
 let reviewingChunks = $state(new Set<number>());
 let orchestrator = $state<ReviewOrchestrator | null>(null);
@@ -120,7 +80,7 @@ let orchestratorVersion = $state(0);
 // Reload dismissed set when project changes
 $effect(() => {
   const _projectId = store.project?.id;
-  dismissed = loadDismissed();
+  dismissed = loadDismissed(store.project?.id);
 });
 
 // Recreate orchestrator when bible, scene, voice guide, or version changes
@@ -147,7 +107,7 @@ $effect(() => {
 
   // Load persisted annotations for this scene (survives page refresh).
   // Filter through dismissed set so dismissed annotations don't reappear.
-  const loaded = loadAnnotations(scenePlan.id);
+  const loaded = loadAnnotations(store.project?.id, scenePlan.id);
   for (const [idx, anns] of loaded) {
     const filtered = anns.filter((a) => !dismissed.has(a.fingerprint));
     if (filtered.length > 0) loaded.set(idx, filtered);
@@ -168,7 +128,7 @@ $effect(() => {
       if (currentChunk && getCanonicalText(currentChunk) !== reviewedText) return;
       chunkAnnotations = new Map(chunkAnnotations).set(chunkIndex, anns);
       // Persist to localStorage so annotations survive refresh
-      if (scenePlan) saveAnnotations(scenePlan.id, chunkAnnotations);
+      if (scenePlan) saveAnnotations(store.project?.id, scenePlan.id, chunkAnnotations);
     },
     (reviewing) => {
       reviewingChunks = reviewing;
@@ -257,12 +217,12 @@ function handleDismissAnnotation(annotationId: string) {
     const ann = anns.find((a) => a.id === annotationId);
     if (ann) {
       dismissed = new Set(dismissed).add(ann.fingerprint);
-      saveDismissed(dismissed);
+      saveDismissed(store.project?.id, dismissed);
       break;
     }
   }
   // Persist annotation removal to localStorage
-  if (sceneId) saveAnnotations(sceneId, chunkAnnotations);
+  if (sceneId) saveAnnotations(store.project?.id, sceneId, chunkAnnotations);
 }
 
 const SUGGESTION_MAX_TOKENS = 1024;
@@ -323,7 +283,7 @@ async function handleRequestSuggestion(annotationId: string, feedback: string): 
 
     // 6. Persist
     const sceneId = store.activeScenePlan?.id;
-    if (sceneId) saveAnnotations(sceneId, chunkAnnotations);
+    if (sceneId) saveAnnotations(store.project?.id, sceneId, chunkAnnotations);
 
     return parsed.suggestion;
   } catch (err) {
@@ -516,7 +476,7 @@ async function handleDestroyChunk(index: number) {
   }
 
   // 5. Clear persisted annotations (indices are now stale)
-  saveAnnotations(sceneId, new Map());
+  saveAnnotations(store.project?.id, sceneId, new Map());
   chunkAnnotations = new Map();
 
   // ── Remove chunks from end backward to avoid index shifting ──
