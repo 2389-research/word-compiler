@@ -3,16 +3,24 @@ import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { apiFireBatchCipher, apiStoreSignificantEdit } from "../../../api/client.js";
 import { callLLM } from "../../../llm/client.js";
 import { shouldTriggerCipher } from "../../../profile/editFilter.js";
+import { buildReviewContext } from "../../../review/contextBuilder.js";
 import type { ChunkView, EditorialAnnotation, LLMReviewClient, ReviewOrchestrator } from "../../../review/index.js";
-import { createReviewOrchestrator, REVIEW_OUTPUT_SCHEMA } from "../../../review/index.js";
+import {
+  buildSuggestionRequestPrompt,
+  createReviewOrchestrator,
+  REVIEW_OUTPUT_SCHEMA,
+  SUGGESTION_REQUEST_SCHEMA,
+  trimSuggestionOverlap,
+} from "../../../review/index.js";
 import type { Chunk } from "../../../types/index.js";
 import { DEFAULT_MODEL, getCanonicalText } from "../../../types/index.js";
 import type { Commands } from "../../store/commands.js";
 import type { ProjectStore } from "../../store/project.svelte.js";
-import { loadAnnotations, loadDismissed, saveAnnotations } from "./draftStagePersistence.js";
+import { loadAnnotations, loadDismissed, saveAnnotations, saveDismissed } from "./draftStagePersistence.js";
 
 const REVIEW_MODEL = DEFAULT_MODEL;
 const REVIEW_MAX_TOKENS = 2048;
+const SUGGESTION_MAX_TOKENS = 1024;
 
 export interface DraftStageController {
   readonly chunkAnnotations: SvelteMap<number, EditorialAnnotation[]>;
@@ -204,14 +212,105 @@ export function createDraftStageController(store: ProjectStore, commands: Comman
     }
   }
 
-  function handleReviewChunk(_index: number): void {
-    throw new Error("handleReviewChunk not yet moved — see Task 5c");
+  function handleReviewChunk(index: number): void {
+    if (disposed) return;
+    const chunks = store.activeSceneChunks;
+    const sceneId = store.activeScenePlan?.id;
+    if (!sceneId || !orchestrator || index >= chunks.length) return;
+    const chunk = chunks[index]!;
+    if (chunk.status === "accepted") return;
+    const view: ChunkView = { index, text: getCanonicalText(chunk), sceneId };
+    orchestrator.requestReview([view], true);
   }
-  function handleDismissAnnotation(_annotationId: string): void {
-    throw new Error("handleDismissAnnotation not yet moved — see Task 5c");
+
+  function handleDismissAnnotation(annotationId: string): void {
+    if (disposed) return;
+    // Persist the fingerprint to the dismissed set so future reviews exclude it.
+    // The decoration is already removed in AnnotatedEditor via PM transaction —
+    // we intentionally do NOT modify chunkAnnotations here because that would
+    // trigger the Sync Annotations effect with stale charRanges (same corruption
+    // class as the accept bug). Same-fingerprint annotations on other chunks
+    // remain visible until the next re-review, which is the safer trade-off.
+    const sceneId = store.activeScenePlan?.id;
+    for (const [, anns] of chunkAnnotations) {
+      const ann = anns.find((a) => a.id === annotationId);
+      if (ann) {
+        dismissed = new Set(dismissed).add(ann.fingerprint);
+        saveDismissed(store.project?.id, dismissed);
+        break;
+      }
+    }
+    // Persist annotation removal to localStorage
+    if (sceneId) saveAnnotations(store.project?.id, sceneId, new Map(chunkAnnotations));
   }
-  async function handleRequestSuggestion(_annotationId: string, _feedback: string): Promise<string | null> {
-    throw new Error("handleRequestSuggestion not yet moved — see Task 5c");
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: verbatim port of existing suggestion handler with nested LLM call + parse + persist
+  async function handleRequestSuggestion(annotationId: string, feedback: string): Promise<string | null> {
+    if (disposed) return null;
+    // 1. Find the annotation and its chunk index
+    let targetAnnotation: EditorialAnnotation | undefined;
+    let targetChunkIndex: number | undefined;
+    for (const [chunkIndex, anns] of chunkAnnotations) {
+      const ann = anns.find((a) => a.id === annotationId);
+      if (ann) {
+        targetAnnotation = ann;
+        targetChunkIndex = chunkIndex;
+        break;
+      }
+    }
+    if (!targetAnnotation || targetChunkIndex === undefined) return null;
+
+    // 2. Get chunk text and build context
+    const chunks = store.activeSceneChunks;
+    const chunk = chunks[targetChunkIndex];
+    if (!chunk || !store.bible || !store.activeScenePlan) return null;
+    const chunkText = getCanonicalText(chunk);
+    const context = buildReviewContext(
+      store.bible,
+      store.activeScenePlan,
+      store.voiceGuide?.editingInstructions || undefined,
+    );
+
+    // 3. Build prompt and call LLM
+    const { systemPrompt, userPrompt } = buildSuggestionRequestPrompt(context, targetAnnotation, chunkText, feedback);
+
+    try {
+      const rawJson = await callLLM(
+        systemPrompt,
+        userPrompt,
+        REVIEW_MODEL,
+        SUGGESTION_MAX_TOKENS,
+        SUGGESTION_REQUEST_SCHEMA as Record<string, unknown>,
+      );
+
+      if (disposed) return null;
+
+      // 4. Parse and validate
+      const parsed = JSON.parse(rawJson);
+      if (!parsed.suggestion || typeof parsed.suggestion !== "string" || parsed.suggestion.trim().length === 0) {
+        return null;
+      }
+
+      // 4b. Trim suggestion overlap — catch cases where the LLM rewrites beyond the focus span
+      const prefixText = chunkText.slice(0, targetAnnotation.charRange.start);
+      const suffixText = chunkText.slice(targetAnnotation.charRange.end);
+      parsed.suggestion = trimSuggestionOverlap(parsed.suggestion, prefixText, suffixText);
+
+      // 5. Update annotation in chunkAnnotations
+      const updatedAnns = (chunkAnnotations.get(targetChunkIndex) ?? []).map((a) =>
+        a.id === annotationId ? { ...a, suggestion: parsed.suggestion } : a,
+      );
+      chunkAnnotations.set(targetChunkIndex, updatedAnns);
+
+      // 6. Persist
+      const sceneId = store.activeScenePlan?.id;
+      if (sceneId) saveAnnotations(store.project?.id, sceneId, new Map(chunkAnnotations));
+
+      return parsed.suggestion;
+    } catch (err) {
+      console.warn("[editorial] Suggestion generation failed:", err instanceof Error ? err.message : err);
+      return null;
+    }
   }
   async function handleRemoveChunk(index: number): Promise<void> {
     if (disposed) return;
