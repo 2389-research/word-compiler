@@ -177,28 +177,13 @@ describe("compilePayload", () => {
 });
 
 describe("compilePayload — countTokens call budget", () => {
-  it("uses ring-builder and enforceBudget token counts (no re-count in assembler)", () => {
-    const spy = vi.spyOn(tokens, "countTokens");
-    try {
-      const callsBefore = spy.mock.calls.length;
-      const result = compilePayload(makeBible(), makePlan(), [], 0, config);
-      const assemblerCalls = spy.mock.calls.length - callsBefore;
+  it("assembler adds zero countTokens calls beyond rings + budget and threads counts into the log", () => {
+    const bible = makeBible();
+    const plan = makePlan();
 
-      expect(result.log.ring1Tokens).toBeGreaterThan(0);
-      expect(result.log.ring3Tokens).toBeGreaterThan(0);
-      expect(result.log.totalTokens).toBe(result.log.ring1Tokens + result.log.ring3Tokens);
-      expect(assemblerCalls).toBeGreaterThan(0);
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  it("assembler hot path adds zero countTokens calls beyond rings + budget", () => {
     let ringsAndBudgetCalls: number;
     const spyA = vi.spyOn(tokens, "countTokens");
     try {
-      const bible = makeBible();
-      const plan = makePlan();
       const ring1 = buildRing1(bible, config);
       const ring3 = buildRing3(plan, bible, [], 0, config);
       enforceBudget(ring1.sections, ring3.sections, config.modelContextWindow - config.reservedForOutput, config);
@@ -208,14 +193,18 @@ describe("compilePayload — countTokens call budget", () => {
     }
 
     let compileCalls: number;
+    let result: ReturnType<typeof compilePayload>;
     const spyB = vi.spyOn(tokens, "countTokens");
     try {
-      compilePayload(makeBible(), makePlan(), [], 0, config);
+      result = compilePayload(bible, plan, [], 0, config);
       compileCalls = spyB.mock.calls.length;
     } finally {
       spyB.mockRestore();
     }
 
     expect(compileCalls).toBeLessThanOrEqual(ringsAndBudgetCalls);
+    expect(result.log.ring1Tokens).toBeGreaterThan(0);
+    expect(result.log.ring3Tokens).toBeGreaterThan(0);
+    expect(result.log.totalTokens).toBe(result.log.ring1Tokens + result.log.ring3Tokens);
   });
 });

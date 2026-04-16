@@ -17,7 +17,7 @@ function buildBudgetResult(
 ): BudgetResult {
   return {
     r1: r1Text,
-    r2: r2Sections.length > 0 ? r2Text : undefined,
+    r2: r2Text || undefined,
     r3: r3Text,
     r1Sections,
     r2Sections: r2Sections.length > 0 ? r2Sections : undefined,
