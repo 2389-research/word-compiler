@@ -74,10 +74,10 @@ export function enforceBudget(
 
   // Initial assemble-and-count, once per ring.
   let r1Text = assembleSections(currentR1);
-  let r2Text = assembleSections(currentR2);
+  let r2Text = currentR2.length > 0 ? assembleSections(currentR2) : "";
   let r3Text = assembleSections(currentR3);
   let r1Tokens = countTokens(r1Text);
-  let r2Tokens = countTokens(r2Text);
+  let r2Tokens = currentR2.length > 0 ? countTokens(r2Text) : 0;
   let r3Tokens = countTokens(r3Text);
 
   // Step 1: Ring 1 hard cap
@@ -108,8 +108,8 @@ export function enforceBudget(
   }
 
   // Step 3: Compress Ring 1 first (highest priority numbers cut first)
-  const r1BudgetForStep3 = availableTokens - r2Tokens - r3Tokens;
-  if (r1BudgetForStep3 > 0 && r1Tokens > r1BudgetForStep3) {
+  const r1BudgetForStep3 = Math.max(0, availableTokens - r2Tokens - r3Tokens);
+  if (r1Tokens > r1BudgetForStep3) {
     compressionLog.push(`Compressing R1 to fit ${r1BudgetForStep3} tokens`);
     const compressed = compressSections(currentR1, r1BudgetForStep3, compressionLog, "R1");
     currentR1 = compressed.sections;
@@ -137,8 +137,8 @@ export function enforceBudget(
 
   // Step 5: Compress Ring 2 (if present)
   if (currentR2.length > 0) {
-    const r2Budget = availableTokens - r1Tokens - r3Tokens;
-    if (r2Budget > 0 && r2Tokens > r2Budget) {
+    const r2Budget = Math.max(0, availableTokens - r1Tokens - r3Tokens);
+    if (r2Tokens > r2Budget) {
       compressionLog.push(`Compressing R2 to fit ${r2Budget} tokens`);
       const compressed = compressSections(currentR2, r2Budget, compressionLog, "R2");
       currentR2 = compressed.sections;
@@ -166,8 +166,8 @@ export function enforceBudget(
   }
 
   // Step 7: Compress Ring 3 if Ring 1+2 compression insufficient
-  const r3Budget = availableTokens - r1Tokens - r2Tokens;
-  if (r3Budget > 0) {
+  const r3Budget = Math.max(0, availableTokens - r1Tokens - r2Tokens);
+  if (r3Tokens > r3Budget) {
     compressionLog.push(`Ring 1+2 compression insufficient. Compressing Ring 3 to fit ${r3Budget} tokens`);
     const compressed = compressSections(currentR3, r3Budget, compressionLog, "R3");
     currentR3 = compressed.sections;

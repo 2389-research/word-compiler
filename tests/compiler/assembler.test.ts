@@ -180,32 +180,41 @@ describe("compilePayload — countTokens call budget", () => {
   it("uses ring-builder and enforceBudget token counts (no re-count in assembler)", () => {
     const spy = vi.spyOn(tokens, "countTokens");
     try {
+      const callsBefore = spy.mock.calls.length;
       const result = compilePayload(makeBible(), makePlan(), [], 0, config);
+      const assemblerCalls = spy.mock.calls.length - callsBefore;
 
       expect(result.log.ring1Tokens).toBeGreaterThan(0);
       expect(result.log.ring3Tokens).toBeGreaterThan(0);
       expect(result.log.totalTokens).toBe(result.log.ring1Tokens + result.log.ring3Tokens);
+      expect(assemblerCalls).toBeGreaterThan(0);
     } finally {
       spy.mockRestore();
     }
   });
 
   it("assembler hot path adds zero countTokens calls beyond rings + budget", () => {
-    // Phase A: measure countTokens calls for ring builders + enforceBudget alone.
+    let ringsAndBudgetCalls: number;
     const spyA = vi.spyOn(tokens, "countTokens");
-    const bible = makeBible();
-    const plan = makePlan();
-    const ring1 = buildRing1(bible, config);
-    const ring3 = buildRing3(plan, bible, [], 0, config);
-    enforceBudget(ring1.sections, ring3.sections, config.modelContextWindow - config.reservedForOutput, config);
-    const ringsAndBudgetCalls = spyA.mock.calls.length;
-    spyA.mockRestore();
+    try {
+      const bible = makeBible();
+      const plan = makePlan();
+      const ring1 = buildRing1(bible, config);
+      const ring3 = buildRing3(plan, bible, [], 0, config);
+      enforceBudget(ring1.sections, ring3.sections, config.modelContextWindow - config.reservedForOutput, config);
+      ringsAndBudgetCalls = spyA.mock.calls.length;
+    } finally {
+      spyA.mockRestore();
+    }
 
-    // Phase B: measure countTokens calls for the full compilePayload path.
+    let compileCalls: number;
     const spyB = vi.spyOn(tokens, "countTokens");
-    compilePayload(bible, plan, [], 0, config);
-    const compileCalls = spyB.mock.calls.length;
-    spyB.mockRestore();
+    try {
+      compilePayload(makeBible(), makePlan(), [], 0, config);
+      compileCalls = spyB.mock.calls.length;
+    } finally {
+      spyB.mockRestore();
+    }
 
     expect(compileCalls).toBeLessThanOrEqual(ringsAndBudgetCalls);
   });
