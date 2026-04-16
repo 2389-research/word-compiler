@@ -25,6 +25,7 @@ import { inferBatchPreferences } from "../profile/cipher.js";
 import { runPipeline } from "../profile/pipeline.js";
 import { distillVoice, updateProjectVoice } from "../profile/projectGuide.js";
 import { err, ok, okList, statusFor } from "./envelope.js";
+import { PageExpiredError, paginate, parseListQuery } from "./pagination.js";
 
 export function createApiRouter(db: Database.Database, anthropicClient?: Anthropic): Router {
   const router = Router();
@@ -45,6 +46,27 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
     res.status(statusFor("UPSTREAM_UNAVAILABLE")).json(err("UPSTREAM_UNAVAILABLE", message));
   }
 
+  /** Parse ?limit and ?pageToken, paginate rows, and send the list envelope. */
+  function sendList<T>(req: express.Request, res: express.Response, rows: readonly T[]): void {
+    let query: ReturnType<typeof parseListQuery>;
+    try {
+      query = parseListQuery(req.query as Record<string, unknown>);
+    } catch (e) {
+      badRequest(res, (e as Error).message);
+      return;
+    }
+    try {
+      const page = paginate(rows, { limit: query.limit, token: query.token });
+      res.json(okList(page.data, page.nextPageToken));
+    } catch (e) {
+      if (e instanceof PageExpiredError) {
+        res.status(statusFor("PAGE_EXPIRED")).json(err("PAGE_EXPIRED", e.message));
+        return;
+      }
+      throw e;
+    }
+  }
+
   /** Ensure a project row exists (no-op if it already does). */
   function ensureProject(projectId: string): void {
     const existing = projects.getProject(db, projectId);
@@ -62,10 +84,10 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   }
 
   // ─── Projects ───────────────────────────────────────
-  router.get("/projects", (_req, res) => {
+  router.get("/projects", (req, res) => {
     const list = projects.listProjects(db);
     console.debug(`[data] Listed ${list.length} projects`);
-    res.json(okList(list, null));
+    sendList(req, res, list);
   });
 
   router.get("/projects/:id", (req, res) => {
@@ -123,7 +145,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.get("/projects/:projectId/bibles", (req, res) => {
-    res.json(okList(bibles.listBibleVersions(db, req.params.projectId), null));
+    sendList(req, res, bibles.listBibleVersions(db, req.params.projectId));
   });
 
   router.post("/projects/:projectId/bibles", (req, res) => {
@@ -137,7 +159,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
 
   // ─── Chapter Arcs ──────────────────────────────────
   router.get("/projects/:projectId/chapters", (req, res) => {
-    res.json(okList(chapterArcs.listChapterArcs(db, req.params.projectId), null));
+    sendList(req, res, chapterArcs.listChapterArcs(db, req.params.projectId));
   });
 
   router.get("/chapters/:id", (req, res) => {
@@ -167,7 +189,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
 
   // ─── Scene Plans ───────────────────────────────────
   router.get("/chapters/:chapterId/scenes", (req, res) => {
-    res.json(okList(scenePlans.listScenePlans(db, req.params.chapterId), null));
+    sendList(req, res, scenePlans.listScenePlans(db, req.params.chapterId));
   });
 
   router.get("/scenes/:id", (req, res) => {
@@ -208,7 +230,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
 
   // ─── Chunks ────────────────────────────────────────
   router.get("/scenes/:sceneId/chunks", (req, res) => {
-    res.json(okList(chunks.listChunksForScene(db, req.params.sceneId), null));
+    sendList(req, res, chunks.listChunksForScene(db, req.params.sceneId));
   });
 
   router.get("/chunks/:id", (req, res) => {
@@ -247,7 +269,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
 
   // ─── Audit Flags ───────────────────────────────────
   router.get("/scenes/:sceneId/audit-flags", (req, res) => {
-    res.json(okList(auditFlags.listAuditFlags(db, req.params.sceneId), null));
+    sendList(req, res, auditFlags.listAuditFlags(db, req.params.sceneId));
   });
 
   router.post("/audit-flags", (req, res) => {
@@ -313,11 +335,11 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.get("/chapters/:chapterId/irs", (req, res) => {
-    res.json(okList(narrativeIRs.listAllIRsForChapter(db, req.params.chapterId), null));
+    sendList(req, res, narrativeIRs.listAllIRsForChapter(db, req.params.chapterId));
   });
 
   router.get("/chapters/:chapterId/irs/verified", (req, res) => {
-    res.json(okList(narrativeIRs.listVerifiedIRsForChapter(db, req.params.chapterId), null));
+    sendList(req, res, narrativeIRs.listVerifiedIRsForChapter(db, req.params.chapterId));
   });
 
   // ─── Compilation Logs ──────────────────────────────
@@ -337,16 +359,16 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   });
 
   router.get("/chunks/:chunkId/compilation-logs", (req, res) => {
-    res.json(okList(compilationLogs.listCompilationLogs(db, req.params.chunkId), null));
+    sendList(req, res, compilationLogs.listCompilationLogs(db, req.params.chunkId));
   });
 
   // ─── Edit Patterns (Learner) ──────────────────────
   router.get("/projects/:projectId/edit-patterns", (req, res) => {
-    res.json(okList(editPatterns.listEditPatterns(db, req.params.projectId), null));
+    sendList(req, res, editPatterns.listEditPatterns(db, req.params.projectId));
   });
 
   router.get("/scenes/:sceneId/edit-patterns", (req, res) => {
-    res.json(okList(editPatterns.listEditPatternsForScene(db, req.params.sceneId), null));
+    sendList(req, res, editPatterns.listEditPatternsForScene(db, req.params.sceneId));
   });
 
   router.post("/edit-patterns", (req, res) => {
@@ -358,7 +380,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   // ─── Learned Patterns (Learner) ─────────────────────
   router.get("/projects/:projectId/learned-patterns", (req, res) => {
     const status = req.query.status as string | undefined;
-    res.json(okList(learnedPatterns.listLearnedPatterns(db, req.params.projectId, status), null));
+    sendList(req, res, learnedPatterns.listLearnedPatterns(db, req.params.projectId, status));
   });
 
   router.post("/learned-patterns", (req, res) => {
@@ -380,7 +402,7 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
   // ─── Profile Adjustments (Auto-Tuning) ─────────
   router.get("/projects/:projectId/profile-adjustments", (req, res) => {
     const status = req.query.status as string | undefined;
-    res.json(okList(profileAdjustments.listProfileAdjustments(db, req.params.projectId, status), null));
+    sendList(req, res, profileAdjustments.listProfileAdjustments(db, req.params.projectId, status));
   });
 
   router.post("/profile-adjustments", (req, res) => {
@@ -440,14 +462,14 @@ export function createApiRouter(db: Database.Database, anthropicClient?: Anthrop
     }
   });
 
-  router.get("/voice-guide/versions", (_req, res) => {
-    res.json(okList(voiceGuideRepo.listVoiceGuideVersions(db), null));
+  router.get("/voice-guide/versions", (req, res) => {
+    sendList(req, res, voiceGuideRepo.listVoiceGuideVersions(db));
   });
 
   // ─── Writing Samples ───────────────────────────────
 
-  router.get("/writing-samples", (_req, res) => {
-    res.json(okList(writingSampleRepo.listWritingSamples(db), null));
+  router.get("/writing-samples", (req, res) => {
+    sendList(req, res, writingSampleRepo.listWritingSamples(db));
   });
 
   router.post("/writing-samples", (req, res) => {

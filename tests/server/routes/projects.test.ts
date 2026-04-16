@@ -123,3 +123,64 @@ describe("DELETE /api/projects/:id", () => {
     expect(res.body.error.code).toBe("NOT_FOUND");
   });
 });
+
+describe("GET /api/projects pagination", () => {
+  beforeEach(async () => {
+    for (let i = 1; i <= 7; i++) {
+      await request(app)
+        .post("/api/projects")
+        .send(makeProject({ title: `Project ${i}` }));
+    }
+  });
+
+  it("returns first page with nextPageToken when more exist", async () => {
+    const res = await request(app).get("/api/projects?limit=3");
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(typeof res.body.nextPageToken).toBe("string");
+  });
+
+  it("returns the next page via pageToken, non-overlapping", async () => {
+    const first = await request(app).get("/api/projects?limit=3");
+    const second = await request(app).get(`/api/projects?limit=3&pageToken=${first.body.nextPageToken}`);
+    expect(second.status).toBe(200);
+    expect(second.body.data).toHaveLength(3);
+    const firstIds = new Set(first.body.data.map((p: { id: string }) => p.id));
+    for (const item of second.body.data) {
+      expect(firstIds.has(item.id)).toBe(false);
+    }
+  });
+
+  it("returns nextPageToken = null on the last page", async () => {
+    const first = await request(app).get("/api/projects?limit=5");
+    const second = await request(app).get(`/api/projects?limit=5&pageToken=${first.body.nextPageToken}`);
+    expect(second.body.nextPageToken).toBeNull();
+  });
+
+  it("returns 400 BAD_REQUEST for invalid pageToken", async () => {
+    const res = await request(app).get("/api/projects?pageToken=%21%21%21");
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      ok: false,
+      error: { code: "BAD_REQUEST", message: expect.stringMatching(/invalid page token/i) },
+    });
+  });
+
+  it("returns 400 BAD_REQUEST for invalid limit", async () => {
+    const res = await request(app).get("/api/projects?limit=abc");
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("returns 400 PAGE_EXPIRED when result set size changes between fetches", async () => {
+    const first = await request(app).get("/api/projects?limit=3");
+    // Mutate the set so total changes
+    await request(app)
+      .post("/api/projects")
+      .send(makeProject({ title: "New" }));
+    const second = await request(app).get(`/api/projects?limit=3&pageToken=${first.body.nextPageToken}`);
+    expect(second.status).toBe(400);
+    expect(second.body.error.code).toBe("PAGE_EXPIRED");
+  });
+});
